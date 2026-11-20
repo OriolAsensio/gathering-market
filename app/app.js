@@ -1633,7 +1633,8 @@ const CLOUD_ERR = { USER_TAKEN: "Ese nombre ya está cogido", BAD_LOGIN: "Nombre
 const Cloud = (() => {
   const cfg = window.GM_SUPABASE || {};
   const ready = !!(cfg.url && cfg.key);
-  let session = null, timer = 0, pulling = false;
+  // armed: hasta sincronizar al abrir, los guardados internos del arranque (avisos del día…) no cuentan como cambios tuyos.
+  let session = null, timer = 0, pulling = false, armed = false;
   try { session = JSON.parse(localStorage.getItem("cloud") || "null"); } catch { /* sin almacenamiento */ }
   const persist = () => { try { session ? localStorage.setItem("cloud", JSON.stringify(session)) : localStorage.removeItem("cloud"); } catch { /* */ } };
   const rpc = async (fn, body) => {
@@ -1658,7 +1659,7 @@ const Cloud = (() => {
   };
   const apply = async (data) => { pulling = true; try { await Engine.importUser(JSON.stringify(data)); } finally { pulling = false; } };
   Engine.onSave = () => {
-    if (!session || pulling) return;
+    if (!session || pulling || !armed) return;
     session.dirty = true;
     persist();
     clearTimeout(timer);
@@ -1678,15 +1679,20 @@ const Cloud = (() => {
       if (!row) { session = null; throw new Error(CLOUD_ERR.BAD_LOGIN); }
       session.synced = row.updated_at;
       persist();
+      armed = true;
       return row;
     },
     logout() { clearTimeout(timer); session = null; persist(); },
     /** Al abrir la app: baja lo guardado desde otro móvil o sube lo que cambió aquí sin conexión. */
     async sync() {
-      if (!ready || !session) return null;
+      if (!ready || !session) { armed = true; return null; }
       const row = await load();
+      armed = true;
       if (!row) { session = null; persist(); toast("Tu sesión en la nube ha caducado: vuelve a entrar desde el perfil"); return null; }
-      const remoteNewer = row.data && Date.parse(row.updated_at) > Date.parse(session.synced || 0);
+      const localCards = (await api("/api/collections")).reduce((n, b) => n + b.cards, 0);
+      const remoteCards = Object.values(row.data?.cards || {}).reduce((n, b) => n + Object.values(b).reduce((a, q) => a + q, 0), 0);
+      // Nunca se sube un móvil vacío por encima de una cuenta con cartas.
+      const remoteNewer = row.data && (Date.parse(row.updated_at) > Date.parse(session.synced || 0) || (!localCards && remoteCards));
       if (remoteNewer && (!session.dirty || confirm(t("Has cambiado cosas en este móvil y en otro. ¿Quedarte con lo de la nube? (Cancelar = quedarte con lo de este móvil)")))) {
         await apply(row.data);
         session.synced = row.updated_at; session.dirty = false; persist();
