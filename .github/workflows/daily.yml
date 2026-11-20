@@ -1,0 +1,67 @@
+# Tarea diaria de Gathering Market en GitHub (gratis, no necesita tu PC encendido).
+#
+# 1. Recupera la base de datos de ayer (adjunta a la release "datos").
+# 2. Descarga precios (Scryfall), colecciones, meta de Pauper (MTGTop8) y genera avisos.
+# 3. Envía los avisos generales al móvil por ntfy (secreto NTFY_TOPIC).
+# 4. Publica el paquete de datos en GitHub Pages: es lo que descarga la app.
+# 5. Vuelve a guardar la base de datos en la release.
+name: Datos diarios
+
+on:
+  schedule:
+    - cron: "15 6 * * *"   # 06:15 UTC (07:15/08:15 en España), con los precios de Scryfall ya actualizados
+  workflow_dispatch:        # botón "Run workflow" para lanzarla a mano
+
+permissions:
+  contents: write   # guardar la base de datos en la release
+  pages: write      # publicar el paquete
+  id-token: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Recuperar la base de datos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data
+          if gh release download datos --pattern mtg.db.gz --dir data; then
+            gunzip -f data/mtg.db.gz
+          else
+            echo "Primera ejecución: se crea una base de datos nueva."
+          fi
+
+      - name: Tarea diaria
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python pipeline/daily.py --stdout --pack site
+
+      - name: Guardar la base de datos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gzip -kf data/mtg.db
+          gh release view datos >/dev/null 2>&1 || gh release create datos --title "Base de datos" --notes "Copia diaria de la base de datos (la usa la tarea diaria)."
+          gh release upload datos data/mtg.db.gz --clobber
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

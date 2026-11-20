@@ -1,0 +1,11 @@
+# Datos locales: base de datos, registro y config.json (tema secreto de ntfy)
+data/
+__pycache__/
+# Generados
+app/pack/
+pack/
+site/
+mobile/node_modules/
+mobile/android/
+mobile/www/
+*.apk

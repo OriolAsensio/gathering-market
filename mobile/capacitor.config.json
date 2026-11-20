@@ -1,0 +1,14 @@
+{
+  "appId": "app.gatheringmarket",
+  "appName": "Gathering Market",
+  "webDir": "www",
+  "backgroundColor": "#140e09",
+  "android": {
+    "backgroundColor": "#140e09"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#d6a84e"
+    }
+  }
+}
