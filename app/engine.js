@@ -383,13 +383,106 @@ const Engine = (() => {
     return rows;
   }
 
+  /** ¿Están todas las cartas de la edición `code` en la carpeta? (colecciones de 10 o más cartas) */
+  function setComplete(id, code) {
+    const total = setTotals(code);
+    if (total < 10) return false;
+    const have = new Set();
+    for (const [pi] of entries(id)) if (P[pi][2] === code && !P[pi][5]) have.add(P[pi][1]);
+    return have.size >= total;
+  }
+  /** Ejecuta `fn` y devuelve los nombres de las ediciones (de `pis`) que ha completado. */
+  function completing(id, pis, fn) {
+    const codes = [...new Set(pis.map((pi) => P[pi][2]))].filter((code) => !setComplete(id, code));
+    fn();
+    return codes.filter((code) => setComplete(id, code)).map((code) => SETS.get(code)?.name || code.toUpperCase());
+  }
   function collectionAdd(body) {
     const id = binderOf(body.c);
     if (!id) throw new Error("Esa carpeta ya no existe");
     if (!byId.has(body.card_id)) throw new Error("No conozco esa carta");
-    addCard(id, body.card_id, !!body.foil, +body.qty || 1);
+    const qty = +body.qty || 1;
+    const pi = byId.get(body.card_id);
+    const completed = qty > 0 ? completing(id, [pi], () => addCard(id, body.card_id, !!body.foil, qty)) : (addCard(id, body.card_id, !!body.foil, qty), []);
     saveUser();
-    return { ok: true };
+    return { ok: true, completed, eur: eur(priceOf(pi, !!body.foil)) };
+  }
+  /** Marcar cartas como tenidas o quitarlas (vendidas, perdidas…). cards: [[id de impresión o nombre, copias]].
+   * Al añadir por nombre se usa la edición más barata; al quitar, primero esa impresión, luego las normales y al final las foil. */
+  function ownCards(body) {
+    const id = binderOf(body.c);
+    if (!id) throw new Error("Esa carpeta ya no existe");
+    const cards = cardsOf(id);
+    let changed = 0, top = 0;
+    const adds = [];
+    for (const [ref, n] of body.cards || []) {
+      let qty = Math.max(1, +n || 1);
+      const exact = byId.has(ref) ? ref : null;
+      const oi = exact ? P[byId.get(ref)][1] : oByNorm.get(norm(ref));
+      if (oi == null || BASICS.has(norm(O[oi][0]))) continue;
+      if (body.op === "remove") {
+        const keys = Object.keys(cards).filter((k) => { const pi = byId.get(k.split("|")[0]); return pi != null && P[pi][1] === oi; })
+          .sort((a, b) => (b.startsWith(`${exact}|`) - a.startsWith(`${exact}|`)) || (a.endsWith("|1") - b.endsWith("|1")));
+        for (const k of keys) {
+          const take = Math.min(qty, cards[k]);
+          cards[k] -= take; qty -= take; changed += take;
+          if (cards[k] <= 0) delete cards[k];
+        }
+      } else {
+        const pi = exact ? byId.get(exact) : cheapest().pick[oi];
+        if (pi == null || pi < 0) continue;
+        adds.push([P[pi][0], qty, pi]);
+        top = Math.max(top, PR.eur[pi] || 0);
+      }
+    }
+    const completed = completing(id, adds.map((a) => a[2]), () => { for (const [cid, qty] of adds) { addCard(id, cid, false, qty); changed += qty; } });
+    saveUser();
+    return { changed, completed, eur: eur(top) };
+  }
+
+  // ---------------------------------------------------------------- perfil, medallas y copia en CSV
+  function profile() {
+    const p = user.profile || {};
+    return { name: p.name || "", salt: p.salt || null, hash: p.hash || null, since: p.since || null };
+  }
+  function profilePost(body) {
+    const p = (user.profile ||= { since: new Date().toISOString().slice(0, 10) });
+    if (body.name != null) p.name = String(body.name).trim().slice(0, 40);
+    if (body.hash) { p.salt = body.salt; p.hash = body.hash; }
+    if (body.clearPassword) { delete p.salt; delete p.hash; }
+    saveUser();
+    return profile();
+  }
+  async function medals({ c }) {
+    const id = binderOf(c) || 1;
+    const sum = summary({ c: id });
+    const setsList = await sets({ c: id });
+    const done = setsList.filter((x) => !x.special && x.total >= 10 && x.owned >= x.total);
+    const near = setsList.filter((x) => !x.special && x.total >= 10 && x.owned < x.total && x.pct >= 50).slice(0, 5);
+    const pre = (await precons({ c: id })).filter((x) => x.pct === 100);
+    const owned = ownedByName(id);
+    const metaDone = META.filter((d) => deckInfo(d, owned).owned_pct === 100).map((d) => `${d.archetype} (${d.format === "PAU" ? "Pauper" : d.format})`);
+    const STEPS = [[1, "Primera carta"], [100, "Aprendiz: 100 cartas"], [500, "Coleccionista: 500 cartas"], [1000, "Archivero: 1.000 cartas"],
+      [5000, "Guardián del códice: 5.000 cartas"], [10000, "Gran biblioteca: 10.000 cartas"]];
+    const VALUE = [[10, "Bolsa de cobre: 10 €"], [100, "Bolsa de plata: 100 €"], [500, "Cofre de oro: 500 €"], [1000, "Tesoro real: 1.000 €"], [5000, "Tesoro de dragón: 5.000 €"]];
+    const ladder = (steps, v) => steps.map(([n, label]) => ({ label, done: v >= n }));
+    return { binder: sum.collection, cards: sum.cards, value: sum.value,
+      sets: done.map((x) => ({ code: x.code, name: x.name, icon: x.icon, total: x.total })),
+      near: near.map((x) => ({ code: x.code, name: x.name, icon: x.icon, pct: x.pct, owned: x.owned, total: x.total })),
+      precons: pre.map((x) => ({ code: x.code, name: x.name, icon: x.icon, type: x.type })),
+      decks: metaDone, ladder: [...ladder(STEPS, sum.cards), ...ladder(VALUE, sum.value || 0)] };
+  }
+  /** Todas las carpetas en CSV (columnas como ManaBox: se puede volver a importar aquí o en otras apps). */
+  function exportCsv() {
+    const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
+    const rows = [["Binder Name", "Name", "Set code", "Set name", "Collector number", "Foil", "Quantity", "Scryfall ID", "Price EUR"]];
+    for (const b of user.binders) {
+      for (const [pi, foil, qty] of entries(b.id)) {
+        const [cid, oi, set, number] = P[pi];
+        rows.push([b.name, front(O[oi][0]), set, SETS.get(set)?.name || "", number, foil ? "foil" : "normal", qty, cid, eur(priceOf(pi, foil)) ?? ""]);
+      }
+    }
+    return { csv: rows.map((r) => r.map(q).join(",")).join("\n"), rows: rows.length - 1 };
   }
 
   // ---------------------------------------------------------------- importar CSV / listas
@@ -1407,7 +1500,7 @@ const Engine = (() => {
     const suggest = [...pool.entries()].filter(([k, oi]) => !taken.has(k) && ok(ALL[oi]) && (!cmd || inCols(ALL[oi])))
       .map(([, oi]) => { const [sc, why] = fit(plan, ALL[oi]); return [oi, sc + (inCols(ALL[oi]) ? 0.5 : 0), why]; })
       .filter(([, sc, why]) => sc > 1 && why.length).sort((a, b) => b[1] - a[1]).slice(0, 8)
-      .map(([oi, , why]) => ({ name: front(O[oi][0]), image: oImage(oi), why: why.slice(0, 2).join(" · ") }));
+      .map(([oi, , why]) => ({ name: front(O[oi][0]), image: oImage(oi), why: why.slice(0, 2).join(", ") }));
     return { allowed, suggest };
   }
 
@@ -1416,9 +1509,9 @@ const Engine = (() => {
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
-    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp };
+    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp, "/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/profile": profilePost };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

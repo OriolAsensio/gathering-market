@@ -100,6 +100,7 @@ $("#top-label").onclick = collectionsSheet;
 
 // Idioma de la app (ver i18n.js): al cambiarlo se recarga para traducir todo de nuevo.
 $("#lang-btn").textContent = LANG.toUpperCase();
+$("#profile-btn").onclick = () => Engine.day && profileSheet();
 $("#lang-btn").onclick = () => {
   const body = openSheet(`<h3>Idioma · Language · Idioma</h3><div class="list">${Object.entries(LANGS).map(([k, n]) => `
     <button class="item ${k === LANG ? "on" : ""}" data-lang="${k}"><div class="item-main"><div class="item-title">${k === LANG ? "✓ " : ""}${n}</div></div></button>`).join("")}</div>`);
@@ -198,6 +199,71 @@ const tile = (c, extra = "") => `<button class="gcard ${c.qty ? "" : "missing"}"
 async function copy(text, msg) {
   try { await navigator.clipboard.writeText(text); toast(msg); } catch { toast("No se ha podido copiar"); }
 }
+// Sonidos (sintetizados, sin archivos): más vistosos cuanto más vale la carta; fanfarria al completar una colección.
+const Sfx = (() => {
+  let ctx = null;
+  const tone = (f, t0, d, type = "triangle", vol = 0.16) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0); o.stop(t0 + d + 0.05);
+  };
+  const play = (notes) => {
+    if (store("sounds") === "0") return;
+    try {
+      ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume?.();
+      const t = ctx.currentTime + 0.02;
+      for (const [f, dt, d, type, vol] of notes) tone(f, t + dt, d, type, vol);
+    } catch { /* sin audio */ }
+  };
+  const arp = (fs, step, last = 0.35) => fs.map((f, i) => [f, i * step, i === fs.length - 1 ? last : step * 1.6]);
+  return {
+    card(v) {
+      v = v || 0;
+      if (v < 1) play([[987.8, 0, 0.07], [1318.5, 0.06, 0.2]]);                       // moneda
+      else if (v < 10) play(arp([784, 1046.5, 1318.5], 0.08, 0.3));                      // tintineo
+      else if (v < 50) play(arp([523.3, 659.3, 784, 1046.5, 1318.5], 0.07, 0.45));       // arpegio
+      else play([...arp([523.3, 659.3, 784, 1046.5, 1318.5, 1568], 0.07, 0.6),            // tesoro: arpegio y destellos
+        ...[2093, 2637, 3136, 2637, 3520].map((f, i) => [f, 0.45 + i * 0.07, 0.25, "sine", 0.06])]);
+    },
+    complete() {
+      play([[392, 0, 0.13], [392, 0.15, 0.13], [392, 0.3, 0.13], [523.3, 0.45, 0.5],
+        [523.3, 0.95, 1.1, "sawtooth", 0.05], [659.3, 0.95, 1.1, "sawtooth", 0.04], [784, 0.95, 1.1, "sawtooth", 0.04],
+        [1046.5, 0.95, 1.1], [1568, 1.1, 0.5, "sine", 0.05], [2093, 1.25, 0.6, "sine", 0.05]]);
+    },
+  };
+})();
+// Tras añadir cartas: sonido según el precio y, si completa una colección, fanfarria y aviso.
+function celebrate(r) {
+  if (r?.completed?.length) {
+    Sfx.complete();
+    navigator.vibrate?.([80, 60, 80, 60, 200]);
+    setTimeout(() => toast(`🏆 ¡Colección completa: ${r.completed.join(", ")}!`), 50);
+  } else Sfx.card(r?.eur);
+}
+
+// Guardar un archivo: en el móvil se escribe y se abre "Compartir" (Drive, Descargas, WhatsApp…); en el PC se descarga.
+async function saveFile(name, text, mime) {
+  const N = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins : null;
+  try {
+    if (N?.Filesystem && N?.Share) {
+      const w = await N.Filesystem.writeFile({ path: name, data: text, directory: "CACHE", encoding: "utf8" });
+      return await N.Share.share({ title: name, files: [w.uri], dialogTitle: name });
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) {
+    if (!/cancel|abort/i.test(String(e?.message || e))) toast(e.message || String(e));
+  }
+}
+
 // Compartir (WhatsApp, notas, correo…) en el móvil; si no se puede, se copia.
 async function shareText(title, text) {
   const S = window.Capacitor?.Plugins?.Share;
@@ -243,7 +309,7 @@ views.collection = async () => {
     <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">🖼 Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
-    <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn primary" id="col-go">🔨 Crear mazo</button></div>`);
+    <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">🗑 Quitar</button><button class="btn primary" id="col-go">🔨 Crear mazo</button></div>`);
   $("#col-import").onclick = importSheet;
   $("#col-build").onclick = () => builderSheet();
   const items = await api("/api/collection");
@@ -256,6 +322,7 @@ views.collection = async () => {
       $("#col-bar").hidden = !s.on;
       $("#col-count").textContent = `${s.ids.size} elegidas`;
       $("#col-go").disabled = !s.ids.size;
+      $("#col-del").disabled = !s.ids.size;
       if (modeChanged) { if (s.on && mode !== "grid") { mode = "grid"; draw(); } paintSeg(); }
     },
   });
@@ -298,6 +365,16 @@ views.collection = async () => {
     draw();
   }));
   $("#col-cancel").onclick = () => sel.set(false);
+  $("#col-del").onclick = async () => {
+    const rows = [...sel.ids].map((k) => items.find((c) => c.key === k)).filter(Boolean);
+    const n = rows.reduce((a, c) => a + c.qty, 0);
+    if (!confirm(window.t(`¿Quitar ${plural(n, "carta", "cartas")} de la carpeta (vendidas, perdidas…)?`))) return;
+    for (const c of rows) await api("/api/collection", { card_id: c.id, foil: c.foil, qty: -c.qty });
+    toast(`${plural(n, "carta quitada", "cartas quitadas")}`);
+    sel.set(false);
+    loadSummary();
+    render();
+  };
   $("#col-go").onclick = () => {
     const names = [...new Set([...sel.ids].map((k) => items.find((c) => c.key === k)?.name).filter(Boolean))];
     sel.set(false);
@@ -357,7 +434,8 @@ function cardSheet(c) {
           <button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" aria-label="Añadir otra">+</button></div>
       </div>`).join("") || `<div class="hint">Ya no tienes ninguna.</div>`;
     body.querySelectorAll("#versions [data-v]").forEach((b) => (b.onclick = async () => {
-      await api("/api/collection", { card_id: b.dataset.v, foil: b.dataset.f === "1", qty: +b.dataset.d });
+      const r = await api("/api/collection", { card_id: b.dataset.v, foil: b.dataset.f === "1", qty: +b.dataset.d });
+      if (+b.dataset.d > 0) celebrate(r);
       closeSheet.dirty = true;
       drawVersions();
       loadSummary();
@@ -404,8 +482,9 @@ async function addSheet(candidates, opts = {}) {
     $("#add-foil", body).onchange = (e) => { foil = e.target.checked; draw(); };
     body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { qty = Math.max(1, qty + +b.dataset.q); draw(); }));
     $("#add-ok", body).onclick = async () => {
-      await api("/api/collection", { card_id: p.id, foil, qty });
+      const r = await api("/api/collection", { card_id: p.id, foil, qty });
       toast(`${qty}× ${c.name} añadida`);
+      celebrate(r);
       loadSummary();
       if (opts.onDone) { opts.onDone(); refresh(); return; }
       added.push(`${qty}× ${p.set.toUpperCase()} #${p.number}${foil ? " foil" : ""}`);
@@ -498,12 +577,12 @@ function importDeckSheet() {
   };
 }
 
-async function deckSheet(id) {
-  const body = openSheet(skeleton(3));
+async function deckSheet(id, keep = null) {
+  const body = keep ? $("#sheet-body") : openSheet(skeleton(3));
   const d = await api(`/api/deck?id=${encodeURIComponent(id)}`);
   const line = (c) => {
     const cls = c.have >= c.qty ? "full" : c.have > 0 ? "part" : "none";
-    return `<div class="deck-line"><span class="qty ${cls}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span><span class="n">${esc(c.name)}</span><span class="${c.basic ? "sub" : "price"}">${c.basic ? "básica" : euro(c.eur)}</span></div>`;
+    return `<div class="deck-line" ${c.basic ? "" : `data-mark="${esc(c.name)}"`}><span class="qty ${cls}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span><span class="n">${esc(c.name)}</span><span class="${c.basic ? "sub" : "price"}">${c.basic ? "básica" : euro(c.eur)}</span></div>`;
   };
   const main = d.cards.filter((c) => !c.side), side = d.cards.filter((c) => c.side);
   const missing = d.cards.filter((c) => !c.basic && c.have < c.qty).map((c) => `${c.qty - c.have} ${c.name}`);
@@ -516,6 +595,7 @@ async function deckSheet(id) {
       <div class="stat"><b>${euro(d.missing_cost)}</b><span>Te falta</span></div>
     </div>
     <div class="seg" id="deck-view"><button data-v="img">Imágenes</button><button data-v="list">Lista</button></div>
+    <button class="btn block" id="deck-all" ${missing.length ? "" : "disabled"}>${missing.length ? "✅ Ya tengo todo el mazo" : "✅ Tienes todas las cartas"}</button>
     <div class="hint" id="deck-hint"></div>
     <div id="deck-cards"></div>
     <div class="row-btns">
@@ -525,7 +605,7 @@ async function deckSheet(id) {
     <button class="btn block" id="deck-keep" style="margin-top:8px">${d.mine ? "🗑 Borrar de Mis mazos" : "⭐ Guardar en Mis mazos"}</button>`;
   const tileD = (c) => {
     const missingN = c.basic ? 0 : c.qty - c.have;
-    return `<div class="gcard ${missingN === c.qty ? "missing" : ""}">
+    return `<div class="gcard ${missingN === c.qty ? "missing" : ""}" ${c.basic ? "" : `data-mark="${esc(c.name)}"`}>
       <img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
       <span class="badge ${missingN ? (c.have ? "part" : "none") : "full"}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span>
       <div class="why">${c.basic ? "básica" : euro(c.eur)}</div></div>`;
@@ -534,17 +614,43 @@ async function deckSheet(id) {
     const mode = store("deckView") || "img";
     body.querySelectorAll("#deck-view button").forEach((b) => b.classList.toggle("on", b.dataset.v === mode));
     $("#deck-hint", body).textContent = mode === "img"
-      ? "En gris, las cartas que no tienes. El número es copias tuyas / copias del mazo."
-      : "Precio con la edición más barata de cada carta (Cardmarket). Verde: la tienes; amarillo: te faltan copias.";
+      ? "En gris, las cartas que no tienes. El número es copias tuyas / copias del mazo. Toca una carta para marcarla como tuya (o quitarla)."
+      : "Precio con la edición más barata de cada carta (Cardmarket). Verde: la tienes; amarillo: te faltan copias. Toca una para marcarla.";
     const section = (cards) => (mode === "img" ? `<div class="grid">${cards.map(tileD).join("")}</div>` : cards.map(line).join(""));
     $("#deck-cards", body).innerHTML = `
       <h2>Main (${main.reduce((s, c) => s + c.qty, 0)})</h2>${section(main)}
       ${side.length ? `<h2>Sideboard (${side.reduce((s, c) => s + c.qty, 0)})</h2>${section(side)}` : ""}`;
+    body.querySelectorAll("[data-mark]").forEach((el) => (el.onclick = () => mark(el.dataset.mark)));
+  };
+  // Tocar una carta: si te faltan copias, se añaden a la carpeta (edición más barata); si ya las tienes todas, se quitan.
+  const need = new Map();
+  for (const c of d.cards) if (!c.basic) { const x = need.get(c.name) || { qty: 0, have: 0 }; x.qty += c.qty; x.have += c.have; need.set(c.name, x); }
+  const redraw = async () => { const y = $("#sheet").scrollTop; await deckSheet(id, true); $("#sheet").scrollTop = y; loadSummary(); closeSheet.dirty = true; };
+  const mark = async (name) => {
+    const x = need.get(name);
+    if (x.have >= x.qty) {
+      if (!confirm(t(`¿Quitar ${name} de tu carpeta? (×${x.qty})`))) return;
+      await api("/api/owncards", { op: "remove", cards: [[name, x.qty]] });
+      toast(`${name}: quitada`);
+    } else {
+      const r = await api("/api/owncards", { op: "add", cards: [[name, x.qty - x.have]] });
+      toast(`${name}: ✓ la tienes`);
+      celebrate(r);
+    }
+    redraw();
   };
   body.querySelectorAll("#deck-view button").forEach((b) => (b.onclick = () => { store("deckView", b.dataset.v); drawCards(); }));
   drawCards();
   $("#copy-all", body).onclick = () => copy([...main.map((c) => `${c.qty} ${c.name}`), ...(side.length ? ["", "Sideboard", ...side.map((c) => `${c.qty} ${c.name}`)] : [])].join("\n"), "Lista copiada");
   $("#share-missing", body).onclick = () => shareText(`Me falta para ${d.archetype}`, missing.join("\n"));
+  $("#deck-all", body).onclick = async () => {
+    const add = [...need.entries()].filter(([, x]) => x.have < x.qty).map(([n, x]) => [n, x.qty - x.have]);
+    if (!confirm(t(`¿Añadir a tu carpeta las ${add.reduce((a, [, q]) => a + q, 0)} cartas que faltan?`))) return;
+    const r = await api("/api/owncards", { op: "add", cards: add });
+    toast(`${plural(r.changed, "carta añadida", "cartas añadidas")}`);
+    celebrate(r);
+    redraw();
+  };
   $("#deck-keep", body).onclick = async () => {
     if (d.mine) {
       if (!confirm(t(`¿Borrar "${d.archetype}" de Mis mazos?`))) return;
@@ -639,6 +745,7 @@ async function setSheet(code, opts = {}) {
     bar.hidden = !s.on;
     $("#sel-add", body).textContent = s.ids.size ? `Añadir 1 de cada (${s.ids.size})` : "Toca las cartas que quieras";
     $("#sel-add", body).disabled = !s.ids.size;
+    $("#sel-del", body).disabled = !s.ids.size;
     $("#sel-toggle", body).textContent = s.on ? "✓ Seleccionando… (toca para salir)" : "☑ Seleccionar varias (o mantén pulsada una carta)";
     $("#sel-toggle", body).classList.toggle("primary", s.on);
   };
@@ -683,6 +790,7 @@ async function setSheet(code, opts = {}) {
       <div class="sel-bar" id="sel-bar" hidden>
         <label class="toggle"><input type="checkbox" id="sel-foil" ${foil ? "checked" : ""}> Foil</label>
         <button class="btn" id="sel-all">Todas las visibles</button>
+        <button class="btn" id="sel-del" disabled aria-label="Quitar las elegidas">🗑</button>
         <button class="btn primary" id="sel-add" disabled>Toca las cartas que quieras</button>
       </div>`;
     body.querySelectorAll("#set-show button").forEach((b) => b.classList.toggle("on", b.dataset.s === show));
@@ -708,8 +816,24 @@ async function setSheet(code, opts = {}) {
     };
     $("#sel-add", body).onclick = async () => {
       const ids = [...sel.ids];
-      for (const id of ids) await api("/api/collection", { card_id: id, foil, qty: 1 });
+      const res = { completed: [], eur: 0 };
+      for (const id of ids) {
+        const r = await api("/api/collection", { card_id: id, foil, qty: 1 });
+        res.completed.push(...r.completed);
+        res.eur = Math.max(res.eur, r.eur || 0);
+      }
       toast(`${plural(ids.length, "carta añadida", "cartas añadidas")}${foil ? " (foil)" : ""}`);
+      celebrate(res);
+      sel.ids.clear();
+      loadSummary();
+      await load(true);
+    };
+    $("#sel-del", body).onclick = async () => {
+      const ids = [...sel.ids].filter((id) => d.cards.find((c) => c.id === id)?.qty);
+      if (!ids.length) return toast("No tienes ninguna de las elegidas");
+      if (!confirm(t(`¿Quitar 1 copia de ${plural(ids.length, "carta", "cartas")} (vendidas, perdidas…)?`))) return;
+      const r = await api("/api/owncards", { op: "remove", cards: ids.map((id) => [id, 1]) });
+      toast(`${plural(r.changed, "carta quitada", "cartas quitadas")}`);
       sel.ids.clear();
       loadSummary();
       await load(true);
@@ -851,7 +975,7 @@ async function pickSeed(already = [], keepFormat = null) {
       if (!picked.size) { box.innerHTML = ""; return; }
       const r = await api(`/api/seedhelp?format=${format}&seeds=${encodeURIComponent([...picked].join("|"))}`);
       box.innerHTML = r.suggest.length ? `<h2>✨ Combinan con lo que has elegido</h2><div class="arts">${r.suggest.map((c) => `
-        <button class="art sugg" data-name="${esc(c.name)}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span>${esc(c.why)}</span></button>`).join("")}</div>` : "";
+        <button class="art sugg" data-name="${esc(c.name)}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span>Sinergia: ${esc(c.why)}.</span></button>`).join("")}</div>` : "";
       box.querySelectorAll(".sugg").forEach((b) => (b.onclick = () => {
         toggle(b.dataset.name);
         body.querySelectorAll(`#seed-list [data-id]`).forEach((t) => t.classList.toggle("picked", picked.has(t.dataset.id)));
@@ -1346,6 +1470,99 @@ $("#scan-input").onchange = async (e) => {
 };
 
 
+// ---------- perfil: nombre, contraseña (bloqueo en este móvil), medallas y copias de seguridad ----------
+async function hashPassword(pass, salt) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(salt), iterations: 150000, hash: "SHA-256" }, key, 256);
+  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+const newSalt = () => [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+async function profileSheet() {
+  const body = openSheet(skeleton(3));
+  const [p, m] = await Promise.all([api("/api/profile"), api("/api/medals")]);
+  const medal = (icon, title, sub = "") => `<div class="medal">${icon}<div><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</div></div>`;
+  const setIco = (x) => (x.icon ? `<img src="${esc(x.icon)}" alt="">` : `<i>🏅</i>`);
+  const got = m.ladder.filter((x) => x.done);
+  body.innerHTML = `
+    <div class="profile-head"><div class="avatar">${esc((p.name || "?").slice(0, 1).toUpperCase())}</div>
+      <div><h3>${esc(p.name || "Tu perfil")}</h3><div class="sub">${plural(m.cards, "carta", "cartas")} · ${euro(m.value)} · ${esc(m.binder)}</div></div></div>
+    <div class="field"><label>Nombre</label><input class="search" id="pf-name" maxlength="40" placeholder="Cómo te llamas" value="${esc(p.name)}"></div>
+    <div class="field"><label>Contraseña ${p.hash ? "(puesta)" : ""}</label>
+      <input class="search" id="pf-pass" type="password" autocomplete="new-password" placeholder="${p.hash ? "Nueva contraseña" : "Opcional: pide la contraseña al abrir la app"}"></div>
+    <div class="hint">Todo se guarda solo en este móvil: sin correo ni cuentas. La contraseña bloquea la app en este móvil; no la podrás recuperar.</div>
+    <div class="row-btns"><button class="btn primary" id="pf-save">Guardar</button>${p.hash ? `<button class="btn" id="pf-nopass">Quitar contraseña</button>` : ""}</div>
+    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="pf-sound" ${store("sounds") === "0" ? "" : "checked"}> 🔔 Sonidos al añadir cartas</label>
+
+    <h2>🏆 Medallas (${m.sets.length + m.precons.length + got.length})</h2>
+    <div class="medals">${got.map((x) => medal("<i>⭐</i>", x.label)).join("")}</div>
+    ${m.sets.length ? `<h2>Colecciones completas (${m.sets.length})</h2><div class="medals">${m.sets.map((x) => medal(setIco(x), x.name, `${x.total} cartas`)).join("")}</div>` : ""}
+    ${m.precons.length ? `<h2>Mazos preconstruidos completos (${m.precons.length})</h2><div class="medals">${m.precons.map((x) => medal(setIco(x), x.name, x.type)).join("")}</div>` : ""}
+    ${m.decks.length ? `<h2>Mazos del meta que puedes montar (${m.decks.length})</h2><div class="medals">${m.decks.map((x) => medal("<i>⚔️</i>", x)).join("")}</div>` : ""}
+    ${m.near.length ? `<h2>A punto de conseguir</h2><div class="list">${m.near.map((x) => `<button class="item" data-set="${esc(x.code)}">
+        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="bar"><i style="width:${x.pct}%"></i></div>
+        <div class="item-meta">${x.owned}/${x.total} · ${x.pct}%</div></div></button>`).join("")}</div>` : ""}
+    ${!m.sets.length && !m.precons.length ? `<div class="hint">Completa una colección o un mazo preconstruido para ganar su medalla.</div>` : ""}
+    <div class="medals">${m.ladder.filter((x) => !x.done).slice(0, 3).map((x) => `<div class="medal locked"><i>🔒</i><div><b>${esc(x.label)}</b></div></div>`).join("")}</div>
+
+    <h2>Copias de seguridad</h2>
+    <div class="hint">El CSV lleva todas tus carpetas y se puede importar aquí, en ManaBox o en Moxfield. La copia completa guarda también tus mazos y el perfil.</div>
+    <button class="btn block" id="pf-csv">📤 Exportar todas mis cartas (CSV)</button>
+    <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>
+    <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>`;
+  body.querySelectorAll("[data-set]").forEach((b) => (b.onclick = () => setSheet(b.dataset.set)));
+  $("#pf-sound", body).onchange = (e) => { store("sounds", e.target.checked ? "1" : "0"); if (e.target.checked) Sfx.card(5); };
+  $("#pf-save", body).onclick = async () => {
+    const pass = $("#pf-pass", body).value;
+    if (pass && pass.length < 4) return toast("La contraseña necesita al menos 4 caracteres");
+    const upd = { name: $("#pf-name", body).value };
+    if (pass) { upd.salt = newSalt(); upd.hash = await hashPassword(pass, upd.salt); }
+    await api("/api/profile", upd);
+    toast(pass ? "Perfil guardado · la app pedirá la contraseña al abrirla" : "Perfil guardado");
+    profileSheet();
+  };
+  $("#pf-nopass", body)?.addEventListener("click", async () => {
+    if (!confirm(t("¿Quitar la contraseña? La app se abrirá sin pedirla."))) return;
+    await api("/api/profile", { clearPassword: true });
+    toast("Contraseña quitada");
+    profileSheet();
+  });
+  const day = new Date().toISOString().slice(0, 10);
+  $("#pf-csv", body).onclick = async () => {
+    const r = await api("/api/exportcsv");
+    if (!r.rows) return toast("Aún no tienes cartas");
+    saveFile(`gathering-market-${day}.csv`, r.csv, "text/csv");
+  };
+  $("#pf-json", body).onclick = () => saveFile(`gathering-market-copia-${day}.json`, Engine.exportUser(), "application/json");
+  $("#pf-restore", body).onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f || !confirm(t("¿Reemplazar todo lo de este móvil (cartas, carpetas, mazos y perfil) por la copia?"))) return;
+    try { await Engine.importUser(await f.text()); toast("Copia restaurada"); closeSheet(); loadSummary(); render(); }
+    catch (err) { toast(err.message); }
+  };
+}
+
+// Pantalla de bloqueo si el perfil tiene contraseña.
+async function unlock() {
+  const p = await api("/api/profile");
+  if (!p.hash) return;
+  await new Promise((done) => {
+    document.body.insertAdjacentHTML("beforeend", `<div class="lock-screen" id="lock">
+      <svg class="crest" viewBox="0 0 64 64"><use href="#i-crest"/></svg>
+      <h3>${esc(p.name ? `Hola, ${p.name}` : "Gathering Market")}</h3>
+      <input class="search" id="lock-pass" type="password" autocomplete="current-password" placeholder="Contraseña">
+      <button class="btn primary block" id="lock-ok">Entrar</button><div class="sub" id="lock-msg"></div></div>`);
+    const go = async () => {
+      if ((await hashPassword($("#lock-pass").value, p.salt)) === p.hash) { $("#lock").remove(); done(); }
+      else { $("#lock-msg").textContent = t("Contraseña incorrecta"); $("#lock-pass").select(); }
+    };
+    $("#lock-ok").onclick = go;
+    $("#lock-pass").onkeydown = (e) => e.key === "Enter" && go();
+    $("#lock-pass").focus();
+  });
+}
+
 // ---------- arranque ----------
 // Primero los datos (de la copia guardada en el móvil o, si hay novedades, de internet).
 async function boot() {
@@ -1359,6 +1576,7 @@ async function boot() {
     });
     for (const a of r.alerts) notifyLocal(a);
     if (r.offline) toast("Sin conexión: usando los últimos precios guardados");
+    await unlock();
   } catch (err) {
     v.innerHTML = `<div class="empty"><strong>No he podido abrir los datos</strong>${esc(err.message)}
       <div class="row-btns"><button class="btn primary" onclick="boot()">Reintentar</button></div></div>`;
