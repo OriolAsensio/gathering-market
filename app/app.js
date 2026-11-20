@@ -47,6 +47,7 @@ function closeSheet() {
   $("#sheet").hidden = true;
   $("#sheet-backdrop").hidden = true;
   document.documentElement.classList.remove("lock");
+  if (closeSheet.dirty) { closeSheet.dirty = false; render(); }  // se añadieron/quitaron cartas con la ventana abierta
 }
 $("#sheet-close").onclick = closeSheet;
 $("#sheet-backdrop").onclick = closeSheet;
@@ -316,7 +317,7 @@ async function searchInto(box, text) {
   box.innerHTML = results.length ? results.map((r) => `
     <button class="item" data-name="${esc(r.name)}">
       <img class="thumb" loading="lazy" src="${esc(r.image)}" alt="">
-      <div class="item-main"><div class="item-title">${esc(r.name)}</div>
+      <div class="item-main"><div class="item-title">${esc(r.name)}</div>${r.alias ? `<div class="item-meta"><span class="chip">${esc(r.alias)}</span></div>` : ""}
         <div class="item-meta">${r.pauper === "legal" ? '<span class="chip gold">Pauper</span>' : r.pauper === "banned" ? '<span class="chip ban">Baneada en Pauper</span>' : ""}</div></div>
       <div class="item-side"><div class="sub">desde</div><div class="price">${euro(r.eur)}</div></div>
     </button>`).join("") : `<div class="hint">No hay cartas con ese nombre.</div>`;
@@ -340,19 +341,29 @@ function cardSheet(c) {
     <button class="btn block" id="open-syn" style="margin-top:8px">🔮 Cartas que combinan con esta</button>
     <a class="btn block" style="margin-top:8px;text-decoration:none" target="_blank" rel="noopener"
        href="${cardmarketUrl(c.name)}">🛒 Ver en Cardmarket</a>
-    <div class="row-btns">
-      <button class="btn" data-d="-1">Quitar una</button>
-      <button class="btn primary" data-d="1">Añadir otra</button>
-    </div>`);
+    <h2>Tus versiones</h2><div class="list" id="versions">${skeleton(1)}</div>
+    <button class="btn block primary" id="add-version" style="margin-top:10px">➕ Añadir otro arte o foil</button>`);
   $("#build-from", body)?.addEventListener("click", () => builderSheet([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
   $("#open-set", body).onclick = () => setSheet(c.set);
   $("#open-syn", body).onclick = () => synergySheet(c.name);
-  body.querySelectorAll("[data-d]").forEach((b) => (b.onclick = async () => {
-    await api("/api/collection", { card_id: c.id, foil: c.foil, qty: +b.dataset.d });
-    closeSheet();
-    toast(+b.dataset.d > 0 ? "Añadida" : "Quitada");
-    refresh();
-  }));
+  $("#add-version", body).onclick = () => addSheet([{ name: c.name }]);
+  const drawVersions = async () => {
+    const mine = (await api("/api/collection")).filter((x) => x.name === c.name);
+    $("#versions", body).innerHTML = mine.map((x) => `<div class="item version">
+        <img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(x.set_name)} #${esc(x.number)}</div>
+          <div class="item-meta">${x.foil ? '<span class="chip foil">Foil</span>' : ""}${euro(x.eur)}</div></div>
+        <div class="stepper"><button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" aria-label="Quitar una">−</button><b class="num">${x.qty}</b>
+          <button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" aria-label="Añadir otra">+</button></div>
+      </div>`).join("") || `<div class="hint">Ya no tienes ninguna.</div>`;
+    body.querySelectorAll("#versions [data-v]").forEach((b) => (b.onclick = async () => {
+      await api("/api/collection", { card_id: b.dataset.v, foil: b.dataset.f === "1", qty: +b.dataset.d });
+      closeSheet.dirty = true;
+      drawVersions();
+      loadSummary();
+    }));
+  };
+  drawVersions();
 }
 
 // Elegir carta, arte (con imágenes), foil y cantidad, y añadir.
@@ -361,6 +372,7 @@ async function addSheet(candidates, opts = {}) {
   if (opts.into) body.innerHTML = `<div id="add-body">${skeleton(1)}</div>`;
   const cands = await Promise.all(candidates.map(async (c) => ({ ...c, printings: c.printings || (await api(`/api/printings?name=${encodeURIComponent(c.name)}`)) })));
   let ci = 0, qty = 1, foil = false;
+  const added = [];  // lo añadido en esta ventana (varios artes / foil seguidos)
   // Sin edición detectada, propone la normal más barata (la más común en colecciones).
   const defaultPrint = (c) => c.best || [...c.printings].filter((p) => p.eur != null)
     .sort((a, b) => a.variant - b.variant || a.eur - b.eur)[0]?.id || c.printings[0]?.id;
@@ -380,8 +392,10 @@ async function addSheet(candidates, opts = {}) {
       <div class="stats"><div class="stat"><b>${euro(foil ? p.eur_foil : p.eur)}</b><span>Precio unidad</span></div>
         <div class="stat"><b>${euro((foil ? p.eur_foil : p.eur) * qty || null)}</b><span>Total</span></div>
         <div class="stat"><b>${p.pauper === "legal" ? "Sí" : p.pauper === "banned" ? "Ban" : "No"}</b><span>Legal Pauper</span></div></div>
+      ${added.length ? `<div class="warn">✓ Añadidas: ${added.map(esc).join(" · ")}<br>Elige otro arte o foil y vuelve a pulsar Añadir, o pulsa Listo.</div>` : ""}
       <div class="row-btns">
         ${opts.onSkip ? `<button class="btn" id="add-skip">No es esta</button>` : ""}
+        ${added.length && !opts.onDone ? `<button class="btn" id="add-done">Listo</button>` : ""}
         <button class="btn primary" id="add-ok">Añadir ${qty > 1 ? qty : ""}</button>
       </div>`;
     $(".art.on", body)?.scrollIntoView({ inline: "center", block: "nearest" });
@@ -392,9 +406,14 @@ async function addSheet(candidates, opts = {}) {
     $("#add-ok", body).onclick = async () => {
       await api("/api/collection", { card_id: p.id, foil, qty });
       toast(`${qty}× ${c.name} añadida`);
-      if (opts.onDone) opts.onDone(); else closeSheet();
-      refresh();
+      loadSummary();
+      if (opts.onDone) { opts.onDone(); refresh(); return; }
+      added.push(`${qty}× ${p.set.toUpperCase()} #${p.number}${foil ? " foil" : ""}`);
+      closeSheet.dirty = true;
+      qty = 1;
+      draw();
     };
+    $("#add-done", body)?.addEventListener("click", () => closeSheet());
     if (opts.onSkip) $("#add-skip", body).onclick = opts.onSkip;
   };
   draw();
@@ -694,18 +713,19 @@ async function setSheet(code, opts = {}) {
 // ---------- constructor de mazos ----------
 const COLORS = [["W", "Blanco"], ["U", "Azul"], ["B", "Negro"], ["R", "Rojo"], ["G", "Verde"]];
 const FORMAT_NAMES = { pauper: "Pauper", commander: "Commander", standard: "Estándar", casual: "Casual" };
+const STYLE_NAMES = { auto: "Auto", aggro: "Agresivo", midrange: "Medio rango", control: "Control" };
 const manaIcon = (k, label = k) => `<img class="mana-icon" src="mana/${k}.svg" alt="${esc(label)}">`;
 
 async function builderSheet(seeds, startFormat) {
   if (!seeds || !seeds.length) return pickSeed();
   seeds = [].concat(seeds);
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
-  let colors = null, format = startFormat || store("buildFormat") || "pauper";
+  let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
   const run = async () => {
     $("#b-body", body).innerHTML = `<div class="hint">Buscando cartas que encajen con el plan…</div>${skeleton(4)}`;
     let d;
     try {
-      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}${colors ? `&colors=${colors}` : ""}`);
+      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}${colors ? `&colors=${colors}` : ""}`);
     } catch (err) {
       $("#b-body", body).innerHTML = `<div class="empty"><strong>No he podido montarlo</strong>${esc(err.message)}</div>`;
       return;
@@ -723,6 +743,8 @@ async function builderSheet(seeds, startFormat) {
     const listText = rows.map((c) => `${c.qty} ${c.name}`).join("\n");
     $("#b-body", body).innerHTML = `
       <div class="seg" id="b-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
+      <div class="seg" id="b-style">${Object.entries(STYLE_NAMES).map(([k, n]) => `<button data-s="${k}" class="${style === k ? "on" : ""}">${k === "auto" && style === "auto" ? `Auto (${STYLE_NAMES[d.style].toLowerCase()})` : n}</button>`).join("")}</div>
+      <button class="btn block" id="b-more" style="margin:4px 0 8px">➕ Más cartas base (${seeds.length})</button>
       <div class="seg mana-row" id="b-colors">${COLORS.map(([k, n]) => `<button data-c="${k}" class="mana ${colors.includes(k) ? "on" : ""}" aria-label="${n}" title="${n}">${manaIcon(k, n)}</button>`).join("")}</div>
       ${d.warnings.map((w) => `<div class="warn">⚠️ ${esc(w)}</div>`).join("")}
       ${d.commander ? `<h2>Comandante</h2><div class="grid">${t(d.commander)}</div>` : ""}
@@ -762,7 +784,9 @@ async function builderSheet(seeds, startFormat) {
       run();
     }));
     $("#b-copy", body).onclick = () => copy(listText, "Lista copiada (se puede importar en Moxfield, MTGA…)");
-    $("#b-other", body).onclick = pickSeed;
+    $("#b-other", body).onclick = () => pickSeed();
+    $("#b-more", body).onclick = () => pickSeed(seeds, format);
+    body.querySelectorAll("#b-style button").forEach((b) => (b.onclick = () => { style = b.dataset.s; store("buildStyle", style); run(); }));
     $("#b-save", body).onclick = async () => {
       const r = await api("/api/mydecks", { save: { name: `${d.commander ? d.commander.name : d.seed} (${FORMAT_NAMES[format]})`, format: FORMAT_NAMES[format],
         cards: rows.map((c) => [c.name, c.qty, 0]) } });
@@ -774,7 +798,8 @@ async function builderSheet(seeds, startFormat) {
 }
 
 // Elegir una o varias cartas base (o un comandante) de la carpeta.
-async function pickSeed() {
+// Elegir cartas base; `already` = las que ya tiene el mazo (salen marcadas).
+async function pickSeed(already = [], keepFormat = null) {
   const body = openSheet(`<h3>¿Con qué cartas empezamos?</h3>
     <div class="hint">Toca una o varias cartas que te gusten: la app buscará otras que hagan combo con ellas. Para Commander, elige una criatura legendaria.</div>
     <input class="search" id="seed-q" placeholder="Buscar en tus cartas…">
@@ -788,7 +813,7 @@ async function pickSeed() {
     $("#seed-list", body).innerHTML = `<div class="empty"><strong>No hay cartas en esta carpeta</strong>Importa un CSV o escanea cartas primero.</div>`;
     return;
   }
-  const picked = new Set();
+  const picked = new Set(already);
   let onlyLegends = false;
   const isLegend = (c) => /legendary.*creature/i.test(c.type || "");
   const update = () => {
@@ -814,7 +839,7 @@ async function pickSeed() {
     });
   };
   $("#seed-legend", body).onclick = (e) => { onlyLegends = !onlyLegends; e.target.classList.toggle("on", onlyLegends); draw(); };
-  $("#seed-go", body).onclick = () => builderSheet([...picked]);
+  $("#seed-go", body).onclick = () => builderSheet([...picked], keepFormat);
   $("#seed-cmd", body).onclick = () => {
     const legend = [...picked].find((n) => isLegend(cards.find((c) => c.name === n)));
     builderSheet([legend, ...[...picked].filter((n) => n !== legend)], "commander");
@@ -901,7 +926,7 @@ async function synergiesView(box) {
       if (text.length < 2) { $("#syn-res").innerHTML = ""; return; }
       const res = await api(`/api/search?q=${encodeURIComponent(text)}`);
       $("#syn-res").innerHTML = res.map((r) => `<button class="item" data-name="${esc(r.name)}"><img class="thumb" loading="lazy" src="${esc(r.image)}" alt="">
-        <div class="item-main"><div class="item-title">${esc(r.name)}</div></div></button>`).join("") || `<div class="hint">No hay cartas con ese nombre.</div>`;
+        <div class="item-main"><div class="item-title">${esc(r.name)}</div>${r.alias ? `<div class="item-meta"><span class="chip">${esc(r.alias)}</span></div>` : ""}</div></button>`).join("") || `<div class="hint">No hay cartas con ese nombre.</div>`;
       box.querySelectorAll("#syn-res [data-name]").forEach((b) => (b.onclick = () => synergySheet(b.dataset.name)));
     }, 250);
   };
@@ -1022,15 +1047,14 @@ async function startScan() {
       <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
       <div class="scan-read" id="scan-read"></div>
       <div class="scan-result" id="scan-result" hidden></div>
-      <div class="scan-tools" id="scan-tools"><button class="btn" id="scan-photo">📷 Foto</button></div>
+      <div class="scan-tools" id="scan-tools"></div>
     </div>`);
   const paintLang = () => document.querySelectorAll("#scan-lang button").forEach((b) => b.classList.toggle("on", b.dataset.l === scanLang()[0]));
   paintLang();
   document.querySelectorAll("#scan-lang button").forEach((b) => (b.onclick = () => { store("scanLang", b.dataset.l); paintLang(); S.last = null; }));
   $("#scan-close").onclick = closeScanner;
-  $("#scan-photo").onclick = () => { closeScanner(); photoScan(); };
   try {
-    S.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    S.stream = await openBestCamera();
   } catch (err) {
     closeScanner();
     toast("No se puede usar la cámara en directo; usa una foto");
@@ -1043,17 +1067,66 @@ async function startScan() {
   document.documentElement.classList.add("lock");
   status("Preparando el lector…");
   Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6)])
-    .then(() => status("Coloca la carta dentro del marco · toca para enfocar")).catch((e) => status(e.message));
+    .then(() => status(canFocus(S.stream) ? "Coloca la carta dentro del marco · toca para enfocar"
+      : "Esta cámara no enfoca: prueba 🔄 Cámara o 📷 Foto (usa el enfoque del móvil)")).catch((e) => status(e.message));
   setupCameraControls(video);
   S.timer = setInterval(scanTick, 200);
 }
 
-// Enfoque (continuo + tocar para enfocar), linterna y zoom, si el móvil lo permite.
+// ---- Cámara: muchos Android abren por defecto la gran angular trasera, que NO enfoca de cerca.
+// Se busca una cámara trasera que sí enfoque (y se recuerda); también se puede cambiar a mano.
+const camOpts = (deviceId) => ({ audio: false, video: { width: { ideal: 1920 }, height: { ideal: 1080 },
+  ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }) } });
+const canFocus = (stream) => {
+  const c = stream.getVideoTracks()[0].getCapabilities?.() || {};
+  return (c.focusMode || []).some((m) => m !== "none" && m !== "fixed") || !!c.focusDistance;
+};
+const stopStream = (st) => st?.getTracks().forEach((t) => t.stop());
+async function backCameras() {
+  return (await navigator.mediaDevices.enumerateDevices())
+    .filter((d) => d.kind === "videoinput" && !/front|user|frontal|delant|selfie/i.test(d.label));
+}
+async function openBestCamera() {
+  const saved = store("scanCam");
+  if (saved) {
+    const st = await navigator.mediaDevices.getUserMedia(camOpts(saved)).catch(() => null);
+    if (st) return st;
+  }
+  let st = await navigator.mediaDevices.getUserMedia(camOpts());
+  if (canFocus(st)) return st;
+  const first = st.getVideoTracks()[0].getSettings().deviceId;
+  stopStream(st);  // Android no deja abrir dos cámaras a la vez
+  for (const d of await backCameras()) {
+    if (d.deviceId === first) continue;
+    const s2 = await navigator.mediaDevices.getUserMedia(camOpts(d.deviceId)).catch(() => null);
+    if (!s2) continue;
+    if (canFocus(s2)) { store("scanCam", d.deviceId); return s2; }
+    stopStream(s2);
+  }
+  return navigator.mediaDevices.getUserMedia(camOpts(first));
+}
+async function switchCamera() {
+  const cams = await backCameras();
+  if (cams.length < 2) return toast("Solo hay una cámara trasera");
+  const cur = S.stream?.getVideoTracks()[0].getSettings().deviceId;
+  const next = cams[(cams.findIndex((d) => d.deviceId === cur) + 1) % cams.length];
+  stopStream(S.stream);
+  S.stream = await navigator.mediaDevices.getUserMedia(camOpts(next.deviceId));
+  store("scanCam", next.deviceId);
+  const video = $("#scan-video");
+  video.srcObject = S.stream;
+  await video.play().catch(() => {});
+  setupCameraControls(video);
+  toast(`Cámara ${cams.indexOf(next) + 1} de ${cams.length}${canFocus(S.stream) ? "" : " (esta no enfoca)"}`);
+}
+
+// Enfoque (continuo, tocar para enfocar o manual), linterna y zoom, si el móvil lo permite.
 function setupCameraControls(video) {
   const track = S.stream.getVideoTracks()[0];
   const caps = track.getCapabilities?.() || {};
+  const modes = caps.focusMode || [];
   const apply = (c) => track.applyConstraints({ advanced: [c] }).catch(() => {});
-  if (caps.focusMode?.includes("continuous")) apply({ focusMode: "continuous" });
+  if (modes.includes("continuous")) apply({ focusMode: "continuous" });
   video.onclick = (e) => {
     const r = video.getBoundingClientRect();
     const ring = Object.assign(document.createElement("span"), { className: "focus-ring" });
@@ -1062,20 +1135,31 @@ function setupCameraControls(video) {
     $("#scanner").appendChild(ring);
     setTimeout(() => ring.remove(), 700);
     const c = { pointsOfInterest: [{ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }] };
-    if (caps.focusMode?.includes("single-shot")) c.focusMode = "single-shot";
-    else if (caps.focusMode?.includes("continuous")) c.focusMode = "continuous";
-    apply(c).then(() => caps.focusMode?.includes("continuous") && setTimeout(() => apply({ focusMode: "continuous" }), 1500));
+    if (modes.includes("single-shot")) c.focusMode = "single-shot";
+    else if (modes.includes("continuous")) c.focusMode = "continuous";
+    apply(c).then(() => modes.includes("continuous") && setTimeout(() => apply({ focusMode: "continuous" }), 1500));
   };
   const bar = $("#scan-tools");
+  bar.innerHTML = `<button class="btn" id="scan-photo">📷 Foto</button><button class="btn" id="scan-cam">🔄 Cámara</button>`;
+  $("#scan-photo").onclick = () => { closeScanner(); photoScan(); };
+  $("#scan-cam").onclick = switchCamera;
   if (caps.torch) {
     let on = false;
-    bar.insertAdjacentHTML("beforeend", `<button class="btn" id="scan-torch">🔦 Linterna</button>`);
+    bar.insertAdjacentHTML("beforeend", `<button class="btn" id="scan-torch">🔦</button>`);
     $("#scan-torch").onclick = (e) => { on = !on; apply({ torch: on }); e.currentTarget.classList.toggle("primary", on); };
+  }
+  if (caps.focusDistance && modes.includes("manual")) {
+    const fd = caps.focusDistance;
+    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">🎯<input type="range" id="scan-focus" min="${fd.min}" max="${fd.max}" step="${fd.step || (fd.max - fd.min) / 50}" value="${track.getSettings().focusDistance ?? fd.min}"></label>
+      ${modes.includes("continuous") ? `<button class="btn" id="scan-af">AF</button>` : ""}`);
+    $("#scan-focus").oninput = (e) => apply({ focusMode: "manual", focusDistance: +e.target.value });
+    $("#scan-af")?.addEventListener("click", () => { apply({ focusMode: "continuous" }); toast("Enfoque automático"); });
   }
   if (caps.zoom && caps.zoom.max > caps.zoom.min) {
     bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">🔍<input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${caps.zoom.min}"></label>`);
     $("#scan-zoomr").oninput = (e) => apply({ zoom: +e.target.value });
   }
+  if (!canFocus(S.stream)) status("Esta cámara no enfoca: prueba 🔄 Cámara o 📷 Foto (usa el enfoque del móvil)");
 }
 
 function closeScanner() {

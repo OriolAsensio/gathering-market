@@ -326,19 +326,33 @@ const Engine = (() => {
     throw new Error("Acción desconocida");
   }
 
-  function search({ q }) {
+  // Busca por nombre en inglés y también por el nombre impreso en español, francés, alemán,
+  // italiano, portugués o japonés ("Relámpago" -> Lightning Bolt).
+  async function search({ q }) {
     const text = (q || "").trim().toLowerCase();
     if (text.length < 2) return [];
-    const hits = [];
+    const hits = new Map();  // oi -> [orden, largo, nombre en otro idioma]
     for (let oi = 0; oi < O.length; oi++) {
       const name = front(O[oi][0]);
-      const low = name.toLowerCase();
-      const at = low.indexOf(text);
-      if (at >= 0) hits.push([at === 0 ? 0 : 1, name.length, oi, name]);
+      const at = name.toLowerCase().indexOf(text);
+      if (at >= 0) hits.set(oi, [at === 0 ? 0 : 1, name.length, null]);
     }
-    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const qc = compact(text);
+    if (qc.length >= 2) {
+      try {
+        for (const lang of Object.keys(await extra("names.json"))) {
+          const f = await foreignIndex(lang);
+          for (const [k, oi] of f.map) {
+            const at = k.indexOf(qc);
+            if (at < 0 || (hits.has(oi) && hits.get(oi)[0] <= (at === 0 ? 0 : 1))) continue;
+            hits.set(oi, [at === 0 ? 0 : 1, k.length, `${f.printed.get(k)} (${lang.toUpperCase()})`]);
+          }
+        }
+      } catch { /* sin los nombres en otros idiomas (sin conexión la primera vez): solo inglés */ }
+    }
     const cheap = cheapest().price;
-    return hits.slice(0, 20).map(([, , oi, name]) => ({ name, pauper: PAUPER[O[oi][6]], image: oImage(oi), eur: eur(cheap[oi]) }));
+    return [...hits.entries()].sort((a, b) => a[1][0] - b[1][0] || a[1][1] - b[1][1]).slice(0, 20)
+      .map(([oi, [, , alias]]) => ({ name: front(O[oi][0]), alias, pauper: PAUPER[O[oi][6]], image: oImage(oi), eur: eur(cheap[oi]) }));
   }
 
   function printingRow(pi) {
@@ -530,9 +544,9 @@ const Engine = (() => {
   async function foreignIndex(lang) {
     if (foreign[lang]) return foreign[lang];
     const names = await extra("names.json");
-    const m = new Map();
-    for (const [printed, oi] of Object.entries(names[lang] || {})) m.set(compact(printed), oi);
-    foreign[lang] = { map: m, keys: [...m.keys()] };
+    const m = new Map(), printedOf = new Map();
+    for (const [printed, oi] of Object.entries(names[lang] || {})) { const k = compact(printed); m.set(k, oi); printedOf.set(k, printed); }
+    foreign[lang] = { map: m, keys: [...m.keys()], printed: printedOf };
     return foreign[lang];
   }
   const FOOTER_RE = /wizards|coast|illus|©|™/i;
@@ -1007,13 +1021,8 @@ const Engine = (() => {
     midrange: "Medio rango: amenazas sólidas y buenas respuestas. Aguanta el principio y gana a medio plazo con cartas más potentes.",
     control: "Control: responde a lo que haga el rival (quitar amenazas, robar cartas) y gana al final con pocas amenazas grandes.",
   };
-  function deckGuide({ chosen, base, commander, plan, landsN, size, roles }) {
-    const n = chosen.reduce((s, e) => s + e[1], 0) || 1;
-    const creatures = chosen.filter(([x]) => x.is_creature).reduce((s, e) => s + e[1], 0);
-    const avg = chosen.reduce((s, [x, k]) => s + x.cmc * k, 0) / n;
-    const k = size / 60;
-    const style = avg <= 2.4 && creatures >= 16 * k ? "aggro"
-      : creatures <= 10 * k && roles.removal + roles.draw >= 12 * k ? "control" : "midrange";
+  // El estilo lo decide el constructor (elegido o deducido de las cartas base).
+  function deckGuide({ chosen, base, commander, plan, landsN, style }) {
     const names = (list) => list.map(([x]) => x.name).join(", ");
     const byScore = chosen.slice().sort((a, b) => (b[3] || 0) - (a[3] || 0));
     const core = [...base.filter((x) => x !== commander), ...byScore.map(([x]) => x).filter((x) => !base.includes(x))].slice(0, 6);
@@ -1056,7 +1065,25 @@ const Engine = (() => {
     return { style, style_text: STYLE_TEXT[style], core: core.map((x) => x.name), plan: tips, combos, turns, mulligan };
   }
 
-  function build({ c, seed, seeds, colors, format = "pauper" }) {
+  // Estilos: cambian la curva, las tierras, cuántas criaturas y cuántas respuestas lleva el mazo.
+  const STYLES = {
+    aggro: { caps: { 0: 4, 1: 12, 2: 16, 3: 10, 4: 5, 5: 2, 6: 1 }, land: -1.5, creature: 1.2, heavyAt: 4, heavy: 2.5,
+      target: { 60: { removal: 4, draw: 1, ramp: 0, wipe: 0 }, 100: { removal: 7, draw: 9, ramp: 9, wipe: 0 } } },
+    midrange: { caps: { 0: 4, 1: 10, 2: 14, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 0, creature: 0.4, heavyAt: 6, heavy: 1.5, target: TARGETS },
+    control: { caps: { 0: 4, 1: 8, 2: 12, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 1, creature: -0.8, heavyAt: 7, heavy: 0.5,
+      target: { 60: { removal: 9, draw: 5, ramp: 0, wipe: 1 }, 100: { removal: 10, draw: 12, ramp: 10, wipe: 4 } } },
+  };
+  /** Estilo que piden las cartas base (si el usuario elige "auto"). */
+  function autoStyle(base, plan) {
+    const avg = base.reduce((s, x) => s + x.cmc, 0) / base.length;
+    const spells = base.filter((x) => !x.is_creature).length / base.length;
+    const fast = ["atacar", "fichas", "daño directo", "veneno", "equipos", "auras"].some((t) => (plan.wantsText.get(t) || 0) >= 3);
+    if (avg <= 2.5 && !base.some((x) => x.cmc >= 5) && (fast || base.every((x) => x.is_creature))) return "aggro";
+    if (spells >= 0.6 && base.some((x) => x.roles.has("removal") || x.roles.has("draw") || x.text_tags.has("hechizos") || x.text_tags.has("planeswalkers"))) return "control";
+    return "midrange";
+  }
+
+  function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto" }) {
     const id = binderOf(c) || 1;
     let fmt = format;
     const cheap = cheapest().price;
@@ -1107,6 +1134,8 @@ const Engine = (() => {
       deckColors = new Set([[...by.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "R"]);
     }
     const subset = (a, b) => [...a].every((x) => b.has(x));
+    const style = STYLES[wanted] ? wanted : autoStyle(base, plan);
+    const st = STYLES[style];
 
     const baseKeys = new Set(base.map((x) => norm(x.name)));
     const candidates = [...pool.entries()].filter(([k, x]) => !x.is_land && !baseKeys.has(k) && legal(x) && subset(x.colors, deckColors)).map(([, x]) => x);
@@ -1130,11 +1159,12 @@ const Engine = (() => {
     const landsFor = () => {
       const n = chosen.reduce((s, e) => s + e[1], 0);
       const avg = n ? chosen.reduce((s, [x, k]) => s + x.cmc * k, 0) / n : 2.5;
-      return size === 100 ? Math.max(34, Math.min(38, Math.round(31 + 2 * avg))) : Math.max(17, Math.min(24, Math.round(15.5 + 2.6 * avg)));
+      // Como en los mazos reales: agresivo de curva 2 ≈ 17-18 tierras; control ≈ 23-24. Commander 33-38.
+      return size === 100 ? Math.max(33, Math.min(38, Math.round(31 + 2 * avg + st.land))) : Math.max(16, Math.min(24, Math.round(13.5 + 2.4 * avg + st.land)));
     };
     const capScale = size / 60;
-    const CURVE_CAP = { 0: 4, 1: 10, 2: 14, 3: 12, 4: 9, 5: 6, 6: 4 };
-    const target = TARGETS[size];
+    const CURVE_CAP = st.caps;
+    const target = st.target[size];
     const left = new Set(candidates);
     while (left.size) {
       const used = chosen.reduce((s, e) => s + e[1], 0);
@@ -1152,7 +1182,8 @@ const Engine = (() => {
         let need = 0;
         const roleWhy = [];
         for (const r of x.roles) if (roles[r] < target[r]) { need += 4 * (1 - roles[r] / target[r]) + 1; roleWhy.push(ROLE_NAMES[r]); }
-        const score = s + need + (x.rank ? Math.max(0, 1 - x.rank / 20000) * 0.5 : 0) - (x.cmc >= 6 ? 1.5 : 0);
+        const score = s + need + (x.rank ? Math.max(0, 1 - x.rank / 20000) * 0.5 : 0) + (x.is_creature ? st.creature : 0)
+          - (x.cmc >= st.heavyAt ? st.heavy : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)), ...roleWhy]; }
       }
       if (!best || (bestScore <= 0.5 && used >= spellSlots() * 0.6)) break;  // sin nada que encaje: mejor menos cartas que relleno
@@ -1227,7 +1258,8 @@ const Engine = (() => {
     return {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name), colors: cols.join(""), format: fmt,
       commander: commander ? out(commander, 1, "comandante", ["comandante"]) : null,
-      guide: deckGuide({ chosen, base, commander, plan, landsN: landRows.reduce((s, r) => s + r.qty, 0), size, roles }),
+      style, style_auto: wanted === "auto" || !STYLES[wanted],
+      guide: deckGuide({ chosen, base, commander, plan, landsN: landRows.reduce((s, r) => s + r.qty, 0), style }),
       themes: [...themes, ...[...plan.tribes].map((t) => `tribu ${t}`)], cards: cardsOut, lands: landRows, warnings,
       stats: { total: all.reduce((s, r) => s + r.qty, 0) + (commander ? 1 : 0), spells: spellsTotal, lands: landRows.reduce((s, r) => s + r.qty, 0),
         creatures: chosen.filter(([x]) => x.is_creature).reduce((s, e) => s + e[1], 0), avg_cmc: Math.round(avg * 100) / 100,

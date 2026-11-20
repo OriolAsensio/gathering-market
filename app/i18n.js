@@ -177,7 +177,12 @@ const EXACT = [
   ["No se puede usar la cámara en directo; usa una foto", "Live camera isn't available; use a photo", "No es pot fer servir la càmera en directe; fes servir una foto"],
   ["Leyendo la carta…", "Reading the card…", "Llegint la carta…"], ["Preparando el lector (la primera vez tarda un poco)…", "Preparing the reader (the first time takes a moment)…", "Preparant el lector (la primera vegada triga una mica)…"],
   ["No he podido leerla", "I couldn't read it", "No l'he pogut llegir"], ["Nombre de la carta…", "Card name…", "Nom de la carta…"], ["Volver a escanear", "Scan again", "Tornar a escanejar"],
-  ["No he reconocido el nombre", "I didn't recognise the name", "No he reconegut el nom"], ["No se ha podido abrir la foto", "Couldn't open the photo", "No s'ha pogut obrir la foto"],
+  ["No he reconocido el nombre", "I didn't recognise the name", "No he reconegut el nom"],
+  ["Esta cámara no enfoca: prueba 🔄 Cámara o 📷 Foto (usa el enfoque del móvil)", "This camera can't focus: try 🔄 Camera or 📷 Photo (uses your phone's focus)", "Aquesta càmera no enfoca: prova 🔄 Càmera o 📷 Foto (fa servir l'enfocament del mòbil)"],
+  ["🔄 Cámara", "🔄 Camera", "🔄 Càmera"], ["Solo hay una cámara trasera", "There's only one rear camera", "Només hi ha una càmera posterior"], ["Enfoque automático", "Autofocus", "Enfocament automàtic"],
+  ["Tus versiones", "Your versions", "Les teves versions"], ["➕ Añadir otro arte o foil", "➕ Add another art or foil", "➕ Afegir un altre art o foil"], ["Ya no tienes ninguna.", "You don't have any left.", "Ja no en tens cap."],
+  ["Listo", "Done", "Fet"], ["Elige otro arte o foil y vuelve a pulsar Añadir, o pulsa Listo.", "Pick another art or foil and press Add again, or press Done.", "Tria un altre art o foil i torna a prémer Afegir, o prem Fet."],
+  ["Auto", "Auto", "Auto"], ["Agresivo", "Aggro", "Agressiva"], ["No se ha podido abrir la foto", "Couldn't open the photo", "No s'ha pogut obrir la foto"],
 
   // Mercado, predicciones y sinergias
   ["📈 Movimientos", "📈 Movers", "📈 Moviments"], ["🔮 Predicciones", "🔮 Predictions", "🔮 Prediccions"], ["🧩 Sinergias", "🧩 Synergies", "🧩 Sinergies"],
@@ -226,6 +231,10 @@ const THEME_WORDS = [
 
 // Frases con datos. Se aplican en orden sobre cada texto (los nombres de cartas se conservan).
 const RULES = [
+  [/^Cámara (\d+) de (\d+)( \(esta no enfoca\))?$/, (m) => `Camera ${m[1]} of ${m[2]}${m[3] ? " (this one can't focus)" : ""}`, (m) => `Càmera ${m[1]} de ${m[2]}${m[3] ? " (aquesta no enfoca)" : ""}`],
+  [/^✓ Añadidas: (.+)$/, "✓ Added: $1", "✓ Afegides: $1"],
+  [/^➕ Más cartas base \((\d+)\)$/, "➕ More base cards ($1)", "➕ Més cartes base ($1)"],
+  [/^Auto \((agresivo|medio rango|control)\)$/, (m) => `Auto (${({ agresivo: "aggro", "medio rango": "midrange", control: "control" })[m[1]]})`, (m) => `Auto (${({ agresivo: "agressiva", "medio rango": "mig rang", control: "control" })[m[1]]})`],
   [/^(Criaturas|Hechizos|Tierras|Main|Sideboard) \((\d+)\)$/, (m) => `${({ Criaturas: "Creatures", Hechizos: "Spells", Tierras: "Lands" })[m[1]] || m[1]} (${m[2]})`,
     (m) => `${({ Criaturas: "Criatures", Hechizos: "Encanteris", Tierras: "Terres", Sideboard: "Banqueta" })[m[1]] || m[1]} (${m[2]})`],
   [/^(\d+) cartas? · Cardmarket, /, "$1 cards · Cardmarket, ", "$1 cartes · Cardmarket, "],
