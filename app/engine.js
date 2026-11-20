@@ -169,13 +169,20 @@ const Engine = (() => {
     const out = new Array(O.length).fill(null);   // precio mínimo (cualquier impresión)
     const pick = new Array(O.length).fill(-1);    // impresión "normal" más barata: imagen y edición por defecto
     const rank = (i) => (P[i][5] ? 2 : 0) + (arr[i] == null ? 1 : 0);  // mejor: no variante y con precio
+    const second = new Array(O.length).fill(null);
     for (let i = 0; i < P.length; i++) {
       const v = arr[i];
       const o = P[i][1];
-      if (v != null && (out[o] == null || v < out[o])) out[o] = v;
+      if (v != null) {
+        if (out[o] == null || v < out[o]) { second[o] = out[o]; out[o] = v; }
+        else if (second[o] == null || v < second[o]) second[o] = v;
+      }
       const cur = pick[o];
       if (cur < 0 || rank(i) < rank(cur) || (rank(i) === rank(cur) && v != null && v < arr[cur])) pick[o] = i;
     }
+    // Precios absurdos de Cardmarket (p. ej. un Badlands "Summer Magic" a 0,02 €): si el más barato
+    // vale menos de 1/5 del siguiente, no es real y se usa el siguiente.
+    for (let o = 0; o < O.length; o++) if (second[o] != null && out[o] < second[o] * 0.2) out[o] = second[o];
     const res = { price: out, pick };
     cheapCache.set(col, res);
     return res;
@@ -517,7 +524,8 @@ const Engine = (() => {
   const NUM_RES = [/\b[a-z]{1,2}\s+(\d{3,4})\b/gi, /\b(\d{1,4})\s*\/\s*\d{2,4}\b/g];
   // Línea inferior: "DSK • EN", "DSK • ES", "DSK • JA"... (el idioma da igual: edición + número bastan).
   const SET_CODE_RE = /\b([A-Z0-9]{3,5})\s*[^\w\s]{0,2}\s*(EN|ES|SP|FR|DE|IT|PT|JA|JP|KO|RU|ZHS|ZHT|CS|CT|PH)\b/gi;
-  const compact = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").normalize("NFC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  // Solo letras (sin tildes, espacios ni números: el lector cuela "3%" del coste de maná, etc.).
+  const compact = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").normalize("NFC").toLowerCase().replace(/[^\p{L}]/gu, "");
   const foreign = {};  // idioma -> Map(nombre impreso compactado -> índice de carta)
   async function foreignIndex(lang) {
     if (foreign[lang]) return foreign[lang];
@@ -539,22 +547,31 @@ const Engine = (() => {
     nameKeys ||= [...oByNorm.keys()];
     const scores = new Map();
     const bump = (k, s) => scores.set(k, Math.max(scores.get(k) || 0, s));
-    // Cartas en español, francés o japonés: se busca el nombre impreso y se traduce a la carta.
-    const lang = body.lang && body.lang !== "en" ? await foreignIndex(body.lang) : null;
+    // Cartas en otros idiomas: se busca el nombre impreso y se traduce a la carta.
+    // lang "auto" = en todos los idiomas que haya (español, francés, alemán, italiano, portugués, japonés).
+    const langs = !body.lang || body.lang === "en" ? [] : body.lang === "auto" ? Object.keys(await extra("names.json")) : [body.lang];
+    const indexes = await Promise.all(langs.map(foreignIndex));
+    const toKey = (oi) => norm(O[oi][0]);
     for (const line of lines.slice(0, 40)) {
       const y = line.y || 0;
       if (FOOTER_RE.test(line.text)) continue;
-      if (lang && y < TITLE_ZONE + 0.15) {
+      if (indexes.length && y < TITLE_ZONE + 0.15) {
         const flat = compact(line.text);
-        const toKey = (oi) => norm(O[oi][0]);
-        for (let i = 0; i < flat.length; i++) {
-          for (let j = i + 2; j <= Math.min(flat.length, i + 40); j++) {
-            const oi = lang.map.get(flat.slice(i, j));
-            if (oi != null) bump(toKey(oi), 1 + Math.min(j - i, 20) / 100 - y * 0.5);
+        let exactHit = false;
+        for (const lang of indexes) {
+          for (let i = 0; i < flat.length; i++) {
+            for (let j = i + 2; j <= Math.min(flat.length, i + 40); j++) {
+              const oi = lang.map.get(flat.slice(i, j));
+              if (oi != null && j - i >= 3) {
+                bump(toKey(oi), 1 + Math.min(j - i, 20) / 100 - y * 0.5);
+                if (j - i >= Math.max(6, flat.length * 0.6)) exactHit = true;  // un trozo corto no descarta el resto
+              }
+            }
           }
         }
-        if (flat.length >= 2 && y < TITLE_ZONE) {
-          for (const k of closeMatches(flat, lang.keys, 3, 0.7)) bump(toKey(lang.map.get(k)), ratio(flat, k) - y * 0.5);
+        // Parecido aproximado (errores del lector), solo si no hay coincidencia exacta: es lo que cuesta.
+        if (!exactHit && flat.length >= 3 && y < TITLE_ZONE) {
+          for (const lang of indexes) for (const k of closeMatches(flat, lang.keys, 2, 0.72)) bump(toKey(lang.map.get(k)), ratio(flat, k) - y * 0.5);
         }
       }
       const tokens = cleanTokens(line.text);
@@ -956,6 +973,89 @@ const Engine = (() => {
     return [score, top];
   }
 
+  // ---- Guía del mazo: cómo se juega (para quien empieza) ----
+  const THEME_TIPS = {
+    fichas: "Llena la mesa de fichas y aprovéchalas: ataca en grupo, sacrifícalas o potencia a todas a la vez.",
+    sacrificio: "Sacrifica las criaturas que ya han cumplido (fichas, o las que hacen algo al entrar o al morir) para sacar valor extra.",
+    cementerio: "Tu cementerio es un recurso: llénalo pronto y recupera o lanza cartas desde él.",
+    hechizos: "Lanza muchos hechizos baratos: cada instantáneo o conjuro activa a las cartas que los premian.",
+    artefactos: "Juega muchos artefactos baratos: hacen más fuertes a las cartas que cuentan artefactos.",
+    contadores: "Pon contadores pronto y multiplícalos (proliferar) para que tus amenazas crezcan turno a turno.",
+    "contadores +1/+1": "Pon contadores +1/+1 desde el principio: tus criaturas crecen y algunas cartas los premian.",
+    "ganar vida": "Encadena efectos de ganar vida: cada vez que ganas vida, tus cartas te dan algo a cambio.",
+    vuelo: "Gana por el aire: tus voladores pasan por encima de las defensas del rival.",
+    auras: "Pon las auras en una criatura difícil de quitar y ataca con ella; no lo apuestes todo a una criatura frágil.",
+    equipos: "Equipa a criaturas baratas y ataca; si una muere, el equipo se queda para la siguiente.",
+    encantamientos: "Juega encantamientos de forma constante: muchas de tus cartas crecen con cada uno que entra.",
+    "robar cartas": "Roba mucho para encontrar tus piezas clave y no quedarte nunca sin cartas.",
+    descarte: "Descarta cartas que te conviene tener en el cementerio, o deja al rival sin mano.",
+    molino: "Muele cartas para llenar cementerios y, si es tu plan, para dejar al rival sin biblioteca.",
+    tierras: "Juega una tierra cada turno (o más): cada tierra que entra activa tus efectos de aterrizaje.",
+    "efectos al entrar": "Aprovecha lo que hacen tus criaturas al entrar: haz que salgan y vuelvan a entrar para repetirlo.",
+    parpadeo: "Exilia y devuelve tus propias criaturas (parpadeo) para repetir sus efectos al entrar.",
+    "devolver a la mano": "Devuelve tus criaturas a la mano y vuelve a jugarlas para repetir sus efectos; úsalo también para quitar bloqueadores.",
+    "daño directo": "Usa el daño directo para quitar bloqueadores al principio y rematar al rival al final.",
+    veneno: "Con 10 contadores de veneno el rival pierde: ataca con tus criaturas infectadas y protégelas.",
+    atacar: "Ataca cada turno: muchas de tus cartas se activan al atacar o tienen prisa.",
+    planeswalkers: "Protege a tus planeswalkers con criaturas y quitando amenazas: cada turno que sobreviven te dan ventaja.",
+    legendarios: "Prioriza tus cartas legendarias: el mazo las premia.",
+    vehículos: "Ten criaturas pequeñas para tripular tus vehículos.",
+    criaturas: "Llena la mesa de criaturas: tus cartas premian tener muchas a la vez.",
+  };
+  const STYLE_TEXT = {
+    aggro: "Agresivo: baja criaturas baratas desde el turno 1 y ataca cada turno, para ganar antes de que el rival se organice.",
+    midrange: "Medio rango: amenazas sólidas y buenas respuestas. Aguanta el principio y gana a medio plazo con cartas más potentes.",
+    control: "Control: responde a lo que haga el rival (quitar amenazas, robar cartas) y gana al final con pocas amenazas grandes.",
+  };
+  function deckGuide({ chosen, base, commander, plan, landsN, size, roles }) {
+    const n = chosen.reduce((s, e) => s + e[1], 0) || 1;
+    const creatures = chosen.filter(([x]) => x.is_creature).reduce((s, e) => s + e[1], 0);
+    const avg = chosen.reduce((s, [x, k]) => s + x.cmc * k, 0) / n;
+    const k = size / 60;
+    const style = avg <= 2.4 && creatures >= 16 * k ? "aggro"
+      : creatures <= 10 * k && roles.removal + roles.draw >= 12 * k ? "control" : "midrange";
+    const names = (list) => list.map(([x]) => x.name).join(", ");
+    const byScore = chosen.slice().sort((a, b) => (b[3] || 0) - (a[3] || 0));
+    const core = [...base.filter((x) => x !== commander), ...byScore.map(([x]) => x).filter((x) => !base.includes(x))].slice(0, 6);
+    const themes = [...plan.wantsText.entries()].filter(([t, w]) => w >= 3 && THEME_TIPS[t]).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t]) => t);
+    const tips = themes.map((t) => {
+      const users = chosen.filter(([x]) => x.text_tags.has(t) || x.type_tags.has(t)).slice(0, 3);
+      return `${THEME_TIPS[t]}${users.length ? ` Cartas: ${names(users)}.` : ""}`;
+    });
+    for (const tribe of plan.tribes) tips.unshift(`Juega muchos ${tribe}: se potencian entre ellos, así que cuantos más tengas en mesa, mejor.`);
+    // Combos: una carta clave que "pide" algo y otra del mazo que lo da.
+    // Combos: una carta clave que "pide" algo y otra del mazo que lo da (uno por tema, sin repetir cartas).
+    const combos = [], usedThemes = new Set(), usedCards = new Set();
+    for (const a of core) {
+      for (const [b] of chosen) {
+        if (a === b || combos.length >= 4 || usedCards.has(b.name) || usedCards.has(`${b.name}+${a.name}`)) continue;
+        const direct = [...a.text_tags].find((t) => !usedThemes.has(t) && b.type_tags.has(t));
+        const rel = [...a.text_tags].find((t) => !usedThemes.has(t) && (RELATED[t] || []).some((r) => b.text_tags.has(r)));
+        const t = direct || rel;
+        if (!t) continue;
+        const gives = direct ? t : (RELATED[t] || []).find((r) => b.text_tags.has(r));
+        combos.push(`${a.name} + ${b.name}: ${b.name} aporta ${gives} y ${a.name} lo aprovecha (${t}).`);
+        usedThemes.add(t);
+        usedCards.add(b.name);
+        usedCards.add(`${a.name}+${b.name}`);
+      }
+    }
+    const phase = (lo, hi) => byScore.filter(([x]) => x.cmc >= lo && x.cmc <= hi).slice(0, 3);
+    const early = phase(0, 2), mid = phase(3, 4), late = phase(5, 99);
+    const turns = [
+      early.length ? `Turnos 1-2: ${names(early)}.` : null,
+      mid.length ? `Turnos 3-4: ${names(mid)}${style === "control" ? ", y guarda maná para responder" : ""}.` : null,
+      commander ? `Cuando tengas el maná, ${commander.name}; si te lo quitan, vuelve a jugarlo desde la zona de mando.` : null,
+      late.length ? `Del turno 5 en adelante: ${names(late)} para cerrar la partida.` : null,
+    ].filter(Boolean);
+    const mulligan = style === "aggro"
+      ? `Quédate manos con 2-3 tierras (el mazo lleva ${landsN}) y al menos dos cartas de coste 1-2. Con 0-1 o 5+ tierras, mulligan.`
+      : style === "control"
+        ? `Quédate manos con 3-4 tierras (el mazo lleva ${landsN}) y algo para responder. Con 1 tierra o con 6+, mulligan.`
+        : `Quédate manos con 2-4 tierras (el mazo lleva ${landsN}) y alguna jugada para los turnos 2-3. Con 0-1 o 5+ tierras, mulligan.`;
+    return { style, style_text: STYLE_TEXT[style], core: core.map((x) => x.name), plan: tips, combos, turns, mulligan };
+  }
+
   function build({ c, seed, seeds, colors, format = "pauper" }) {
     const id = binderOf(c) || 1;
     let fmt = format;
@@ -1015,8 +1115,8 @@ const Engine = (() => {
     const chosen = [];   // [carta, copias, motivos]
     const curve = {};
     const roles = { ramp: 0, draw: 0, removal: 0, wipe: 0 };
-    const take = (x, n, why) => {
-      chosen.push([x, n, why]);
+    const take = (x, n, why, score = 99) => {
+      chosen.push([x, n, why, score]);
       const b = Math.min(Math.floor(x.cmc), 6);
       curve[b] = (curve[b] || 0) + n;
       for (const r of x.roles) roles[r] += n;
@@ -1061,7 +1161,7 @@ const Engine = (() => {
       const fillsRole = [...best.roles].some((r) => roles[r] < target[r]);
       const reservable = [...left].some((x) => x !== best && fits(x) && [...x.roles].some((r) => roles[r] < target[r]));
       const free = spellSlots() - used - (fillsRole || !reservable ? 0 : deficit);  // no comerse los huecos reservados
-      take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room)), bestWhy.length ? bestWhy : ["buena carta del color"]);
+      take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room)), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
     }
     const spellsTotal = chosen.reduce((s, e) => s + e[1], 0);
     const landsWanted = landsFor();
@@ -1127,6 +1227,7 @@ const Engine = (() => {
     return {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name), colors: cols.join(""), format: fmt,
       commander: commander ? out(commander, 1, "comandante", ["comandante"]) : null,
+      guide: deckGuide({ chosen, base, commander, plan, landsN: landRows.reduce((s, r) => s + r.qty, 0), size, roles }),
       themes: [...themes, ...[...plan.tribes].map((t) => `tribu ${t}`)], cards: cardsOut, lands: landRows, warnings,
       stats: { total: all.reduce((s, r) => s + r.qty, 0) + (commander ? 1 : 0), spells: spellsTotal, lands: landRows.reduce((s, r) => s + r.qty, 0),
         creatures: chosen.filter(([x]) => x.is_creature).reduce((s, e) => s + e[1], 0), avg_cmc: Math.round(avg * 100) / 100,
@@ -1137,11 +1238,130 @@ const Engine = (() => {
     };
   }
 
+  // ---------------------------------------------------------------- predicciones y sinergias
+  /* Señales, no garantías. Con historial (7-30 días): cartas que bajaron y se han estabilizado
+   * ("rebote") y cartas que empiezan a subir. Sin historial: lo que se juega mucho y es barato, y
+   * la Lista Reservada (no se reimprime). Sinergias: cartas antiguas que combinan con las de una
+   * colección nueva (o con cualquier carta) y que, por eso, pueden subir. */
+  let ALL = null, BY_TAG = null, BY_TYPE = null, BY_SUB = null;
+  function indexAll() {
+    if (ALL) return;
+    ALL = O.map((o, oi) => analyse({ name: front(o[0]), type_line: o[1], oracle_text: o[5], mana_cost: o[2] || "", cmc: o[3] || 0,
+      colors: new Set(o[4] || ""), legal: { pauper: o[6], commander: o[9], standard: o[10] }, rank: o[7], oi, owned: 0 }));
+    BY_TAG = new Map(); BY_TYPE = new Map(); BY_SUB = new Map();
+    const push = (m, k, oi) => { if (!m.has(k)) m.set(k, []); m.get(k).push(oi); };
+    ALL.forEach((x, oi) => {
+      x.text_tags.forEach((t) => push(BY_TAG, t, oi));
+      x.type_tags.forEach((t) => push(BY_TYPE, t, oi));
+      x.subtypes.forEach((t) => push(BY_SUB, t, oi));
+    });
+  }
+  const metaCount = () => { const m = new Map(); for (const d of META) for (const [n] of d.cards) m.set(norm(n), (m.get(norm(n)) || 0) + 1); return m; };
+  const card = (oi, extra) => ({ name: front(O[oi][0]), image: oImage(oi), eur: eur(cheapest().price[oi]), ...extra });
+
+  /** Cartas (de todo Magic) que mejor encajan con el plan; las de `skip` no cuentan. */
+  function synergyCandidates(plan, skip = new Set()) {
+    indexAll();
+    // Los temas raros (contadores, veneno…) dicen más que los comunes (criaturas, robar): se pesan por rareza.
+    const idf = (m, t) => Math.max(0.2, Math.log(O.length / ((m.get(t) || []).length + 1)) / 4);
+    plan = { tribes: plan.tribes,
+      wantsText: new Map([...plan.wantsText].map(([t, w]) => [t, w * idf(BY_TAG, t)])),
+      wantsType: new Map([...plan.wantsType].map(([t, w]) => [t, w * idf(BY_TYPE, t)])) };
+    const ids = new Set();
+    for (const t of plan.wantsText.keys()) (BY_TAG.get(t) || []).forEach((oi) => ids.add(oi));
+    for (const t of plan.wantsType.keys()) (BY_TYPE.get(t) || []).forEach((oi) => ids.add(oi));
+    for (const t of plan.tribes) (BY_SUB.get(t) || []).forEach((oi) => ids.add(oi));
+    const out = [];
+    for (const oi of ids) {
+      if (skip.has(oi) || ALL[oi].is_land || O[oi][1].startsWith("Basic")) continue;
+      const [s, why] = fit(plan, ALL[oi]);
+      if (s > 0) out.push([oi, s, why]);
+    }
+    return out.sort((a, b) => b[1] - a[1]);
+  }
+
+  function predictions({ c }) {
+    indexAll();
+    const now = cheapest().price, d7 = cheapest("d7").price, d30 = cheapest("d30").price;
+    const has7 = PR.days?.["7"] && PR.days["7"] !== PR.day, has30 = PR.days?.["30"] && PR.days["30"] !== PR.day && PR.days["30"] !== PR.days["7"];
+    const played = metaCount();
+    const owned = ownedOracles(binderOf(c) || 1);
+    const demand = (oi) => (played.get(norm(O[oi][0])) || 0) * 2 + (O[oi][7] && O[oi][7] < 3000 ? 2 : O[oi][7] && O[oi][7] < 10000 ? 1 : 0) + (O[oi][8] ? 2 : 0);
+    const rebound = [], rising = [];
+    for (let oi = 0; oi < O.length; oi++) {
+      const p = now[oi];
+      if (!p || p < 50) continue;
+      if (has30 && d30[oi] && p <= d30[oi] * 0.75 && (!has7 || !d7[oi] || p >= d7[oi] * 0.97) && demand(oi) >= 2) {
+        rebound.push(card(oi, { old: eur(d30[oi]), pct: Math.round(((p - d30[oi]) * 100) / d30[oi]), score: demand(oi),
+          reason: `Ha bajado ${Math.round(((d30[oi] - p) * 100) / d30[oi])}% en 30 días y ya no baja; se sigue jugando, así que puede volver a subir.` }));
+      }
+      if (has7 && d7[oi] && p >= d7[oi] * 1.15 && (!has30 || !d30[oi] || d7[oi] <= d30[oi] * 1.05)) {
+        rising.push(card(oi, { old: eur(d7[oi]), pct: Math.round(((p - d7[oi]) * 100) / d7[oi]), score: demand(oi),
+          reason: "Estaba plana y ha empezado a subir esta semana: si sigue la tendencia, mejor comprarla ya." }));
+      }
+    }
+    const staples = [...played.entries()].map(([k, n]) => [oByNorm.get(k), n]).filter(([oi, n]) => oi != null && n >= 2 && now[oi] && now[oi] <= 300 && !BASICS.has(norm(O[oi][0])))
+      .sort((a, b) => b[1] - a[1]).slice(0, 25)
+      .map(([oi, n]) => card(oi, { owned: owned.has(oi), reason: `Se juega en ${n} mazos del meta de Pauper y aún es barata: si sube la demanda, sube el precio.` }));
+    const reserved = O.map((o, oi) => oi).filter((oi) => O[oi][8] && now[oi] && now[oi] <= 3000)
+      .sort((a, b) => (O[a][7] || 1e9) - (O[b][7] || 1e9)).slice(0, 25)
+      .map((oi) => card(oi, { owned: owned.has(oi), reason: "Lista Reservada: nunca se reimprime y se juega mucho; a la larga suele subir." }));
+    const top = (l) => l.sort((a, b) => b.score - a.score || a.pct - b.pct).slice(0, 25);
+    return { history: { d7: !!has7, d30: !!has30, since: PR.days?.["30"] || PR.day }, rebound: top(rebound), rising: top(rising), staples, reserved };
+  }
+
+  const SYN_TYPES = new Set(["expansion", "core", "draft_innovation", "masters", "commander", "funny"]);
+  function newSets() {
+    const day = today(), lo = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10), hi = new Date(Date.now() + 120 * 864e5).toISOString().slice(0, 10);
+    return [...SETS.values()].filter((s) => SYN_TYPES.has(s.type) && s.released && s.released >= lo && s.released <= hi && bySet.has(s.code))
+      .sort((a, b) => b.released.localeCompare(a.released)).slice(0, 10)
+      .map((s) => ({ code: s.code, name: s.name, released: s.released, icon: s.icon, upcoming: s.released > day }));
+  }
+  /** Cartas antiguas (y baratas) que combinan con las cartas NUEVAS de una colección. */
+  function setSynergy({ code }) {
+    const s = SETS.get(code);
+    if (!s) throw new Error("No conozco esa colección");
+    indexAll();
+    // Nueva = ninguna impresión anterior a esta colección (las reimpresiones no cuentan).
+    const firstSeen = new Map();
+    for (let pi = 0; pi < P.length; pi++) {
+      const r = SETS.get(P[pi][2])?.released || "9999";
+      const oi = P[pi][1];
+      if (!firstSeen.has(oi) || r < firstSeen.get(oi)) firstSeen.set(oi, r);
+    }
+    const fresh = [...new Set((bySet.get(code) || []).map((pi) => P[pi][1]))].filter((oi) => firstSeen.get(oi) >= s.released && !ALL[oi].is_land);
+    const now = cheapest().price;
+    const best = new Map();  // carta antigua -> [puntos, carta nueva, temas]
+    const freshSet = new Set(fresh);
+    for (const oi of fresh.sort((a, b) => (O[a][7] || 1e9) - (O[b][7] || 1e9)).slice(0, 80)) {
+      for (const [old, score, why] of synergyCandidates(makePlan([ALL[oi]]), freshSet).slice(0, 60)) {
+        if (!now[old] || now[old] < 25 || now[old] > 2000 || score < 3) continue;
+        const cur = best.get(old);
+        best.set(old, [(cur?.[0] || 0) + score, cur?.[1] || oi, cur?.[2] || why]);
+      }
+    }
+    const rows = [...best.entries()].sort((a, b) => b[1][0] - a[1][0]).slice(0, 40)
+      .map(([old, [score, by, why]]) => card(old, { score: Math.round(score), with: front(O[by][0]),
+        reason: `Combina con ${front(O[by][0])} (nueva): ${why.slice(0, 2).join(", ")}.` }));
+    return { set: { code, name: s.name, released: s.released, icon: s.icon }, fresh: fresh.length, cards: rows };
+  }
+  /** Cartas que combinan con una carta cualquiera (de todo Magic, marcando las que ya tienes). */
+  function cardSynergy({ c, name }) {
+    const oi = oByNorm.get(norm(name || ""));
+    if (oi == null) throw new Error(`No conozco la carta ${name}`);
+    indexAll();
+    const owned = ownedOracles(binderOf(c) || 1);
+    const rows = synergyCandidates(makePlan([ALL[oi]]), new Set([oi])).slice(0, 40)
+      .map(([o, score, why]) => card(o, { owned: owned.has(o), score: Math.round(score), reason: `Sinergia: ${why.slice(0, 3).join(", ")}.` }));
+    return { name: front(O[oi][0]), image: oImage(oi), cards: rows };
+  }
+
   // ---------------------------------------------------------------- rutas
   const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection,
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
-    "/api/mydecks": myDecks };
+    "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
+    "/api/cardsynergy": cardSynergy };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
     "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost };
 

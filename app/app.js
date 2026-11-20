@@ -34,16 +34,19 @@ function store(key, val) {
 }
 
 // ---------- hoja inferior ----------
+// Con una ventana abierta, el fondo no se mueve (si no, según dónde tocas, se desliza la página de detrás).
 function openSheet(html) {
   $("#sheet-body").innerHTML = html;
   $("#sheet").hidden = false;
   $("#sheet-backdrop").hidden = false;
   $("#sheet").scrollTop = 0;
+  document.documentElement.classList.add("lock");
   return $("#sheet-body");
 }
 function closeSheet() {
   $("#sheet").hidden = true;
   $("#sheet-backdrop").hidden = true;
+  document.documentElement.classList.remove("lock");
 }
 $("#sheet-close").onclick = closeSheet;
 $("#sheet-backdrop").onclick = closeSheet;
@@ -81,7 +84,7 @@ async function collectionsSheet() {
   body.querySelectorAll("[data-cid]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del]")) use(+el.dataset.cid); }));
   body.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
     const c = list.find((x) => x.id === +b.dataset.del);
-    if (!confirm(`¿Borrar "${c.name}" y sus ${c.cards} cartas? No se puede deshacer.`)) return;
+    if (!confirm(t(`¿Borrar "${c.name}" y sus ${c.cards} cartas? No se puede deshacer.`))) return;
     await api("/api/collections", { delete: c.id });
     if (cid === c.id) use(1); else collectionsSheet();
   }));
@@ -93,6 +96,14 @@ async function collectionsSheet() {
   };
 }
 $("#top-label").onclick = collectionsSheet;
+
+// Idioma de la app (ver i18n.js): al cambiarlo se recarga para traducir todo de nuevo.
+$("#lang-btn").textContent = LANG.toUpperCase();
+$("#lang-btn").onclick = () => {
+  const body = openSheet(`<h3>Idioma · Language · Idioma</h3><div class="list">${Object.entries(LANGS).map(([k, n]) => `
+    <button class="item ${k === LANG ? "on" : ""}" data-lang="${k}"><div class="item-main"><div class="item-title">${k === LANG ? "✓ " : ""}${n}</div></div></button>`).join("")}</div>`);
+  body.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { store("lang", b.dataset.lang); location.reload(); }));
+};
 
 // ---------- importar (ManaBox, Moxfield, Deckbox, lista de texto) ----------
 function importSheet() {
@@ -120,7 +131,7 @@ function importSheet() {
   $("#import-ok", body).onclick = async () => {
     const t = $("#import-text", body).value.trim() || text;
     if (!t) return toast("Elige un archivo o pega una lista");
-    if (mode === "replace" && !confirm("Se borrarán las cartas que hay ahora en esta carpeta. ¿Seguir?")) return;
+    if (mode === "replace" && !confirm(t("Se borrarán las cartas que hay ahora en esta carpeta. ¿Seguir?"))) return;
     const btn = $("#import-ok", body);
     btn.disabled = true;
     btn.textContent = "Importando…";
@@ -326,6 +337,7 @@ function cardSheet(c) {
     ${c.decks.length ? `<h2>La juegan en Pauper</h2><div class="item-meta">${c.decks.map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}</div>` : ""}
     ${/land/i.test(c.type || "") ? "" : `<button class="btn block" id="build-from" style="margin-top:12px">🔨 Crear un mazo con esta carta${/legendary.*creature/i.test(c.type || "") ? " (o de Commander)" : ""}</button>`}
     <button class="btn block" id="open-set" style="margin-top:8px">📜 Ver la colección ${esc(c.set_name)}</button>
+    <button class="btn block" id="open-syn" style="margin-top:8px">🔮 Cartas que combinan con esta</button>
     <a class="btn block" style="margin-top:8px;text-decoration:none" target="_blank" rel="noopener"
        href="${cardmarketUrl(c.name)}">🛒 Ver en Cardmarket</a>
     <div class="row-btns">
@@ -334,6 +346,7 @@ function cardSheet(c) {
     </div>`);
   $("#build-from", body)?.addEventListener("click", () => builderSheet([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
   $("#open-set", body).onclick = () => setSheet(c.set);
+  $("#open-syn", body).onclick = () => synergySheet(c.name);
   body.querySelectorAll("[data-d]").forEach((b) => (b.onclick = async () => {
     await api("/api/collection", { card_id: c.id, foil: c.foil, qty: +b.dataset.d });
     closeSheet();
@@ -501,7 +514,7 @@ async function deckSheet(id) {
   $("#share-missing", body).onclick = () => shareText(`Me falta para ${d.archetype}`, missing.join("\n"));
   $("#deck-keep", body).onclick = async () => {
     if (d.mine) {
-      if (!confirm(`¿Borrar "${d.archetype}" de Mis mazos?`)) return;
+      if (!confirm(t(`¿Borrar "${d.archetype}" de Mis mazos?`))) return;
       await api("/api/mydecks", { delete: d.id });
       closeSheet();
       toast("Mazo borrado");
@@ -719,6 +732,14 @@ async function builderSheet(seeds, startFormat) {
         <div class="stat"><b>${euro(s.value)}</b><span>Valor</span></div>
       </div>
       ${d.themes.length ? `<div class="item-meta">Plan del mazo: ${d.themes.map((x) => `<span class="chip gold">${esc(x)}</span>`).join("")}</div>` : ""}
+      <details class="guide" open><summary>📖 Cómo se juega este mazo</summary>
+        <p class="guide-style">${esc(d.guide.style_text)}</p>
+        <p><b>Cartas clave:</b> ${esc(d.guide.core.join(", "))}.</p>
+        ${d.guide.plan.length ? `<p><b>El plan:</b></p><ul>${d.guide.plan.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+        ${d.guide.combos.length ? `<p><b>Combos que funcionan juntos:</b></p><ul>${d.guide.combos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+        ${d.guide.turns.length ? `<p><b>Turno a turno:</b></p><ul>${d.guide.turns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+        <p><b>Mulligan:</b> ${esc(d.guide.mulligan)}</p>
+      </details>
       <div class="item-meta" style="margin-top:6px">Funciones: <span class="chip">${s.roles.removal} quitan amenazas</span><span class="chip">${s.roles.draw} roban</span>${format === "commander" ? `<span class="chip">${s.roles.ramp} aceleran maná</span><span class="chip">${s.roles.wipe} barridos</span>` : ""}</div>
       <h2>Curva de maná · media ${s.avg_cmc}</h2>
       <div class="curve">${Object.entries(s.curve).map(([k, n]) => `<div><i style="height:${(n / maxCurve) * 100}%"></i><b>${n || ""}</b><span>${k === "6" ? "6+" : k}</span></div>`).join("")}</div>
@@ -758,7 +779,7 @@ async function pickSeed() {
     <div class="hint">Toca una o varias cartas que te gusten: la app buscará otras que hagan combo con ellas. Para Commander, elige una criatura legendaria.</div>
     <input class="search" id="seed-q" placeholder="Buscar en tus cartas…">
     <div class="seg" style="margin-top:8px"><button id="seed-legend">👑 Solo comandantes</button></div>
-    <div class="list" id="seed-list">${skeleton(3)}</div>
+    <div id="seed-list">${skeleton(3)}</div>
     <div class="sel-bar" id="seed-bar"><span class="sub" id="seed-n">Ninguna elegida</span><button class="btn" id="seed-cmd" disabled>👑 Commander</button><button class="btn primary" id="seed-go" disabled>Crear mazo</button></div>`);
   const items = await api("/api/collection");
   const seen = new Set();
@@ -775,17 +796,22 @@ async function pickSeed() {
     $("#seed-go", body).disabled = !picked.size;
     $("#seed-cmd", body).disabled = ![...picked].some((n) => isLegend(cards.find((c) => c.name === n)));
   };
+  let limit = 90;
   const draw = (f = $("#seed-q", body).value) => {
-    const shown = cards.filter((c) => c.name.toLowerCase().includes(f.toLowerCase()) && (!onlyLegends || isLegend(c))).slice(0, 60);
-    $("#seed-list", body).innerHTML = shown.map((c) => `
-      <button class="item ${picked.has(c.name) ? "on" : ""}" data-name="${esc(c.name)}"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
-        <div class="item-main"><div class="item-title">${picked.has(c.name) ? "✓ " : ""}${esc(c.name)}</div><div class="item-meta">${esc(c.type || "")}</div></div></button>`).join("")
-      || `<div class="hint">No hay ninguna carta así.</div>`;
-    body.querySelectorAll("[data-name]").forEach((b) => (b.onclick = () => {
-      picked.has(b.dataset.name) ? picked.delete(b.dataset.name) : picked.add(b.dataset.name);
-      draw();
-      update();
-    }));
+    const all = cards.filter((c) => c.name.toLowerCase().includes(f.toLowerCase()) && (!onlyLegends || isLegend(c)));
+    $("#seed-list", body).innerHTML = all.length
+      ? `<div class="grid">${all.slice(0, limit).map((c) => tile({ ...c, key: c.name })).join("")}</div>
+         ${all.length > limit ? `<button class="btn block" id="seed-more" style="margin-top:10px">Ver más (${all.length - limit})</button>` : ""}`
+      : `<div class="hint">No hay ninguna carta así.</div>`;
+    $("#seed-more", body)?.addEventListener("click", () => { limit += 150; draw(); });
+    body.querySelectorAll("#seed-list [data-id]").forEach((b) => {
+      b.classList.toggle("picked", picked.has(b.dataset.id));
+      b.onclick = () => {  // sin repintar, para que no salte la pantalla
+        picked.has(b.dataset.id) ? picked.delete(b.dataset.id) : picked.add(b.dataset.id);
+        b.classList.toggle("picked", picked.has(b.dataset.id));
+        update();
+      };
+    });
   };
   $("#seed-legend", body).onclick = (e) => { onlyLegends = !onlyLegends; e.target.classList.toggle("on", onlyLegends); draw(); };
   $("#seed-go", body).onclick = () => builderSheet([...picked]);
@@ -799,16 +825,35 @@ async function pickSeed() {
 }
 
 
-// Mercado
+// Mercado: movimientos de precio, predicciones y sinergias (colecciones nuevas o cualquier carta)
+const predRow = (c) => `<div class="item pred" data-name="${esc(c.name)}">
+    <img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
+    <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ' <span class="chip gold">La tienes</span>' : ""}</div>
+      <div class="item-meta">${esc(c.reason)}</div></div>
+    <div class="item-side"><div class="price">${euro(c.eur)}</div>${c.pct != null ? `<div class="sub ${c.pct > 0 ? "up" : "down"}">${pct(c.pct)}</div>` : ""}</div>
+  </div>`;
+const bindPred = (root) => root.querySelectorAll(".pred[data-name]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.name)));
+
 views.market = async () => {
   const v = $("#view");
+  const section = store("marketTab") || "moves";
   v.innerHTML = `<h2>Mercado</h2>
+    <div class="seg" id="m-tab"><button data-t="moves">📈 Movimientos</button><button data-t="pred">🔮 Predicciones</button><button data-t="syn">🧩 Sinergias</button></div>
+    <div id="m-section"></div>`;
+  v.querySelectorAll("#m-tab button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.t === section);
+    b.onclick = () => { store("marketTab", b.dataset.t); views.market(); };
+  });
+  const box = $("#m-section");
+  if (section === "pred") return predictionsView(box);
+  if (section === "syn") return synergiesView(box);
+  box.innerHTML = `
     <div class="seg" id="m-scope"><button data-s="pauper">Legales en Pauper</button><button data-s="collection">Mis cartas</button><button data-s="all">Todas</button></div>
     <div class="seg" id="m-days"><button data-d="1">1 día</button><button data-d="7">7 días</button><button data-d="30">30 días</button></div>
     <div id="m-body">${skeleton(5)}</div>`;
   const draw = async () => {
-    v.querySelectorAll("#m-scope button").forEach((b) => b.classList.toggle("on", b.dataset.s === state.marketScope));
-    v.querySelectorAll("#m-days button").forEach((b) => b.classList.toggle("on", +b.dataset.d === state.marketDays));
+    box.querySelectorAll("#m-scope button").forEach((b) => b.classList.toggle("on", b.dataset.s === state.marketScope));
+    box.querySelectorAll("#m-days button").forEach((b) => b.classList.toggle("on", +b.dataset.d === state.marketDays));
     $("#m-body").innerHTML = skeleton(5);
     const m = await api(`/api/movers?scope=${state.marketScope}&days=${state.marketDays}&min=${state.marketScope === "collection" ? 0 : 0.5}`);
     const row = (i) => `<div class="mover"><span class="pct ${i.pct > 0 ? "up" : "down"}">${pct(i.pct)}</span><span class="n">${esc(i.name)}${i.set ? ` <span class="chip">${esc(i.set.toUpperCase())}</span>` : ""}</span><span class="from">${euro(i.old)} → <b>${euro(i.new)}</b></span></div>`;
@@ -820,10 +865,70 @@ views.market = async () => {
       <h2>📈 Suben</h2><div class="list">${m.up.map(row).join("") || '<div class="hint">Nada.</div>'}</div>
       <h2>📉 Bajan</h2><div class="list">${m.down.map(row).join("") || '<div class="hint">Nada.</div>'}</div>`;
   };
-  v.querySelectorAll("#m-scope button").forEach((b) => (b.onclick = () => { state.marketScope = b.dataset.s; store("marketScope", b.dataset.s); draw(); }));
-  v.querySelectorAll("#m-days button").forEach((b) => (b.onclick = () => { state.marketDays = +b.dataset.d; store("marketDays", b.dataset.d); draw(); }));
+  box.querySelectorAll("#m-scope button").forEach((b) => (b.onclick = () => { state.marketScope = b.dataset.s; store("marketScope", b.dataset.s); draw(); }));
+  box.querySelectorAll("#m-days button").forEach((b) => (b.onclick = () => { state.marketDays = +b.dataset.d; store("marketDays", b.dataset.d); draw(); }));
   draw();
 };
+
+async function predictionsView(box) {
+  box.innerHTML = `<div class="hint">Señales para comprar antes de que suban (precios de Cardmarket). Son pistas, no garantías.</div>${skeleton(4)}`;
+  const p = await api("/api/predictions");
+  const group = (title, hint, rows, empty) => `<h2>${title}</h2><div class="hint">${hint}</div>
+    ${rows.length ? `<div class="list">${rows.map(predRow).join("")}</div>` : `<div class="empty">${empty}</div>`}`;
+  const wait = "Hace falta más historial de precios: se va guardando cada día y esta lista se llenará sola.";
+  box.innerHTML = `<div class="hint">Señales para comprar antes de que suban (precios de Cardmarket). Son pistas, no garantías. Toca una carta para ver con qué combina.</div>
+    ${group("💎 Baratas que pueden volver a subir", "Bajaron mucho en 30 días, ya no bajan y se siguen jugando.", p.rebound, p.history.d30 ? "Ahora mismo ninguna cumple las condiciones." : wait)}
+    ${group("🚀 Empiezan a subir", "Estaban planas y esta semana suben un 15% o más.", p.rising, p.history.d7 ? "Esta semana ninguna." : wait)}
+    ${group("🔥 Muy jugadas y baratas", "Están en varios mazos del meta de Pauper y cuestan poco.", p.staples, "Sin datos del meta todavía.")}
+    ${group("📜 Lista Reservada más jugada", "No se reimprimen nunca: con el tiempo suelen subir.", p.reserved, "—")}`;
+  bindPred(box);
+}
+
+async function synergiesView(box) {
+  box.innerHTML = `<div class="hint">Cuando sale una colección, algunas cartas antiguas suben porque combinan con las nuevas. Aquí las ves antes.</div>
+    <h2>🆕 Colecciones nuevas</h2><div class="list" id="ns-list">${skeleton(2)}</div>
+    <h2>🔍 Con cualquier carta</h2><input class="search" id="syn-q" placeholder="Busca una carta (de cualquier colección)…"><div class="list" id="syn-res"></div>`;
+  const sets = await api("/api/newsets");
+  $("#ns-list").innerHTML = sets.map((s) => `<button class="item set-row" data-code="${esc(s.code)}">${setIcon(s)}
+      <div class="item-main"><div class="item-title">${esc(s.name)}</div><div class="item-meta">${s.upcoming ? "📅 Sale el" : "Salió el"} ${esc(s.released)}</div></div></button>`).join("")
+    || `<div class="hint">No hay colecciones recientes.</div>`;
+  box.querySelectorAll("#ns-list [data-code]").forEach((b) => (b.onclick = () => setSynergySheet(b.dataset.code)));
+  let t;
+  $("#syn-q").oninput = (e) => {
+    clearTimeout(t);
+    const text = e.target.value.trim();
+    t = setTimeout(async () => {
+      if (text.length < 2) { $("#syn-res").innerHTML = ""; return; }
+      const res = await api(`/api/search?q=${encodeURIComponent(text)}`);
+      $("#syn-res").innerHTML = res.map((r) => `<button class="item" data-name="${esc(r.name)}"><img class="thumb" loading="lazy" src="${esc(r.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(r.name)}</div></div></button>`).join("") || `<div class="hint">No hay cartas con ese nombre.</div>`;
+      box.querySelectorAll("#syn-res [data-name]").forEach((b) => (b.onclick = () => synergySheet(b.dataset.name)));
+    }, 250);
+  };
+}
+
+async function setSynergySheet(code) {
+  const body = openSheet(`<h3>Sinergias de la colección</h3><div class="hint">Analizando las cartas nuevas (la primera vez tarda unos segundos)…</div>${skeleton(4)}`);
+  try {
+    const d = await api(`/api/setsynergy?code=${encodeURIComponent(code)}`);
+    body.innerHTML = `<div class="set-head">${setIcon(d.set)}<div><h3>${esc(d.set.name)}</h3><div class="sub">${d.fresh} cartas nuevas · ${esc(d.set.released)}</div></div></div>
+      <div class="hint">Cartas antiguas y baratas que combinan con las nuevas: suelen subir cuando la colección sale. Toca una para ver más.</div>
+      <div class="list">${d.cards.map(predRow).join("") || '<div class="hint">No he encontrado sinergias claras.</div>'}</div>`;
+    bindPred(body);
+  } catch (err) { body.innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+}
+
+async function synergySheet(name) {
+  const body = openSheet(`<h3>Combinan con ${esc(name)}</h3>${skeleton(4)}`);
+  try {
+    const d = await api(`/api/cardsynergy?name=${encodeURIComponent(name)}`);
+    body.innerHTML = `<h3>Combinan con ${esc(d.name)}</h3><img class="card-big" src="${esc(d.image)}" alt="${esc(d.name)}">
+      <div class="hint">Las cartas de todo Magic que mejor encajan con ella. "La tienes" = está en tu carpeta.</div>
+      <div class="list">${d.cards.map(predRow).join("") || '<div class="hint">No he encontrado sinergias claras.</div>'}</div>
+      <a class="btn block" style="margin-top:10px;text-decoration:none" target="_blank" rel="noopener" href="${cardmarketUrl(d.name)}">🛒 Ver ${esc(d.name)} en Cardmarket</a>`;
+    bindPred(body);
+  } catch (err) { body.innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+}
 
 // Avisos
 views.alerts = async () => {
@@ -850,7 +955,8 @@ function refresh() {
 
 // ---------- escáner en vivo (cámara + OCR en el móvil con Tesseract.js) ----------
 const TESS = window.GM_CONFIG?.tesseractBase;
-const SCAN_LANGS = [["en", "eng", "EN"], ["es", "spa", "ES"], ["fr", "fra", "FR"], ["ja", "jpn", "JA"]];
+// AUTO: nombre en inglés, español, francés, alemán, italiano, portugués o japonés, sin elegir.
+const SCAN_LANGS = [["auto", "eng", "AUTO"], ["en", "eng", "EN"], ["es", "spa", "ES"], ["fr", "fra", "FR"], ["ja", "jpn", "JA"]];
 const ocrWorkers = {};  // el título en el idioma de la carta, la línea inferior siempre en inglés
 async function getWorker(lang = "eng", slot = lang, psm = 0) {
   if (!window.Tesseract) {
@@ -901,7 +1007,7 @@ function ocrLines(data, canvas) {
 }
 
 const S = { running: false, busy: false, paused: false, stream: null, last: null, hits: 0, timer: null };
-const scanLang = () => SCAN_LANGS.find((l) => l[0] === (store("scanLang") || "en")) || SCAN_LANGS[0];
+const scanLang = () => SCAN_LANGS.find((l) => l[0] === (store("scanLang") || "auto")) || SCAN_LANGS[0];
 
 async function startScan() {
   closeSheet();
@@ -914,6 +1020,7 @@ async function startScan() {
         <button class="sheet-close" id="scan-close" aria-label="Cerrar escáner">✕</button>
       </div>
       <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
+      <div class="scan-read" id="scan-read"></div>
       <div class="scan-result" id="scan-result" hidden></div>
       <div class="scan-tools" id="scan-tools"><button class="btn" id="scan-photo">📷 Foto</button></div>
     </div>`);
@@ -932,9 +1039,10 @@ async function startScan() {
   const video = $("#scan-video");
   video.srcObject = S.stream;
   await video.play().catch(() => {});
-  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0 });
+  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0 });
+  document.documentElement.classList.add("lock");
   status("Preparando el lector…");
-  Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 7), getWorker("eng", "bottom", 6)])
+  Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6)])
     .then(() => status("Coloca la carta dentro del marco · toca para enfocar")).catch((e) => status(e.message));
   setupCameraControls(video);
   S.timer = setInterval(scanTick, 200);
@@ -976,32 +1084,34 @@ function closeScanner() {
   S.running = false;
   S.stream?.getTracks().forEach((t) => t.stop());
   $("#scanner").remove();
+  if ($("#sheet").hidden) document.documentElement.classList.remove("lock");
   return true;
 }
 const status = (msg) => { const el = $("#scan-status"); if (el) el.textContent = msg; };
 
-// Del vídeo (que se ve con object-fit: cover) recorta, dentro del marco de la carta, dos franjas
-// ampliadas: el título (arriba) y la línea de edición y número (abajo a la izquierda).
+// Del vídeo (que se ve con object-fit: cover) recorta lo que hay dentro del marco: dos franjas
+// ampliadas (título arriba; edición y número abajo) y, para cuando la carta no encaja bien, la carta entera.
 function grabFrame() {
   const v = $("#scan-video"), f = $("#scan-frame");
   if (!v?.videoWidth) return null;
   const vr = v.getBoundingClientRect(), fr = f.getBoundingClientRect();
   const scale = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
   const ox = (vr.width - v.videoWidth * scale) / 2, oy = (vr.height - v.videoHeight * scale) / 2;
-  const x = (fr.left - vr.left - ox) / scale, y = (fr.top - vr.top - oy) / scale;
-  const w = fr.width / scale, h = fr.height / scale;
+  const x = Math.max(0, (fr.left - vr.left - ox) / scale), y = Math.max(0, (fr.top - vr.top - oy) / scale);
+  const w = Math.min(v.videoWidth - x, fr.width / scale), h = Math.min(v.videoHeight - y, fr.height / scale);
   return {
-    title: toCanvas(v, x + w * 0.04, y + h * 0.03, w * 0.8, h * 0.09, 640, true),
-    bottom: toCanvas(v, x + w * 0.02, y + h * 0.89, w * 0.62, h * 0.08, 520, true),
+    title: toCanvas(v, x + w * 0.02, y + h * 0.01, w * 0.9, h * 0.14, 700, true),
+    bottom: toCanvas(v, x, y + h * 0.84, w * 0.72, h * 0.16, 560, true),
+    full: toCanvas(v, x, y, w, h, 820),
   };
 }
+const textLines = (r, y) => r.data.text.split("\n").filter((t) => t.trim()).map((t) => ({ text: t.trim(), y }));
 async function readStrips(w, strips) {
   // A la vez: el título con el lector del idioma y "WAR • JA 227" (letras latinas en todos los
   // idiomas) con el lector inglés.
   const [top, bottom] = await Promise.all([w.recognize(strips.title),
     getWorker("eng", "bottom", 6).then((b) => b.recognize(strips.bottom))]);
-  return [...top.data.text.split("\n").filter((t) => t.trim()).map((t) => ({ text: t.trim(), y: 0 })),
-    ...bottom.data.text.split("\n").filter((t) => t.trim()).map((t) => ({ text: t.trim(), y: 0.95 }))];
+  return [...textLines(top, 0), ...textLines(bottom, 0.95)];
 }
 
 async function scanTick() {
@@ -1009,22 +1119,34 @@ async function scanTick() {
   const strips = grabFrame();
   if (!strips) return;
   S.busy = true;
+  S.n = (S.n || 0) + 1;
   try {
     const [lang, code] = scanLang();
-    const w = await getWorker(code, `title:${code}`, 7);
-    const lines = await readStrips(w, strips);
+    let lines;
+    if (S.n % 4 === 0) {
+      // Cada 4 intentos, la carta entera: sirve si la carta no llena el marco o está torcida.
+      const r = await (await getWorker("eng", "full")).recognize(strips.full);
+      lines = ocrLines(r.data, strips.full);
+    } else {
+      // En AUTO, el título se lee con el lector latino y, uno de cada tres intentos, con el japonés.
+      const titleCode = lang === "auto" ? (S.n % 3 === 2 ? "jpn" : "eng") : code;
+      lines = await readStrips(await getWorker(titleCode, `title:${titleCode}`, 6), strips);
+    }
     if (!S.running || S.paused) return;
+    const seen = lines.map((l) => l.text).join(" · ").slice(0, 70);
+    const read = $("#scan-read");
+    if (read) read.textContent = seen ? `Leo: «${seen}»` : "No veo texto: acerca la carta o dale más luz";
     const m = await api("/api/match", { lines, lang });
     const top = m[0];
     if (top && top.name === S.justAdded) {
       status("Añadida ✓ · Pon la siguiente carta");  // sigue la misma carta delante: no añadirla dos veces
-    } else if (top && top.score >= 0.9) {
+    } else if (top && top.score >= 0.85) {
       S.justAdded = null;
       S.hits = S.last === top.name ? S.hits + 1 : 1;
       S.last = top.name;
       status(`Leyendo… ${top.name}`);
-      // Dos lecturas iguales seguidas (o la edición exacta leída) = carta reconocida.
-      if (S.hits >= 2 || top.best) showScanResult(m);
+      // Dos lecturas iguales seguidas, la edición exacta leída o un nombre leído sin dudas = reconocida.
+      if (S.hits >= 2 || top.best || top.score >= 1.15) showScanResult(m);
     } else {
       S.justAdded = null;
       status("Coloca la carta dentro del marco, con buena luz y sin reflejos");

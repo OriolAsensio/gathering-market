@@ -72,6 +72,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: .85em; }
   background: linear-gradient(180deg, var(--gold-2), var(--gold) 70%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
+.lang-btn { margin-left: auto; border: 1px solid var(--line); background: var(--surface); color: var(--gold); border-radius: 999px;
+  padding: 4px 11px; font: 700 12px var(--display); letter-spacing: .08em; cursor: pointer; }
 .treasury {
   margin-top: 14px; padding: 14px 16px 12px; border-radius: 12px; position: relative;
   background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 12%, var(--surface)), var(--surface) 55%);
@@ -237,7 +239,9 @@ button.gcard { border: 0; background: none; padding: 0; text-align: left; cursor
 .fab svg { width: 28px; height: 28px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.5)); }
 
 /* ---------- Hoja inferior ---------- */
-.sheet-backdrop { position: fixed; inset: 0; background: rgba(8, 4, 2, .62); z-index: 20; }
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(8, 4, 2, .62); z-index: 20; touch-action: none; }
+html.lock, html.lock body { overflow: hidden; overscroll-behavior: none; }
+.sheet, .scan-result { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .sheet {
   position: fixed; left: 0; right: 0; bottom: 0; max-height: 92vh; overflow-y: auto; z-index: 21;
   background: var(--surface); border-radius: 16px 16px 0 0; padding: 8px 16px calc(24px + var(--safe-b));
@@ -293,6 +297,13 @@ button.gcard { border: 0; background: none; padding: 0; text-align: left; cursor
 .curve i { width: 100%; background: linear-gradient(180deg, var(--gold-2), var(--gold)); border-radius: 4px 4px 1px 1px; min-height: 2px; }
 .curve b { position: absolute; top: -2px; font-size: 13px; }
 .curve span { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.guide { margin: 14px 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line)); border-radius: 10px;
+  background: color-mix(in srgb, var(--gold) 6%, var(--surface)); }
+.guide summary { font: 700 14px var(--display); letter-spacing: .05em; color: var(--gold); cursor: pointer; }
+.guide p { margin: 10px 0 4px; }
+.guide-style { font-weight: 600; }
+.guide ul { margin: 4px 0 6px; padding-left: 20px; }
+.guide li { margin: 3px 0; }
 .warn { background: color-mix(in srgb, var(--gold) 13%, transparent); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 15px; margin: 10px 0; border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent); }
 textarea.search { resize: vertical; font-family: inherit; }
 label.btn { cursor: pointer; }
@@ -326,6 +337,8 @@ body:has(#col-bar:not([hidden])) .fab { display: none; }
 .scan-top .sheet-close { position: static; }
 .scan-status { position: absolute; left: 16px; right: 16px; top: calc(42% + min(39vw * 88 / 63, 23vh * 88 / 63) / 1 + 10px); text-align: center;
   color: #f2e6c9; font: 600 15px var(--display); letter-spacing: .03em; text-shadow: 0 1px 4px #000; }
+.scan-read { position: absolute; left: 16px; right: 16px; bottom: calc(var(--safe-b) + 74px); text-align: center; color: #d8c9a6;
+  font-size: 13px; text-shadow: 0 1px 3px #000; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .scan-tools { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 18px); display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .scan-zoom { display: flex; align-items: center; gap: 6px; color: #f2e6c9; background: rgba(0,0,0,.45); padding: 6px 10px; border-radius: 8px; }
 .scan-zoom input { width: 120px; accent-color: var(--gold); }

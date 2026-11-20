@@ -1,4 +1,4 @@
-"""Nombres impresos de las cartas en español, francés y japonés (para el escáner).
+"""Nombres impresos de las cartas en español, francés, alemán, italiano, portugués y japonés (escáner).
 
 Lee el fichero "all_cards" de Scryfall (todas las cartas en todos los idiomas, ~400 MB
 comprimido) y guarda solo nombre impreso → nombre en inglés. Como precons.py, no hace
@@ -11,7 +11,7 @@ import urllib.request
 from db import connect
 from ingest_prices import BULK_INDEX, HEADERS, fetch_json
 
-LANGS = {"es", "fr", "ja"}
+LANGS = {"es", "fr", "de", "it", "pt", "ja"}
 
 
 def main():
