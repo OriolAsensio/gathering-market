@@ -171,6 +171,7 @@ const EXACT = [
   ["Abriendo la cámara…", "Opening the camera…", "Obrint la càmera…"], ["Preparando el lector…", "Preparing the reader…", "Preparant el lector…"],
   ["Coloca la carta dentro del marco · toca para enfocar", "Place the card inside the frame · tap to focus", "Col·loca la carta dins del marc · toca per enfocar"],
   ["Coloca la carta dentro del marco, con buena luz y sin reflejos", "Place the card inside the frame, with good light and no glare", "Col·loca la carta dins del marc, amb bona llum i sense reflexos"],
+  ["¿Borrosa? Aleja el móvil un palmo y usa el zoom 🔍", "Blurry? Move the phone a hand-width back and use the zoom 🔍", "Borrosa? Allunya el mòbil un pam i fes servir el zoom 🔍"],
   ["Coloca la siguiente carta", "Place the next card", "Col·loca la carta següent"], ["Añadida ✓ · Pon la siguiente carta", "Added ✓ · Next card", "Afegida ✓ · Posa la carta següent"],
   ["No veo texto: acerca la carta o dale más luz", "I can't see text: bring the card closer or add light", "No veig text: apropa la carta o dona-li més llum"],
   ["📷 Foto", "📷 Photo", "📷 Foto"], ["🔦 Linterna", "🔦 Torch", "🔦 Llanterna"], ["Cerrar escáner", "Close scanner", "Tancar l'escàner"],

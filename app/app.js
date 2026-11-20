@@ -1126,7 +1126,15 @@ function setupCameraControls(video) {
   const caps = track.getCapabilities?.() || {};
   const modes = caps.focusMode || [];
   const apply = (c) => track.applyConstraints({ advanced: [c] }).catch(() => {});
-  if (modes.includes("continuous")) apply({ focusMode: "continuous" });
+  // Reenfocar en un punto (por defecto, el centro del marco de la carta, no la mesa de detrás).
+  const focusAt = (x = 0.5, y = 0.42) => {
+    const c = { pointsOfInterest: [{ x, y }] };
+    if (modes.includes("single-shot")) c.focusMode = "single-shot";
+    else if (modes.includes("continuous")) c.focusMode = "continuous";
+    return apply(c).then(() => modes.includes("continuous") && setTimeout(() => apply({ focusMode: "continuous" }), 1500));
+  };
+  S.refocus = () => modes.length && focusAt();
+  if (modes.includes("continuous")) apply({ focusMode: "continuous", pointsOfInterest: [{ x: 0.5, y: 0.42 }] });
   video.onclick = (e) => {
     const r = video.getBoundingClientRect();
     const ring = Object.assign(document.createElement("span"), { className: "focus-ring" });
@@ -1134,10 +1142,7 @@ function setupCameraControls(video) {
     ring.style.top = `${e.clientY}px`;
     $("#scanner").appendChild(ring);
     setTimeout(() => ring.remove(), 700);
-    const c = { pointsOfInterest: [{ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }] };
-    if (modes.includes("single-shot")) c.focusMode = "single-shot";
-    else if (modes.includes("continuous")) c.focusMode = "continuous";
-    apply(c).then(() => modes.includes("continuous") && setTimeout(() => apply({ focusMode: "continuous" }), 1500));
+    focusAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   };
   const bar = $("#scan-tools");
   bar.innerHTML = `<button class="btn" id="scan-photo">📷 Foto</button><button class="btn" id="scan-cam">🔄 Cámara</button>`;
@@ -1156,8 +1161,10 @@ function setupCameraControls(video) {
     $("#scan-af")?.addEventListener("click", () => { apply({ focusMode: "continuous" }); toast("Enfoque automático"); });
   }
   if (caps.zoom && caps.zoom.max > caps.zoom.min) {
-    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">🔍<input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${caps.zoom.min}"></label>`);
-    $("#scan-zoomr").oninput = (e) => apply({ zoom: +e.target.value });
+    const z0 = Math.min(caps.zoom.max, Math.max(caps.zoom.min, +(store("scanZoom") || 1.6)));
+    apply({ zoom: z0 });
+    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">🔍<input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${z0}"></label>`);
+    $("#scan-zoomr").oninput = (e) => { apply({ zoom: +e.target.value }); store("scanZoom", e.target.value); };
   }
   if (!canFocus(S.stream)) status("Esta cámara no enfoca: prueba 🔄 Cámara o 📷 Foto (usa el enfoque del móvil)");
 }
@@ -1226,6 +1233,7 @@ async function scanTick() {
       status("Añadida ✓ · Pon la siguiente carta");  // sigue la misma carta delante: no añadirla dos veces
     } else if (top && top.score >= 0.85) {
       S.justAdded = null;
+      S.misses = 0;
       S.hits = S.last === top.name ? S.hits + 1 : 1;
       S.last = top.name;
       status(`Leyendo… ${top.name}`);
@@ -1233,7 +1241,9 @@ async function scanTick() {
       if (S.hits >= 2 || top.best || top.score >= 1.15) showScanResult(m);
     } else {
       S.justAdded = null;
-      status("Coloca la carta dentro del marco, con buena luz y sin reflejos");
+      S.misses = (S.misses || 0) + 1;
+      if (S.misses % 6 === 0) S.refocus?.();  // ~cada 2-3 s sin leer nada: forzar un reenfoque
+      status(S.misses > 12 ? "¿Borrosa? Aleja el móvil un palmo y usa el zoom 🔍" : "Coloca la carta dentro del marco, con buena luz y sin reflejos");
     }
   } catch (err) {
     status(err.message);
