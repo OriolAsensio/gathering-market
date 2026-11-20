@@ -120,7 +120,9 @@ def main(out=None):
         dump(out / "names.json", names)
 
     sizes = {f.name: f.stat().st_size for f in out.glob("*.json") if f.name != "version.json"}
-    dump(out / "version.json", {"day": day, "cards_version": cards_version, "sizes": sizes,
+    # Huella del meta y los avisos: la segunda vuelta del día puede traer meta nuevo con el mismo "day".
+    live = hashlib.sha1(b"".join((out / f).read_bytes() for f in ("meta.json", "events.json"))).hexdigest()[:12]
+    dump(out / "version.json", {"day": day, "cards_version": cards_version, "live_version": live, "sizes": sizes,
                                 "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "format": 1})
     print(f"Paquete {day} en {out}: " + ", ".join(f"{k} {v / 1e6:.1f} MB" for k, v in sizes.items()))
     print(f"{len(oracle)} cartas, {len(printings)} impresiones, {len(p_index)} ids")

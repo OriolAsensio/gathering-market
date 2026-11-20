@@ -1,4 +1,4 @@
-# Tarea diaria de Gathering Market en GitHub (gratis, no necesita tu PC encendido).
+# Tarea de Gathering Market en GitHub, dos veces al día (gratis, no necesita tu PC encendido).
 #
 # 1. Recupera la base de datos de ayer (adjunta a la release "datos").
 # 2. Descarga precios (Scryfall), colecciones, meta de Pauper (MTGTop8) y genera avisos.
@@ -9,7 +9,9 @@ name: Datos diarios
 
 on:
   schedule:
-    - cron: "15 6 * * *"   # 06:15 UTC (07:15/08:15 en España), con los precios de Scryfall ya actualizados
+    # Dos veces al día: 07:00 y 19:00 UTC = 8:00 y 20:00 en España en invierno (9:00 y 21:00 en verano).
+    # La segunda vuelta refresca el meta; los precios del día no se repiten y los avisos tampoco.
+    - cron: "0 7,19 * * *"
   workflow_dispatch:        # botón "Run workflow" para lanzarla a mano
 
 permissions:

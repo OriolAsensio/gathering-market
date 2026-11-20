@@ -331,14 +331,14 @@ views.collection = async () => {
     const f = state.collectionFilter.toLowerCase();
     const shown = items.filter((c) => !f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f)));
     const page = shown.slice(0, limit);
-    const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, c.foil ? '<span class="num-tag">Foil</span>' : "")).join("")}</div>`
+    const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, c.foil || c.alter ? `<span class="num-tag">${[c.foil ? "Foil" : "", c.alter ? "✍️" : ""].filter(Boolean).join(" ")}</span>` : "")).join("")}</div>`
       : `<div class="list">${page.map((c) => `
       <button class="item" data-row="${esc(c.key)}">
         <img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
         <div class="item-main">
           <div class="item-title">${esc(c.name)}</div>
           <div class="item-meta"><i class="r r-${esc(c.rarity)}"></i>${esc(c.set.toUpperCase())} #${esc(c.number)}
-            ${c.foil ? '<span class="chip foil">Foil</span>' : ""}
+            ${c.foil ? '<span class="chip foil">Foil</span>' : ""}${c.alter ? `<span class="chip gold">✍️ ${esc(c.alter.name)}</span>` : ""}
             ${c.pauper === "banned" ? '<span class="chip ban">Baneada</span>' : ""}</div>
           ${c.decks.length ? `<div class="item-meta">${c.decks.slice(0, 3).map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}${c.decks.length > 3 ? `<span class="chip">+${c.decks.length - 3}</span>` : ""}</div>` : ""}
         </div>
@@ -429,10 +429,13 @@ function cardSheet(c) {
     $("#versions", body).innerHTML = mine.map((x) => `<div class="item version">
         <img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(x.set_name)} #${esc(x.number)}</div>
-          <div class="item-meta">${x.foil ? '<span class="chip foil">Foil</span>' : ""}${euro(x.eur)}</div></div>
+          <div class="item-meta">${x.foil ? '<span class="chip foil">Foil</span>' : ""}${euro(x.eur)}</div>
+          ${x.alter ? `<div class="item-meta"><span class="chip gold">✍️ ${esc(x.alter.name)} ×${x.alter.qty}</span> ~${euro(x.alter.estimate[0])}–${euro(x.alter.estimate[1])}${x.alter.note ? ` · ${esc(x.alter.note)}` : ""}</div>` : ""}
+          <button class="btn alter-btn" data-alter="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-q="${x.qty}">✍️ ${x.alter ? "Cambiar alteración" : "¿Firmada o con arte propio?"}</button></div>
         <div class="stepper"><button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" aria-label="Quitar una">−</button><b class="num">${x.qty}</b>
           <button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" aria-label="Añadir otra">+</button></div>
       </div>`).join("") || `<div class="hint">Ya no tienes ninguna.</div>`;
+    body.querySelectorAll("#versions [data-alter]").forEach((b) => (b.onclick = () => alterBox(b, mine.find((x) => x.id === b.dataset.alter && x.foil === (b.dataset.f === "1")))));
     body.querySelectorAll("#versions [data-v]").forEach((b) => (b.onclick = async () => {
       const r = await api("/api/collection", { card_id: b.dataset.v, foil: b.dataset.f === "1", qty: +b.dataset.d });
       if (+b.dataset.d > 0) celebrate(r);
@@ -441,7 +444,40 @@ function cardSheet(c) {
       loadSummary();
     }));
   };
+  $("#versions", body).addEventListener("altered", drawVersions);
   drawVersions();
+}
+
+// Marcar una versión como alterada (firma del artista o arte pintado a mano) y ver cuánto podría valer.
+function alterBox(btn, x) {
+  const box = document.createElement("div");
+  box.className = "alter-box";
+  let kind = x.alter?.kind || "firma", qty = x.alter?.qty || 1;
+  const draw = async () => {
+    const est = await api(`/api/alterestimate?card_id=${encodeURIComponent(x.id)}&foil=${x.foil ? 1 : 0}&kind=${kind}`);
+    box.innerHTML = `<div class="seg" id="al-kind"><button data-k="firma">✍️ Firmada</button><button data-k="arte">🎨 Arte propio</button><button data-k="ambas">Las dos</button></div>
+      <div class="hint">Precio normal ${euro(x.eur)}. ${kind === "firma" ? "Con firma del artista" : kind === "arte" ? "Con arte pintado a mano (alter)" : "Firmada y con arte propio"} podría venderse por unos
+        <b>${euro(est[0])}–${euro(est[1])}</b></div><div class="hint">Es orientativo: depende del artista, de la calidad y de quién la compre.</div>
+      <div class="field" style="flex-direction:row;justify-content:space-between;align-items:center"><span class="sub">Copias alteradas</span>
+        <div class="stepper"><button data-q="-1">−</button><b class="num">${qty}</b><button data-q="1">+</button></div></div>
+      <input class="search" id="al-note" maxlength="80" placeholder="Nota (opcional): artista, firma en el arte…" value="${esc(x.alter?.note || "")}">
+      <div class="row-btns">${x.alter ? `<button class="btn" id="al-del">Quitar alteración</button>` : ""}<button class="btn primary" id="al-ok">Guardar</button></div>`;
+    box.querySelectorAll("#al-kind button").forEach((b) => { b.classList.toggle("on", b.dataset.k === kind); b.onclick = () => { kind = b.dataset.k; draw(); }; });
+    box.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { qty = Math.min(x.qty, Math.max(1, qty + +b.dataset.q)); draw(); }));
+    const save = async (k) => {
+      await api("/api/alter", { card_id: x.id, foil: x.foil, kind: k, qty, note: $("#al-note", box).value });
+      toast(k ? "Alteración guardada" : "Alteración quitada");
+      closeSheet.dirty = true;
+      box.remove();
+      btn.dispatchEvent(new CustomEvent("altered", { bubbles: true }));
+    };
+    $("#al-ok", box).onclick = () => save(kind);
+    $("#al-del", box)?.addEventListener("click", () => save(""));
+  };
+  const open = btn.parentElement.querySelector(".alter-box");
+  if (open) return open.remove();
+  btn.after(box);
+  draw();
 }
 
 // Elegir carta, arte (con imágenes), foil y cantidad, y añadir.
@@ -857,7 +893,7 @@ async function setSheet(code, opts = {}) {
 }
 
 // ---------- constructor de mazos ----------
-const COLORS = [["W", "Blanco"], ["U", "Azul"], ["B", "Negro"], ["R", "Rojo"], ["G", "Verde"]];
+const COLORS = [["W", "Blanco"], ["U", "Azul"], ["B", "Negro"], ["R", "Rojo"], ["G", "Verde"], ["C", "Incoloro"]];
 const FORMAT_NAMES = { pauper: "Pauper", commander: "Commander", standard: "Estándar", casual: "Casual" };
 const STYLE_NAMES = { auto: "Auto", aggro: "Agresivo", midrange: "Medio rango", control: "Control" };
 const manaIcon = (k, label = k) => `<img class="mana-icon" src="mana/${k}.svg" alt="${esc(label)}">`;
@@ -868,6 +904,7 @@ async function builderSheet(seeds, startFormat) {
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
   let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
   const run = async () => {
+    $("h3", body).textContent = `Mazo con ${seeds.join(", ")}`;
     $("#b-body", body).innerHTML = `<div class="hint">Buscando cartas que encajen con el plan…</div>${skeleton(4)}`;
     let d;
     try {
@@ -913,9 +950,12 @@ async function builderSheet(seeds, startFormat) {
       <div class="curve">${Object.entries(s.curve).map(([k, n]) => `<div><i style="height:${(n / maxCurve) * 100}%"></i><b>${n || ""}</b><span>${k === "6" ? "6+" : k}</span></div>`).join("")}</div>
       <div class="hint">${s.creatures} criaturas y ${s.spells - s.creatures} hechizos. Debajo de cada carta, por qué está.</div>
       ${group("Criaturas", creatures)}${group("Hechizos", spells)}${group("Tierras", d.lands)}
-      ${d.bench.length ? `<h2>También encajarían</h2><div class="list">${d.bench.map((c) => `
-        <div class="item"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt=""><div class="item-main"><div class="item-title">${esc(c.name)}</div>
-        <div class="item-meta">${esc(c.reasons.join(" · "))}</div></div></div>`).join("")}</div>` : ""}
+      ${d.bench.length ? `<h2>➕ Te recomiendo añadir (ya las tienes)</h2><div class="hint">Toca una para meterla en el mazo como carta base.</div>
+        <div class="grid">${d.bench.map((c) => `<button class="gcard rec" data-add="${esc(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
+          ${c.eur != null ? `<span class="badge full">${euro(c.eur)}</span>` : ""}<div class="why">${esc(c.reasons.join(" · "))}</div></button>`).join("")}</div>` : ""}
+      ${d.buy?.length ? `<h2>🛒 Te recomiendo comprar</h2><div class="hint">No las tienes y mejorarían el mazo. Toca una para verla en Cardmarket.</div>
+        <div class="grid">${d.buy.map((c) => `<a class="gcard rec" target="_blank" rel="noopener" href="${cardmarketUrl(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
+          <span class="badge part">${euro(c.eur)}</span><div class="why">${esc(c.reasons.join(" · "))}</div></a>`).join("")}</div>` : ""}
       <div class="row-btns"><button class="btn" id="b-other">Otras cartas</button><button class="btn" id="b-copy">Copiar lista</button></div>
       <button class="btn block primary" id="b-save" style="margin-top:8px">💾 Guardar en Mis mazos</button>`;
     body.querySelectorAll("#b-format button").forEach((b) => {
@@ -927,6 +967,11 @@ async function builderSheet(seeds, startFormat) {
       set.has(b.dataset.c) ? set.delete(b.dataset.c) : set.add(b.dataset.c);
       if (!set.size) return toast("El mazo necesita al menos un color");
       colors = COLORS.map(([k]) => k).filter((k) => set.has(k)).join("");
+      run();
+    }));
+    body.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => {
+      if (!seeds.includes(b.dataset.add)) seeds.push(b.dataset.add);
+      toast(`${b.dataset.add}: añadida como carta base`);
       run();
     }));
     $("#b-copy", body).onclick = () => copy(listText, "Lista copiada (se puede importar en Moxfield, MTGA…)");

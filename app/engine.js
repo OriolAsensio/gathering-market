@@ -127,8 +127,9 @@ const Engine = (() => {
     onProgress("Consultando a los mercaderes…", 0);
     const pricesText = await fresh("prices", "prices.json", newDay || newCards, (p) => onProgress("Consultando a los mercaderes…", p));
     const setsText = await fresh("sets", "sets.json", newDay);
-    const metaText = await fresh("meta", "meta.json", newDay);
-    const eventsText = await fresh("events", "events.json", newDay);
+    const newLive = newDay || (version && version.live_version !== saved.live_version);  // meta actualizado el mismo día
+    const metaText = await fresh("meta", "meta.json", newLive);
+    const eventsText = await fresh("events", "events.json", newLive);
     if (version) await kvSet("version", version);
     VERSION = version || saved;
 
@@ -377,7 +378,7 @@ const Engine = (() => {
       const o = O[P[pi][1]];
       return { row_id: `${r.id}|${foil ? 1 : 0}`, id: r.id, name: r.name, set: r.set, set_name: r.set_name, number: r.number,
         rarity: r.rarity, image: r.image, qty, foil, eur: eur(priceOf(pi, foil)), pauper: r.pauper, type: o[1],
-        decks: used.get(norm(o[0])) || [] };
+        decks: used.get(norm(o[0])) || [], alter: alterOf(id, `${r.id}|${foil ? 1 : 0}`, eur(priceOf(pi, foil)), qty) };
     });
     rows.sort((a, b) => (b.eur || 0) - (a.eur || 0) || a.name.localeCompare(b.name));
     return rows;
@@ -397,6 +398,36 @@ const Engine = (() => {
     fn();
     return codes.filter((code) => setComplete(id, code)).map((code) => SETS.get(code)?.name || code.toUpperCase());
   }
+  // ---------------------------------------------------------------- cartas alteradas (firma del artista, arte propio)
+  /* Estimación orientativa del mercado de segunda mano: una firma suele sumar entre un 25 y un 75 % (mínimo unos 3-10 €);
+   * un "alter" pintado a mano añade sobre todo el trabajo del artista (unos 20-100 €) más una parte del valor de la carta. */
+  const ALTER_NAMES = { firma: "Firmada", arte: "Arte propio", ambas: "Firmada y con arte propio" };
+  function alterEstimate(base, kind) {
+    const b = base || 0;
+    const firma = [b + Math.max(3, b * 0.25), b + Math.max(10, b * 0.75)];
+    const arte = [b * 1.1 + 20, b * 1.3 + 100];
+    const r = kind === "firma" ? firma : kind === "arte" ? arte : [arte[0] + firma[0] - b, arte[1] + firma[1] - b];
+    return r.map((x) => Math.round(x));
+  }
+  function alterOf(id, key, base, qty) {
+    const a = user.alters?.[id]?.[key];
+    if (!a) return null;
+    const n = Math.min(a.qty || 1, qty);
+    return { kind: a.kind, name: ALTER_NAMES[a.kind], qty: n, note: a.note || "", estimate: alterEstimate(base, a.kind) };
+  }
+  function alterPost(body) {
+    const id = binderOf(body.c);
+    if (!id) throw new Error("Esa carpeta ya no existe");
+    if (!byId.has(body.card_id)) throw new Error("No conozco esa carta");
+    const key = `${body.card_id}|${body.foil ? 1 : 0}`;
+    const map = ((user.alters ||= {})[id] ||= {});
+    if (!ALTER_NAMES[body.kind]) delete map[key];
+    else map[key] = { kind: body.kind, qty: Math.max(1, +body.qty || 1), note: String(body.note || "").slice(0, 80) };
+    saveUser();
+    return { ok: true, estimate: ALTER_NAMES[body.kind] ? alterEstimate(eur(priceOf(byId.get(body.card_id), !!body.foil)), body.kind) : null };
+  }
+  const alterEstimateRoute = ({ card_id, foil, kind }) => (byId.has(card_id) ? alterEstimate(eur(priceOf(byId.get(card_id), String(foil) === "true" || foil === "1")), kind) : null);
+
   function collectionAdd(body) {
     const id = binderOf(body.c);
     if (!id) throw new Error("Esa carpeta ya no existe");
@@ -475,11 +506,13 @@ const Engine = (() => {
   /** Todas las carpetas en CSV (columnas como ManaBox: se puede volver a importar aquí o en otras apps). */
   function exportCsv() {
     const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
-    const rows = [["Binder Name", "Name", "Set code", "Set name", "Collector number", "Foil", "Quantity", "Scryfall ID", "Price EUR"]];
+    const rows = [["Binder Name", "Name", "Set code", "Set name", "Collector number", "Foil", "Quantity", "Scryfall ID", "Price EUR", "Altered"]];
     for (const b of user.binders) {
       for (const [pi, foil, qty] of entries(b.id)) {
         const [cid, oi, set, number] = P[pi];
-        rows.push([b.name, front(O[oi][0]), set, SETS.get(set)?.name || "", number, foil ? "foil" : "normal", qty, cid, eur(priceOf(pi, foil)) ?? ""]);
+        const a = alterOf(b.id, `${cid}|${foil ? 1 : 0}`, eur(priceOf(pi, foil)), qty);
+        rows.push([b.name, front(O[oi][0]), set, SETS.get(set)?.name || "", number, foil ? "foil" : "normal", qty, cid, eur(priceOf(pi, foil)) ?? "",
+          a ? `${a.name} x${a.qty}${a.note ? ` (${a.note})` : ""}` : ""]);
       }
     }
     return { csv: rows.map((r) => r.map(q).join(",")).join("\n"), rows: rows.length - 1 };
@@ -984,35 +1017,50 @@ const Engine = (() => {
     ["legendarios", /\blegendary\b/, (t) => t.includes("legendary")],
     ["vehículos", /\bvehicles?\b|\bcrew\b/, (t) => t.includes("vehicle")],
     ["artefactos", /\bartifacts?\b|\btreasures?\b|\bfood\b|\bclues?\b/, (t) => t.includes("artifact")],
-    ["fichas", /\btokens?\b|\bcreate (a|an|two|three|x|that many)\b/],
-    ["contadores +1/+1", /\+1\/\+1 counters?/],
-    ["sacrificio", /\bsacrific/],
-    ["cementerio", /\bgraveyards?\b|\bflashback\b|\bescape\b|\bunearth\b|\bdelve\b/],
-    ["hechizos", /\b(instant|sorcery|noncreature) spells?\b|\bprowess\b|\bmagecraft\b|instant or sorcery/, (t) => t.includes("instant") || t.includes("sorcery")],
+    // Incoloro: cartas que premian lo incoloro (Forsaken Monument, Eldrazi…) y cartas que lo son (artefactos, Eldrazi, devoid).
+    ["criaturas incoloras", /\bcolorless creatures?\b/, (t, c) => !!c?.colorless && t.includes("creature")],
+    ["incoloro", /\bcolorless (creature|spell|permanent|card|eldrazi|artifact|source|object)s?\b|\bdevoid\b/, (t, c) => !!c?.colorless],
+    ["fichas", /creature tokens?|\bpopulate\b|\bamass\b|\bincubate\b|\btokens? you control\b|for each token|\bfor each creature token/],
+    ["morir", /\bdies\b|put into (a|your) graveyard from the battlefield/],
+    ["contadores +1/+1", /\+1\/\+1 counters?|\bevolve\b|\badapt \d|\boutlast\b|\bmodular\b|\bmentor\b|\btraining\b|\bbolster\b|\bbackup \d/],
+    ["sacrificio", /\bsacrific|\bexploit\b|\bcasualty\b|\bemerge\b/],
+    ["cementerio", /\bgraveyards?\b|\bflashback\b|\bescape\b|\bunearth\b|\bdelve\b|\bdredge\b|\bembalm\b|\beternalize\b|\bdisturb\b|\bretrace\b|\bjump-start\b|\bsurveil\b/],
+    ["hechizos", /\b(instant|sorcery|noncreature) spells?\b|\bprowess\b|\bmagecraft\b|instant or sorcery|\bstorm\b|copy target (instant|sorcery)/, (t) => t.includes("instant") || t.includes("sorcery")],
+    ["ninjutsu", /\bninjutsu\b/],
+    ["evasión", /can't be blocked|\bmenace\b|\bshadow\b|\bskulk\b|\bintimidate\b|\bfear\b|\bhorsemanship\b/],
+    ["ciclo", /\bcycling\b|\bwhenever you cycle\b|\bcycle or discard\b/],
+    ["energía", /\{e\}|\benergy counters?\b/],
     ["ganar vida", /\bgains? (\d+|x|that much) life\b|\blifelink\b|whenever you gain life/],
     ["vuelo", /\bflying\b/],
     ["auras", /\bauras?\b|\benchanted creature\b/, (t) => t.includes("aura")],
     ["encantamientos", /\benchantments?\b|\bconstellation\b/, (t) => t.includes("enchantment")],
     ["equipos", /\bequip(ment|ped)?\b/, (t) => t.includes("equipment")],
-    ["robar cartas", /\bdraws? (a|two|three|four|x|that many) cards?\b/],
+    ["robar cartas", /whenever you draw|draws? (your|their) (first|second|third)|for each card you('ve)? drawn|cards? you('ve)? drawn this turn/],
     ["descarte", /\bdiscards?\b|\bmadness\b/],
     ["molino", /\bmills?\b/],
     ["tierras", /\blandfall\b|\ba land enters\b|additional land|lands? you control/, (t) => t.includes("land")],
-    ["efectos al entrar", /when (this \w+|it) enters|whenever (a|another) (creature|permanent) .{0,20}enters/],
+    ["efectos al entrar", /when (this \w+|it) enters|whenever (a|another) (creature|permanent) .{0,20}enters|\bevoke\b/],
     ["parpadeo", /\bexile .{0,50}\breturn (it|that card|them) to the battlefield/],
     ["devolver a la mano", /return (target|a|another) .{0,40} to (its|their) owner'?s hands?/],
     ["daño directo", /deals? \d+ damage to (any target|each opponent|target player|target opponent|each player)/],
     ["veneno", /\binfect\b|\bpoison\b|\btoxic\b/],
-    ["atacar", /\bhaste\b|whenever .{0,30}\battacks\b/],
-    ["criaturas", /\bcreatures? you control\b|\bother creatures?\b/, (t) => t.includes("creature")],
+    ["atacar", /\bhaste\b|whenever .{0,30}\battacks\b|\bbattalion\b|\braid\b|\bdash\b|\bmyriad\b|\bexalted\b/],
+    // "Criaturas que controlas" genérico; "criaturas incoloras/artefacto/rojas que controlas" es otro tema, no "cualquier criatura".
+    ["criaturas", /(?<!(colorless|artifact|white|blue|black|red|green|multicolored|monocolored|legendary|nontoken|token|attacking|blocking|tapped|untapped|nonartifact) )creatures? you control\b|\bother creatures?\b/, (t) => t.includes("creature")],
   ];
   // Temas que se complementan aunque no se llamen igual (quien sacrifica quiere fichas, etc.).
   const RELATED = {
-    sacrificio: ["fichas", "efectos al entrar"], fichas: ["sacrificio", "criaturas"], cementerio: ["molino", "descarte"],
+    sacrificio: ["fichas", "efectos al entrar", "morir"], fichas: ["sacrificio", "criaturas"], morir: ["sacrificio", "fichas"], cementerio: ["molino", "descarte"],
     molino: ["cementerio"], descarte: ["cementerio", "robar cartas"], contadores: ["contadores +1/+1", "planeswalkers"],
     "contadores +1/+1": ["contadores"], parpadeo: ["efectos al entrar"], "efectos al entrar": ["parpadeo", "devolver a la mano"],
     "devolver a la mano": ["efectos al entrar"], hechizos: ["robar cartas"], equipos: ["criaturas"], auras: ["criaturas"],
+    ninjutsu: ["evasión", "vuelo", "efectos al entrar", "devolver a la mano"], evasión: ["atacar"], ciclo: ["cementerio", "descarte"],
+    incoloro: ["artefactos"], vehículos: ["criaturas"],
   };
+  // Temas concretos que pesan más que los genéricos (lo que de verdad pide la carta).
+  const THEME_W = { "criaturas incoloras": 2, ninjutsu: 1.5, veneno: 1.5, vehículos: 1.3 };
+  const LAND_NOISE = new Set(["efectos al entrar", "sacrificio", "artefactos", "tierras", "ganar vida"]);
+  const NEEDS_CREATURES = new Set(["equipos", "auras", "vehículos", "ninjutsu", "evasión", "atacar", "contadores +1/+1"]);
   const THEME_PRED = Object.fromEntries(THEMES.filter((t) => t[2]).map((t) => [t[0], t[2]]));
   const ROLES = {
     ramp: /\badd (\{|one mana|two mana|three mana|x mana|mana|an amount of)|search your library for (a|up to \w+) (basic )?(land|forest|plains|island|swamp|mountain)|put (a|up to \w+) land cards? .{0,30}onto the battlefield/,
@@ -1023,21 +1071,25 @@ const Engine = (() => {
   const ROLE_NAMES = { ramp: "acelera el maná", draw: "roba cartas", removal: "quita amenazas del rival", wipe: "barre la mesa" };
   // Cuántas cartas de cada función quiere un mazo (60 cartas / Commander 100).
   const TARGETS = { 60: { removal: 6, draw: 3, ramp: 0, wipe: 0 }, 100: { removal: 8, draw: 10, ramp: 10, wipe: 2 } };
-  const COLOR_NAMES = { W: "blanco", U: "azul", B: "negro", R: "rojo", G: "verde" };
-  const BASIC_FOR = { W: "Plains", U: "Island", B: "Swamp", R: "Mountain", G: "Forest" };
+  const COLOR_NAMES = { W: "blanco", U: "azul", B: "negro", R: "rojo", G: "verde", C: "incoloro" };
+  const BASIC_FOR = { W: "Plains", U: "Island", B: "Swamp", R: "Mountain", G: "Forest", C: "Wastes" };
   const FORMATS = { pauper: 6, standard: 10, commander: 9 };  // índice en la fila de la carta (legalidad)
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   function analyse(c) {
-    const text = (c.oracle_text || "").toLowerCase().split(c.name.toLowerCase()).join("this card");
+    const text = (c.oracle_text || "").toLowerCase().split(c.name.toLowerCase()).join("this card")
+      .replace(/\bthis (creature|enchantment|artifact|land|equipment|vehicle|aura|planeswalker|saga|spell|token|permanent|battle|siege|case|class|room|card)\b/g, "this card");
     const type = (c.type_line || "").toLowerCase();
+    // Incolora: sin símbolos de color en el coste (híbridos y pirexianos cuentan como color) o con devoid.
+    c.colorless = !type.includes("land") && (!/\{[^}]*[WUBRG][^}]*\}/.test(c.mana_cost || "") && !(c.colors && c.colors.size && !c.mana_cost) || /\bdevoid\b/.test(text));
     c.text_tags = new Set(THEMES.filter(([, rx]) => rx.test(text)).map(([n]) => n));
-    c.type_tags = new Set(THEMES.filter(([, , pred]) => pred && pred(type)).map(([n]) => n));
+    c.type_tags = new Set(THEMES.filter(([, , pred]) => pred && pred(type, c)).map(([n]) => n));
     c.subtypes = new Set((c.type_line || "").includes("—") ? c.type_line.split("—")[1].replace(/\/\//g, " ").split(/\s+/).filter(Boolean) : []);
     c.roles = new Set(Object.keys(ROLES).filter((r) => ROLES[r].test(text)));
-    if (type.includes("land")) c.roles.delete("ramp");
-    c.is_land = type.includes("land");
-    c.is_creature = type.includes("creature");
+    if (type.split(" // ")[0].includes("land")) c.roles.delete("ramp");
+    const front = type.split(" // ")[0];
+    c.is_land = front.includes("land");
+    c.is_creature = front.includes("creature");
     c.can_command = (type.includes("legendary") && type.includes("creature")) || text.includes("can be your commander");
     c.cmdr_only = /\bcommander/.test(text.replace("can be your commander", ""));  // "your commander's color identity"…
     c.text = text;
@@ -1052,7 +1104,7 @@ const Engine = (() => {
     const text = c.oracle_text || "";
     if (text.includes("any color") || text.includes("one mana of any")) return new Set("WUBRG");
     const out = new Set();
-    for (const m of text.matchAll(/[Aa]dd ([^.]*)/g)) for (const s of m[1].matchAll(/\{([WUBRG])\}/g)) out.add(s[1]);
+    for (const m of text.matchAll(/[Aa]dd ([^.]*)/g)) for (const s of m[1].matchAll(/\{([WUBRGC])\}/g)) out.add(s[1]);
     return out;
   }
 
@@ -1065,17 +1117,19 @@ const Engine = (() => {
   }
   function addToPlan(plan, c, w, bump = (m, k, x) => m.set(k, (m.get(k) || 0) + x)) {
     for (const t of c.text_tags) {
-      bump(plan.wantsText, t, w);                    // la carta habla de esto: quiere más cartas que lo hagan
-      if (THEME_PRED[t]) bump(plan.wantsType, t, w); // y si es un tipo de carta, quiere cartas de ese tipo
+      const tw = w * (THEME_W[t] || 1);
+      bump(plan.wantsText, t, tw);                    // la carta habla de esto: quiere más cartas que lo hagan
+      if (THEME_PRED[t]) bump(plan.wantsType, t, tw); // y si es un tipo de carta, quiere cartas de ese tipo
       for (const r of RELATED[t] || []) bump(plan.wantsText, r, w * 0.4);
     }
     for (const t of c.type_tags) bump(plan.wantsText, t, w * 0.5);  // lo que es la carta: le gustan quienes lo aprovechan
+    for (const t of c.text_tags) if (NEEDS_CREATURES.has(t)) bump(plan.wantsType, "criaturas", w * 0.5);
     for (const t of c.subtypes) if (w >= 3 && mentions(t, c.text)) plan.tribes.add(t);
   }
-  function fit(plan, c) {
+  function fit(plan, c, skip = null) {
     let score = 0;
     const why = new Map();
-    const add = (k, v) => { if (v > 0) { score += v; why.set(k, (why.get(k) || 0) + v); } };
+    const add = (k, v) => { if (v > 0 && !skip?.has(k)) { score += v; why.set(k, (why.get(k) || 0) + v); } };
     for (const t of c.text_tags) add(t, plan.wantsText.get(t) || 0);
     for (const t of c.type_tags) add(t, 1.5 * (plan.wantsType.get(t) || 0));
     for (const t of plan.tribes) if (c.subtypes.has(t) || mentions(t, c.text)) add(`tribal: ${t}`, 7);
@@ -1111,6 +1165,13 @@ const Engine = (() => {
     legendarios: "Prioriza tus cartas legendarias: el mazo las premia.",
     vehículos: "Ten criaturas pequeñas para tripular tus vehículos.",
     criaturas: "Llena la mesa de criaturas: tus cartas premian tener muchas a la vez.",
+    morir: "Tus criaturas valen más muertas: cada vez que una muere (o la sacrificas) sacas algo a cambio.",
+    "criaturas incoloras": "Baja criaturas incoloras (artefacto o Eldrazi): son las que tus cartas clave potencian.",
+    incoloro: "Juega cartas incoloras (artefactos, Eldrazi): tus cartas clave solo potencian o premian lo incoloro.",
+    ninjutsu: "Ataca con criaturas baratas y difíciles de bloquear; si no las bloquean, cámbialas por tus ninjas y vuelve a jugarlas.",
+    evasión: "Tus criaturas son difíciles de bloquear: ataca cada turno y protégelas para que el daño siga entrando.",
+    ciclo: "Cicla las cartas que no te sirven ahora: robas otra y activas las cartas que premian ciclar o descartar.",
+    energía: "Acumula energía con tus cartas y gástala en el momento justo para sacar efectos más grandes.",
   };
   const STYLE_TEXT = {
     aggro: "Agresivo: baja criaturas baratas desde el turno 1 y ataca cada turno, para ganar antes de que el rival se organice.",
@@ -1221,15 +1282,25 @@ const Engine = (() => {
     const maxCopies = size === 100 ? 1 : 4;
     const legal = (x) => !(size === 60 && x.cmdr_only) && (fmt === "casual" || x.legal[fmt] === 1);
 
-    let deckColors = colors ? new Set(colors.toUpperCase()) : new Set(commander ? commander.colors : base.flatMap((x) => [...x.colors]));
-    if (commander && colors) deckColors = new Set([...deckColors].filter((x) => commander.colors.has(x)));
+    // "C" = incoloro: solo C → mazo incoloro; C con colores → esos colores premiando las cartas incoloras.
+    const wantC = /c/i.test(colors || "");
+    let deckColors = colors ? new Set(colors.toUpperCase().replace(/[^WUBRG]/g, "")) : new Set(commander ? commander.colors : base.flatMap((x) => [...x.colors]));
+    if (commander) deckColors = new Set([...(colors ? deckColors : commander.colors)].filter((x) => commander.colors.has(x)));
     const plan = makePlan(base);
-    if (!deckColors.size) {  // cartas base incoloras: el color con más sinergia en la carpeta
-      const by = new Map();
-      for (const x of pool.values()) if (x.colors.size === 1 && !x.is_land && legal(x)) { const col = [...x.colors][0]; by.set(col, (by.get(col) || 0) + fit(plan, x)[0]); }
-      deckColors = new Set([[...by.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "R"]);
-    }
+    if (wantC) plan.wantsType.set("incoloro", (plan.wantsType.get("incoloro") || 0) + 3);
     const subset = (a, b) => [...a].every((x) => b.has(x));
+    let colorlessOnly = !!commander && !deckColors.size;
+    if (!deckColors.size && !commander) {
+      // Cartas base incoloras: si piden lo incoloro y hay bastantes cartas incoloras que encajan, mazo incoloro;
+      // si no, el color con más sinergia en la carpeta.
+      const colorlessFits = [...pool.values()].filter((x) => !x.is_land && x.colors.size === 0 && legal(x) && fit(plan, x)[0] > 0).length;
+      if (wantC || ((plan.wantsType.get("incoloro") || 0) >= 3 && colorlessFits >= 14)) colorlessOnly = true;
+      else {
+        const by = new Map();
+        for (const x of pool.values()) if (x.colors.size === 1 && !x.is_land && legal(x)) { const col = [...x.colors][0]; by.set(col, (by.get(col) || 0) + fit(plan, x)[0]); }
+        deckColors = new Set([[...by.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "R"]);
+      }
+    }
     const style = STYLES[wanted] ? wanted : autoStyle(base, plan);
     const st = STYLES[style];
 
@@ -1245,9 +1316,15 @@ const Engine = (() => {
       const b = Math.min(Math.floor(x.cmc), 6);
       curve[b] = (curve[b] || 0) + n;
       for (const r of x.roles) roles[r] += n;
-      addToPlan(plan, x, x === commander ? 3 : 0.35);  // lo elegido refuerza el plan (coherencia)
+      // Lo elegido refuerza el plan (coherencia), pero solo los temas que ya tenía: así no se desvía de la carta base.
+      if (x === commander) addToPlan(plan, x, 3);
+      else addToPlan(plan, x, 0.35, (m, k, v) => { if (m.has(k)) m.set(k, m.get(k) + v); });
     };
-    for (const x of base) if (x !== commander && x.owned && legal(x) && subset(x.colors, deckColors)) take(x, Math.min(x.owned, maxCopies), ["carta base del mazo"]);
+    for (const x of base) {
+      if (x === commander || !legal(x) || !subset(x.colors, deckColors) || x.is_land) continue;
+      take(x, x.owned ? Math.min(x.owned, maxCopies) : maxCopies,
+        [x.owned ? "carta base del mazo" : "carta base del mazo (no la tienes)"]);
+    }
     if (commander) addToPlan(plan, commander, 0);
 
     // 2) Tierras según la curva (se recalcula al final) y relleno greedy por encaje + funciones.
@@ -1258,6 +1335,19 @@ const Engine = (() => {
       // Como en los mazos reales: agresivo de curva 2 ≈ 17-18 tierras; control ≈ 23-24. Commander 33-38.
       return size === 100 ? Math.max(33, Math.min(38, Math.round(31 + 2 * avg + st.land))) : Math.max(16, Math.min(24, Math.round(13.5 + 2.4 * avg + st.land)));
     };
+    // Cartas que aparecen junto a las base en listas de torneo (sinergia probada, no "lo que más se juega").
+    const coPlay = new Map();
+    {
+      const baseNames = new Set(base.map((x) => norm(x.name)));
+      const decksWith = META.filter((d) => d.cards.some(([n, , side]) => !side && baseNames.has(norm(n))));
+      for (const d of decksWith) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) if (!baseNames.has(k) && !BASICS.has(k)) coPlay.set(k, (coPlay.get(k) || 0) + 1);
+      for (const [k, n] of coPlay) if (n / decksWith.length < 0.34) coPlay.delete(k);  // solo lo habitual en esas listas
+    }
+    const coBonus = (x) => Math.min(4, 1.5 * (coPlay.get(norm(x.name)) || 0));
+    let minCreatures = size === 100 ? 22 : { aggro: 16, midrange: 13, control: 8 }[style] || 12;
+    if ((plan.wantsText.get("hechizos") || 0) >= 3 && !(plan.wantsType.get("criaturas") > 0)) minCreatures = Math.round(minCreatures / 2);
+    const colorlessFocus = colorlessOnly || wantC || (plan.wantsType.get("incoloro") || 0) > 0;
+    const creaturesIn = () => chosen.reduce((n, [x, k]) => n + (x.is_creature ? k : 0), 0);
     const capScale = size / 60;
     const CURVE_CAP = st.caps;
     const target = st.target[size];
@@ -1278,9 +1368,13 @@ const Engine = (() => {
         let need = 0;
         const roleWhy = [];
         for (const r of x.roles) if (roles[r] < target[r]) { need += 4 * (1 - roles[r] / target[r]) + 1; roleWhy.push(ROLE_NAMES[r]); }
-        const score = s + need + (x.rank ? Math.max(0, 1 - x.rank / 20000) * 0.5 : 0) + (x.is_creature ? st.creature : 0)
+        const co = coBonus(x);
+        const cr = creaturesIn();
+        if (x.is_creature && cr < minCreatures) { need += 3 * (1 - cr / minCreatures) + 1; if (!roleWhy.length && cr < minCreatures / 2) roleWhy.push("faltan criaturas"); }
+        const onColor = !colorlessFocus && x.colors.size ? 0.8 : 0;  // en un mazo de color, mejor cartas de ese color que relleno incoloro
+        const score = s + need + co + onColor + (x.rank ? Math.max(0, 1 - x.rank / 20000) * 0.5 : 0) + (x.is_creature ? st.creature : 0)
           - (x.cmc >= st.heavyAt ? st.heavy : 0);
-        if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)), ...roleWhy]; }
+        if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)), ...(co ? ["se juegan juntas en torneos"] : []), ...roleWhy]; }
       }
       if (!best || (bestScore <= 0.5 && used >= spellSlots() * 0.6)) break;  // sin nada que encaje: mejor menos cartas que relleno
       left.delete(best);
@@ -1291,18 +1385,18 @@ const Engine = (() => {
       take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room)), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
     }
     const spellsTotal = chosen.reduce((s, e) => s + e[1], 0);
-    const landsWanted = landsFor();
+    const landsWanted = Math.min(landsFor(), size - (commander ? 1 : 0) - spellsTotal);
 
     // 3) Tierras: especiales de la carpeta (duales de los colores, o que encajan con el plan) + básicas.
     const lands = [];
     let room = Math.floor(landsWanted / 2);
     for (const x of [...pool.values()].filter((x) => x.is_land && !/basic/i.test(x.type_line || "") && legal(x))
-      .map((x) => [x, producedColors(x), fit(plan, x)[0]]).sort((a, b) => b[2] - a[2])) {
+      .map((x) => [x, producedColors(x), fit(plan, x, LAND_NOISE)[0]]).sort((a, b) => b[2] - a[2])) {
       const [land, makes, s] = x;
-      const useful = [...makes].filter((col) => deckColors.has(col));
-      const inIdentity = !commander || subset(land.colors, deckColors);
+      const useful = [...makes].filter((col) => deckColors.has(col) || (colorlessOnly && col === "C"));
+      const inIdentity = subset(land.colors, deckColors);  // nada de tierras (ni cartas dobles) de otros colores
       if (!inIdentity || !useful.length || room <= 0) continue;
-      if (deckColors.size > 1 ? useful.length >= 2 || s > 0 : s > 0) {
+      if (deckColors.size > 1 ? useful.length >= 2 || s >= 2 : s >= 2.5) {
         const n = Math.min(land.owned, maxCopies, room);
         lands.push([land, n, s > 0 ? ["encaja con el plan"] : [`da maná ${useful.map((m) => COLOR_NAMES[m]).join(" y ")}`]]);
         room -= n;
@@ -1314,7 +1408,7 @@ const Engine = (() => {
     }
     const basicsN = landsWanted - lands.reduce((s, e) => s + e[1], 0);
     const totalPips = Object.values(pips).reduce((a, b) => a + b, 0);
-    const cols = [..."WUBRG"].filter((x) => deckColors.has(x));
+    const cols = colorlessOnly ? ["C"] : [..."WUBRG"].filter((x) => deckColors.has(x));
     const exact = Object.fromEntries(cols.map((x) => [x, totalPips ? ((pips[x] || 0) / totalPips) * basicsN : basicsN / cols.length]));
     const rounded = Object.fromEntries(cols.map((x) => [x, Math.floor(exact[x])]));
     cols.slice().sort((a, b) => (exact[b] - rounded[b]) - (exact[a] - rounded[a])).slice(0, basicsN - Object.values(rounded).reduce((a, b) => a + b, 0)).forEach((x) => rounded[x]++);
@@ -1322,7 +1416,7 @@ const Engine = (() => {
     // 4) Avisos: lo que pide la carta base y no está; funciones sin cubrir.
     for (const [theme, w] of plan.wantsType) {
       if (w < 3 || base.some((x) => x.type_tags.has(theme))) continue;
-      const inDeck = chosen.filter(([x, , why]) => why[0] !== "carta base del mazo" && x.type_tags.has(theme)).reduce((s, [, n]) => s + n, 0);
+      const inDeck = chosen.filter(([x, , why]) => !why[0].startsWith("carta base del mazo") && x.type_tags.has(theme)).reduce((s, [, n]) => s + n, 0);
       if (inDeck >= (size === 100 ? 10 : 6)) continue;
       const elsewhere = new Set();
       for (const x of pool.values()) if (x.type_tags.has(theme) && legal(x) && !subset(x.colors, deckColors)) for (const col of x.colors) if (!deckColors.has(col)) elsewhere.add(col);
@@ -1335,6 +1429,25 @@ const Engine = (() => {
     }
     if (spellsTotal < spellSlots()) warnings.push(`Solo hay ${spellsTotal} cartas que encajen (harían falta ${spellSlots()}). Prueba otro color o Casual, o añade cartas a la carpeta.`);
 
+    // Cartas que no tienes y mejorarían el mazo: por sinergia con el plan y por jugarse con las base en torneos.
+    function buyList() {
+      indexAll();
+      const have = new Set([...pool.values()].map((x) => x.oi));
+      base.forEach((x) => have.add(x.oi));
+      const capCents = fmt === "pauper" ? 300 : fmt === "commander" ? 1500 : 1000;
+      const ok = (oi) => { const x = ALL[oi]; return !x.is_land && legal(x) && subset(x.colors, deckColors) && (!colorlessOnly || !x.colors.size)
+        && cheap[oi] && cheap[oi] <= capCents && !BASICS.has(norm(O[oi][0])); };
+      const scored = new Map();
+      for (const [oi, sc, why] of synergyCandidates(plan, have).slice(0, 400)) if (ok(oi)) scored.set(oi, [sc, why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`))]);
+      for (const [k, n] of coPlay) {
+        const oi = oByNorm.get(k);
+        if (oi == null || have.has(oi) || !ok(oi)) continue;
+        const cur = scored.get(oi) || [0, []];
+        scored.set(oi, [cur[0] + 2 + n, ["se juega con tus cartas base en torneos", ...cur[1]]]);
+      }
+      return [...scored.entries()].sort((a, b) => b[1][0] - a[1][0]).slice(0, 10)
+        .map(([oi, [, why]]) => ({ name: front(O[oi][0]), image: oImage(oi), eur: eur(cheap[oi]), reasons: why.slice(0, 2) }));
+    }
     const out = (x, n, role, why) => ({ name: x.name, qty: n, cmc: x.cmc, type: x.type_line, role, reasons: why || [],
       image: oImage(x.oi), eur: cheap[x.oi] ? eur(cheap[x.oi]) : null, owned: x.owned });
     const cardsOut = chosen.slice().sort((a, b) => a[0].cmc - b[0].cmc || a[0].name.localeCompare(b[0].name))
@@ -1352,7 +1465,8 @@ const Engine = (() => {
     const all = [...cardsOut, ...landRows];
     const themes = [...plan.wantsText.entries()].filter(([, w]) => w >= 3).sort((a, b) => b[1] - a[1]).map(([k]) => k).slice(0, 6);
     return {
-      seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name), colors: cols.join(""), format: fmt,
+      seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
+      colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(),
       commander: commander ? out(commander, 1, "comandante", ["comandante"]) : null,
       style, style_auto: wanted === "auto" || !STYLES[wanted],
       guide: deckGuide({ chosen, base, commander, plan, landsN: landRows.reduce((s, r) => s + r.qty, 0), style }),
@@ -1361,8 +1475,8 @@ const Engine = (() => {
         creatures: chosen.filter(([x]) => x.is_creature).reduce((s, e) => s + e[1], 0), avg_cmc: Math.round(avg * 100) / 100,
         curve: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((k) => [String(k), fullCurve[k] || 0])), roles,
         value: Math.round((all.reduce((s, r) => s + (r.eur || 0) * r.qty, 0) + (commander ? cheap[commander.oi] / 100 || 0 : 0)) * 100) / 100 },
-      bench: [...left].map((x) => [x, fit(plan, x)]).filter(([, [s]]) => s > 0).sort((a, b) => b[1][0] - a[1][0]).slice(0, 8)
-        .map(([x, [, why]]) => ({ name: x.name, reasons: why.map((t) => `sinergia: ${t}`), image: oImage(x.oi) })),
+      bench: [...left].map((x) => [x, fit(plan, x)[0] + coBonus(x), fit(plan, x)[1], coBonus(x)]).filter(([, sc]) => sc > 0).sort((a, b) => b[1] - a[1]).slice(0, 8)
+        .map(([x, , why, co]) => ({ name: x.name, reasons: [...why.map((t) => `sinergia: ${t}`), ...(co ? ["se juegan juntas en torneos"] : [])].slice(0, 2), image: oImage(x.oi), eur: cheap[x.oi] ? eur(cheap[x.oi]) : null })),
     };
   }
 
@@ -1509,9 +1623,9 @@ const Engine = (() => {
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
-    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp, "/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv };
+    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/profile": profilePost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/profile": profilePost, "/api/alter": alterPost };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

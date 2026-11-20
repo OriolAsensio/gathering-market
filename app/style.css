@@ -381,3 +381,9 @@ body:has(#col-bar:not([hidden])) .fab { display: none; }
 #profile-btn + #lang-btn { margin-left: 6px; }
 .deck-select { width: 100%; font: 600 15px var(--display); color: var(--text); }
 .deck-select option { background: var(--surface); color: var(--text); }
+
+/* Cartas alteradas */
+.version .item-main .alter-btn { margin-top: 6px; padding: 6px 10px; font-size: 12px; }
+.alter-box { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
+.alter-box .hint { margin: 0; }
+a.gcard { text-decoration: none; color: inherit; display: block; }
