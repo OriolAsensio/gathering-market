@@ -379,3 +379,5 @@ body:has(#col-bar:not([hidden])) .fab { display: none; }
 [data-mark] { cursor: pointer; }
 .sel-bar #sel-del { padding: 11px 12px; }
 #profile-btn + #lang-btn { margin-left: 6px; }
+.deck-select { width: 100%; font: 600 15px var(--display); color: var(--text); }
+.deck-select option { background: var(--surface); color: var(--text); }

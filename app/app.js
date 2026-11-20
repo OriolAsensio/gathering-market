@@ -517,23 +517,30 @@ views.decks = async () => {
       <div class="item-main"><div class="item-title">Crear un mazo con tus cartas</div>
         <div class="item-meta">Pauper, Commander, Estándar o Casual: a partir de una o varias cartas, o de un comandante.</div></div>
     </button>
-    <div class="seg tabs" id="deck-tab">${skeleton(1)}</div><div id="deck-body">${skeleton(5)}</div>`;
+    <button class="item builder-cta" id="deck-import">
+      <span class="cta-icon">📥</span>
+      <div class="item-main"><div class="item-title">Importar mi mazo</div>
+        <div class="item-meta">Pega la lista (o un .txt) y marca qué cartas ya tienes.</div></div>
+    </button>
+    <div class="field"><label for="deck-tab">Ver mazos</label><select class="search deck-select" id="deck-tab"></select></div>
+    <div id="deck-body">${skeleton(5)}</div>`;
   $("#deck-build").onclick = () => builderSheet();
+  $("#deck-import").onclick = importDeckSheet;
   const [mine, decks] = await Promise.all([api("/api/mydecks"), api("/api/decks")]);
-  const formats = Object.keys(META_FORMATS).filter((f) => f === "PAU" || decks.some((d) => d.format === f));
+  const formats = Object.keys(META_FORMATS);
   let tab = store("deckTab") || "PAU";
   if (tab !== "mine" && !formats.includes(tab)) tab = "PAU";
-  $("#deck-tab").innerHTML = `<button data-t="mine">Mis mazos</button>${formats.map((f) => `<button data-t="${f}">${META_FORMATS[f]}</button>`).join("")}`;
+  const count = (f) => decks.filter((d) => d.format === f).length;
+  $("#deck-tab").innerHTML = `<option value="mine">📂 Mis mazos (${mine.length})</option>
+    ${formats.map((f) => `<option value="${f}">⚔️ Meta de ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
   const sorters = { meta: (a, b) => b.share - a.share, owned: (a, b) => b.owned_pct - a.owned_pct, cheap: (a, b) => a.price - b.price, missing: (a, b) => a.missing_cost - b.missing_cost };
   const bind = (root) => root.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
   const draw = () => {
-    v.querySelectorAll("#deck-tab button").forEach((b) => b.classList.toggle("on", b.dataset.t === tab));
+    $("#deck-tab").value = tab;
     const body = $("#deck-body");
     if (tab === "mine") {
-      body.innerHTML = `<div class="hint">Importa una lista o guarda un mazo (del meta o del constructor) para ver qué cartas te faltan.</div>
-        <button class="btn block" id="deck-import">📥 Importar una lista</button>
-        ${mine.length ? `<div class="list">${mine.map(deckCard).join("")}</div>` : `<div class="empty"><strong>Aún no tienes mazos</strong>Crea uno con el constructor o guarda uno del meta.</div>`}`;
-      $("#deck-import").onclick = importDeckSheet;
+      body.innerHTML = `<div class="hint">Tus mazos importados, guardados del meta o creados con el constructor. Ábrelo y toca las cartas que ya tienes.</div>
+        ${mine.length ? `<div class="list">${mine.map(deckCard).join("")}</div>` : `<div class="empty"><strong>Aún no tienes mazos</strong>Importa tu lista arriba, crea uno con el constructor o guarda uno del meta.</div>`}`;
       return bind(body);
     }
     const list = decks.filter((d) => d.format === tab);
@@ -551,7 +558,7 @@ views.decks = async () => {
     });
     bind(body);
   };
-  v.querySelectorAll("#deck-tab button").forEach((b) => (b.onclick = () => { tab = b.dataset.t; store("deckTab", tab); draw(); }));
+  $("#deck-tab").onchange = (e) => { tab = e.target.value; store("deckTab", tab); draw(); };
   draw();
 };
 
@@ -567,6 +574,7 @@ function importDeckSheet() {
     try {
       const r = await api("/api/mydecks", { import: { name: $("#dk-name", body).value.trim() || "Mi mazo", text: $("#dk-text", body).value } });
       toast(`Mazo guardado (${r.cards} cartas distintas)`);
+      store("deckTab", "mine");  // al volver, se ve en Mis mazos
       if (r.unknown.length) {
         $("#dk-result", body).innerHTML = `<div class="warn">No he reconocido estas líneas:<br>${r.unknown.slice(0, 15).map(esc).join("<br>")}</div>
           <button class="btn block" id="dk-open">Ver el mazo</button>`;
