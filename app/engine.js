@@ -138,6 +138,7 @@ const Engine = (() => {
     PR = JSON.parse(pricesText);
     SETS = new Map(JSON.parse(setsText || "[]").map(([code, name, type, released, icon]) => [code, { code, name, type, released, icon }]));
     META = JSON.parse(metaText || "[]");
+    for (const d of META) d.format ||= "PAU";  // paquetes antiguos: solo Pauper
     PACK_EVENTS = JSON.parse(eventsText || "[]");
     byId = new Map();
     oByNorm = new Map();
@@ -194,6 +195,7 @@ const Engine = (() => {
     if (decksByCardCache) return decksByCardCache;
     const out = new Map();
     for (const d of META) {
+      if (d.format !== "PAU") continue;
       for (const [name] of d.cards) {
         const k = norm(name);
         if (!out.has(k)) out.set(k, []);
@@ -653,7 +655,7 @@ const Engine = (() => {
   }
   function decks({ c }) {
     const owned = ownedByName(binderOf(c) || 1);
-    return META.map((d) => ({ id: d.id, archetype: d.archetype, category: d.category, share: d.share, player: d.player, event: d.event,
+    return META.map((d) => ({ id: d.id, format: d.format, archetype: d.archetype, category: d.category, share: d.share, player: d.player, event: d.event,
       result: d.result, date: d.date, thumbs: thumbsOf(d), ...deckInfo(d, owned) }));
   }
   function deck({ c, id }) {
@@ -944,6 +946,7 @@ const Engine = (() => {
     c.is_land = type.includes("land");
     c.is_creature = type.includes("creature");
     c.can_command = (type.includes("legendary") && type.includes("creature")) || text.includes("can be your commander");
+    c.cmdr_only = /\bcommander/.test(text.replace("can be your commander", ""));  // "your commander's color identity"…
     c.text = text;
     return c;
   }
@@ -1123,7 +1126,7 @@ const Engine = (() => {
     }
     const size = fmt === "commander" ? 100 : 60;
     const maxCopies = size === 100 ? 1 : 4;
-    const legal = (x) => (fmt === "casual" ? true : x.legal[fmt] === 1);
+    const legal = (x) => !(size === 60 && x.cmdr_only) && (fmt === "casual" || x.legal[fmt] === 1);
 
     let deckColors = colors ? new Set(colors.toUpperCase()) : new Set(commander ? commander.colors : base.flatMap((x) => [...x.colors]));
     if (commander && colors) deckColors = new Set([...deckColors].filter((x) => commander.colors.has(x)));
@@ -1288,7 +1291,7 @@ const Engine = (() => {
       x.subtypes.forEach((t) => push(BY_SUB, t, oi));
     });
   }
-  const metaCount = () => { const m = new Map(); for (const d of META) for (const [n] of d.cards) m.set(norm(n), (m.get(norm(n)) || 0) + 1); return m; };
+  const metaCount = () => { const m = new Map(); for (const d of META) if (d.format === "PAU") for (const [n] of d.cards) m.set(norm(n), (m.get(norm(n)) || 0) + 1); return m; };
   const card = (oi, extra) => ({ name: front(O[oi][0]), image: oImage(oi), eur: eur(cheapest().price[oi]), ...extra });
 
   /** Cartas (de todo Magic) que mejor encajan con el plan; las de `skip` no cuentan. */
@@ -1388,12 +1391,32 @@ const Engine = (() => {
     return { name: front(O[oi][0]), image: oImage(oi), cards: rows };
   }
 
+  function seedHelp({ c, format = "pauper", seeds = "" }) {
+    indexAll();
+    const pool = new Map();
+    for (const [pi] of entries(binderOf(c) || 1)) { const oi = P[pi][1]; pool.set(norm(O[oi][0]), oi); }
+    const ok = (x) => !x.is_land && !(format !== "commander" && x.cmdr_only) && (format === "casual" || x.legal[format] === 1);
+    const allowed = [...pool.values()].filter((oi) => ok(ALL[oi])).map((oi) => front(O[oi][0]));
+    const base = seeds.split("|").map((n) => oByNorm.get(norm(n))).filter((oi) => oi != null).map((oi) => ALL[oi]);
+    if (!base.length) return { allowed, suggest: [] };
+    const plan = makePlan(base);
+    const cmd = format === "commander" ? base.find((x) => x.can_command) : null;
+    const cols = new Set(cmd ? cmd.colors : base.flatMap((x) => [...x.colors]));
+    const taken = new Set(base.map((x) => norm(x.name)));
+    const inCols = (x) => [...x.colors].every((col) => cols.has(col));
+    const suggest = [...pool.entries()].filter(([k, oi]) => !taken.has(k) && ok(ALL[oi]) && (!cmd || inCols(ALL[oi])))
+      .map(([, oi]) => { const [sc, why] = fit(plan, ALL[oi]); return [oi, sc + (inCols(ALL[oi]) ? 0.5 : 0), why]; })
+      .filter(([, sc, why]) => sc > 1 && why.length).sort((a, b) => b[1] - a[1]).slice(0, 8)
+      .map(([oi, , why]) => ({ name: front(O[oi][0]), image: oImage(oi), why: why.slice(0, 2).join(" · ") }));
+    return { allowed, suggest };
+  }
+
   // ---------------------------------------------------------------- rutas
   const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection,
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
-    "/api/cardsynergy": cardSynergy };
+    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
     "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost };
 

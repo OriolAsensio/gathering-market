@@ -7,7 +7,7 @@ estos ficheros, que se publican cada día en internet (GitHub Pages):
   cards.json    cartas y sus impresiones (cambia solo cuando salen cartas nuevas)
   prices.json   precio de hoy y de hace 1, 7 y 30 días de cada impresión (cambia cada día)
   sets.json     ediciones
-  meta.json     meta de Pauper: arquetipos, cuota y una lista de cada uno
+  meta.json     meta de Pauper y otros formatos: arquetipos, cuota y una lista de cada uno
   events.json   avisos (baneos, colecciones nuevas, cambios de meta)
 
 Uso:  python pipeline/export_pack.py [carpeta_salida]   (por defecto: pack/)
@@ -86,15 +86,15 @@ def main(out=None):
                            AND set_type NOT IN ('token', 'memorabilia', 'minigame', 'treasure_chest')""").fetchall()
     dump(out / "sets.json", [list(s) for s in sets])
 
-    # --- Meta de Pauper (última foto).
+    # --- Meta (última foto de cada formato).
     meta = []
-    for arch_id, arch, cat, share, deck_id in conn.execute(
-            "SELECT archetype_id, archetype, category, share, deck_id FROM meta "
-            "WHERE day = (SELECT max(day) FROM meta) ORDER BY share DESC"):
+    for fmt, arch_id, arch, cat, share, deck_id in conn.execute(
+            "SELECT format, archetype_id, archetype, category, share, deck_id FROM meta m "
+            "WHERE day = (SELECT max(day) FROM meta WHERE format = m.format) ORDER BY format, share DESC"):
         d = conn.execute("SELECT player, event, result, date FROM decks WHERE id = ?", (deck_id,)).fetchone()
         cards = conn.execute("SELECT name, qty, sideboard FROM deck_cards WHERE deck_id = ? ORDER BY sideboard, name",
                              (deck_id,)).fetchall()
-        meta.append(dict(id=deck_id, archetype=arch, category=cat, share=share, player=d[0], event=d[1],
+        meta.append(dict(id=deck_id, format=fmt, archetype=arch, category=cat, share=share, player=d[0], event=d[1],
                          result=d[2], date=d[3], cards=[list(c) for c in cards]))
     dump(out / "meta.json", meta)
 

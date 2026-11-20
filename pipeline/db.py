@@ -101,15 +101,16 @@ CREATE TABLE IF NOT EXISTS collection (
     UNIQUE (collection_id, card_id, foil)
 );
 
--- Metajuego de Pauper (MTGTop8): cuota de cada arquetipo por día.
+-- Metajuego (MTGTop8): cuota de cada arquetipo por día y formato (PAU, ST, MO…).
 CREATE TABLE IF NOT EXISTS meta (
     day          TEXT,
+    format       TEXT DEFAULT 'PAU',
     archetype_id INTEGER,
     archetype    TEXT,
     category     TEXT,
     share        REAL,
     deck_id      INTEGER,
-    PRIMARY KEY (day, archetype_id)
+    PRIMARY KEY (day, format, archetype_id)
 );
 CREATE TABLE IF NOT EXISTS decks (
     id           INTEGER PRIMARY KEY,    -- id de MTGTop8
@@ -159,6 +160,12 @@ def _migrate(conn):
     if "collections" in tables:  # antes la carpeta principal se llamaba "Mi colección"
         conn.execute("UPDATE collections SET name = 'Mis cartas' WHERE id = 1 AND name = 'Mi colección'")
         conn.commit()
+    if "meta" in tables and "format" not in {r[1] for r in conn.execute("PRAGMA table_info(meta)")}:
+        with conn:  # antes solo había Pauper (cambia la clave primaria)
+            conn.execute("ALTER TABLE meta RENAME TO meta_v1")
+            conn.executescript(SCHEMA)
+            conn.execute("INSERT INTO meta SELECT day, 'PAU', archetype_id, archetype, category, share, deck_id FROM meta_v1")
+            conn.execute("DROP TABLE meta_v1")
     if "collection" in tables:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(collection)")}
         if "collection_id" not in cols:  # pasar a varias colecciones (cambia la clave única)

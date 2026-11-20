@@ -35,7 +35,7 @@ def main():
         old_p, new_p = cheapest_by_name(conn, old_day), cheapest_by_name(conn, new_day)
         meta_cards = {r[0] for r in conn.execute(
             "SELECT DISTINCT dc.name FROM deck_cards dc JOIN meta m ON m.deck_id = dc.deck_id "
-            "WHERE m.day = (SELECT max(day) FROM meta)")}
+            "WHERE m.format = 'PAU' AND m.day = (SELECT max(day) FROM meta WHERE format = 'PAU')")}
         for name in meta_cards:
             old, new = old_p.get(norm(name)), new_p.get(norm(name))
             if old and new and max(old, new) >= 100 and abs(new - old) / old >= 0.15:

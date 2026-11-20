@@ -301,7 +301,7 @@ views.collection = async () => {
   $("#col-go").onclick = () => {
     const names = [...new Set([...sel.ids].map((k) => items.find((c) => c.key === k)?.name).filter(Boolean))];
     sel.set(false);
-    builderSheet(names);
+    pickSeed(names);
   };
   draw();
   let t;
@@ -343,7 +343,7 @@ function cardSheet(c) {
        href="${cardmarketUrl(c.name)}">🛒 Ver en Cardmarket</a>
     <h2>Tus versiones</h2><div class="list" id="versions">${skeleton(1)}</div>
     <button class="btn block primary" id="add-version" style="margin-top:10px">➕ Añadir otro arte o foil</button>`);
-  $("#build-from", body)?.addEventListener("click", () => builderSheet([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
+  $("#build-from", body)?.addEventListener("click", () => pickSeed([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
   $("#open-set", body).onclick = () => setSheet(c.set);
   $("#open-syn", body).onclick = () => synergySheet(c.name);
   $("#add-version", body).onclick = () => addSheet([{ name: c.name }]);
@@ -430,6 +430,7 @@ const deckCard = (d) => `
     <div class="deck-foot"><span>Tienes el ${d.owned_pct}%</span><span>${d.missing_cost ? `Te faltan ${euro(d.missing_cost)}` : "¡Lo puedes montar!"}</span></div>
   </button>`;
 
+const META_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage" };
 views.decks = async () => {
   const v = $("#view");
   v.innerHTML = `<button class="item builder-cta" id="deck-build">
@@ -437,28 +438,41 @@ views.decks = async () => {
       <div class="item-main"><div class="item-title">Crear un mazo con tus cartas</div>
         <div class="item-meta">Pauper, Commander, Estándar o Casual: a partir de una o varias cartas, o de un comandante.</div></div>
     </button>
-    <h2>Mis mazos</h2>
-    <div class="hint">Importa una lista o guarda un mazo (del meta o del constructor) para ver qué cartas te faltan.</div>
-    <button class="btn block" id="deck-import">📥 Importar una lista</button>
-    <div id="my-decks"></div>
-    <h2>Meta de Pauper</h2><div class="hint">De cada arquetipo, la lista mejor clasificada (🏆 la ganadora si la hay) de los últimos 2 meses en MTGTop8. "Weenie White" es el mono blanco (Convoke, Kor Skyfisher…).</div>
-    <div class="seg" id="deck-sort">
-      <button data-s="meta">Más jugados</button><button data-s="owned">Puedo montar</button><button data-s="cheap">Más baratos</button><button data-s="missing">Me falta menos €</button>
-    </div><div id="deck-list">${skeleton(5)}</div>`;
+    <div class="seg tabs" id="deck-tab">${skeleton(1)}</div><div id="deck-body">${skeleton(5)}</div>`;
   $("#deck-build").onclick = () => builderSheet();
-  $("#deck-import").onclick = importDeckSheet;
   const [mine, decks] = await Promise.all([api("/api/mydecks"), api("/api/decks")]);
-  $("#my-decks").innerHTML = mine.length ? `<div class="list">${mine.map(deckCard).join("")}</div>` : "";
-  $("#my-decks").querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
+  const formats = Object.keys(META_FORMATS).filter((f) => f === "PAU" || decks.some((d) => d.format === f));
+  let tab = store("deckTab") || "PAU";
+  if (tab !== "mine" && !formats.includes(tab)) tab = "PAU";
+  $("#deck-tab").innerHTML = `<button data-t="mine">Mis mazos</button>${formats.map((f) => `<button data-t="${f}">${META_FORMATS[f]}</button>`).join("")}`;
   const sorters = { meta: (a, b) => b.share - a.share, owned: (a, b) => b.owned_pct - a.owned_pct, cheap: (a, b) => a.price - b.price, missing: (a, b) => a.missing_cost - b.missing_cost };
+  const bind = (root) => root.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
   const draw = () => {
-    v.querySelectorAll("#deck-sort button").forEach((b) => b.classList.toggle("on", b.dataset.s === state.deckSort));
-    const box = $("#deck-list");
-    if (!decks.length) { box.innerHTML = `<div class="empty"><strong>Aún no hay datos del meta</strong>Se descargan cada día.</div>`; return; }
-    box.innerHTML = `<div class="list">${[...decks].sort(sorters[state.deckSort]).map(deckCard).join("")}</div>`;
-    box.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
+    v.querySelectorAll("#deck-tab button").forEach((b) => b.classList.toggle("on", b.dataset.t === tab));
+    const body = $("#deck-body");
+    if (tab === "mine") {
+      body.innerHTML = `<div class="hint">Importa una lista o guarda un mazo (del meta o del constructor) para ver qué cartas te faltan.</div>
+        <button class="btn block" id="deck-import">📥 Importar una lista</button>
+        ${mine.length ? `<div class="list">${mine.map(deckCard).join("")}</div>` : `<div class="empty"><strong>Aún no tienes mazos</strong>Crea uno con el constructor o guarda uno del meta.</div>`}`;
+      $("#deck-import").onclick = importDeckSheet;
+      return bind(body);
+    }
+    const list = decks.filter((d) => d.format === tab);
+    body.innerHTML = `<div class="hint">${tab === "PAU"
+      ? `De cada arquetipo, la lista mejor clasificada (🏆 la ganadora si la hay) de los últimos 2 meses en MTGTop8. "Weenie White" es el mono blanco (Convoke, Kor Skyfisher…).`
+      : `Los arquetipos más jugados de ${META_FORMATS[tab]} en MTGTop8 y, de cada uno, la lista mejor clasificada (🏆 la ganadora si la hay).`}</div>
+      <div class="seg" id="deck-sort">
+        <button data-s="meta">Más jugados</button><button data-s="owned">Puedo montar</button><button data-s="cheap">Más baratos</button><button data-s="missing">Me falta menos €</button>
+      </div>
+      ${list.length ? `<div class="list">${[...list].sort(sorters[state.deckSort]).map(deckCard).join("")}</div>`
+        : `<div class="empty"><strong>Aún no hay datos del meta</strong>Se descargan cada día.</div>`}`;
+    body.querySelectorAll("#deck-sort button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.s === state.deckSort);
+      b.onclick = () => { state.deckSort = b.dataset.s; store("deckSort", b.dataset.s); draw(); };
+    });
+    bind(body);
   };
-  v.querySelectorAll("#deck-sort button").forEach((b) => (b.onclick = () => { state.deckSort = b.dataset.s; store("deckSort", b.dataset.s); draw(); }));
+  v.querySelectorAll("#deck-tab button").forEach((b) => (b.onclick = () => { tab = b.dataset.t; store("deckTab", tab); draw(); }));
   draw();
 };
 
@@ -797,15 +811,21 @@ async function builderSheet(seeds, startFormat) {
   run();
 }
 
-// Elegir una o varias cartas base (o un comandante) de la carpeta.
-// Elegir cartas base; `already` = las que ya tiene el mazo (salen marcadas).
+// Elegir el formato y una o varias cartas base de la carpeta (con sugerencias de cartas que combinan).
+// `already` = las que ya tiene el mazo (salen marcadas).
 async function pickSeed(already = [], keepFormat = null) {
-  const body = openSheet(`<h3>¿Con qué cartas empezamos?</h3>
-    <div class="hint">Toca una o varias cartas que te gusten: la app buscará otras que hagan combo con ellas. Para Commander, elige una criatura legendaria.</div>
+  let format = keepFormat || store("buildFormat") || "pauper";
+  const body = openSheet(`<h3>Crear un mazo</h3>
+    <div class="field"><label>1. ¿Para qué formato?</label>
+      <div class="seg" id="seed-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
+      <div class="hint" id="seed-fhint"></div></div>
+    <div class="field"><label>2. Elige una o varias cartas</label>
+      <div class="hint">Cuantas más cartas elijas que vayan juntas, más sólido sale el mazo. Al elegir una, te sugiero otras de tu carpeta que combinan con ella.</div></div>
+    <div id="seed-sugg"></div>
     <input class="search" id="seed-q" placeholder="Buscar en tus cartas…">
     <div class="seg" style="margin-top:8px"><button id="seed-legend">👑 Solo comandantes</button></div>
     <div id="seed-list">${skeleton(3)}</div>
-    <div class="sel-bar" id="seed-bar"><span class="sub" id="seed-n">Ninguna elegida</span><button class="btn" id="seed-cmd" disabled>👑 Commander</button><button class="btn primary" id="seed-go" disabled>Crear mazo</button></div>`);
+    <div class="sel-bar" id="seed-bar"><span class="sub" id="seed-n">Ninguna elegida</span><button class="btn primary" id="seed-go" disabled>Crear mazo</button></div>`);
   const items = await api("/api/collection");
   const seen = new Set();
   const cards = items.filter((c) => !/land/i.test(c.type || "") && !seen.has(c.name) && seen.add(c.name));
@@ -814,39 +834,64 @@ async function pickSeed(already = [], keepFormat = null) {
     return;
   }
   const picked = new Set(already);
-  let onlyLegends = false;
+  let allowed = new Set(), onlyLegends = false, limit = 90;
   const isLegend = (c) => /legendary.*creature/i.test(c.type || "");
+  const FHINT = { pauper: "60 cartas, solo comunes.", commander: "100 cartas sin repetir. Empieza por una criatura legendaria: será tu comandante.",
+    standard: "60 cartas de las colecciones recientes.", casual: "60 cartas, sin restricciones: para jugar con amigos." };
   const update = () => {
-    $("#seed-n", body).textContent = picked.size ? `${picked.size} elegida${picked.size > 1 ? "s" : ""}` : "Ninguna elegida";
+    $("#seed-n", body).textContent = picked.size ? [...picked].join(", ") : "Ninguna elegida";
     $("#seed-go", body).disabled = !picked.size;
-    $("#seed-cmd", body).disabled = ![...picked].some((n) => isLegend(cards.find((c) => c.name === n)));
   };
-  let limit = 90;
+  const toggle = (name) => { picked.has(name) ? picked.delete(name) : picked.add(name); update(); suggest(); };
+  let sugTimer = 0;
+  const suggest = () => {
+    clearTimeout(sugTimer);
+    sugTimer = setTimeout(async () => {
+      const box = $("#seed-sugg", body);
+      if (!picked.size) { box.innerHTML = ""; return; }
+      const r = await api(`/api/seedhelp?format=${format}&seeds=${encodeURIComponent([...picked].join("|"))}`);
+      box.innerHTML = r.suggest.length ? `<h2>✨ Combinan con lo que has elegido</h2><div class="arts">${r.suggest.map((c) => `
+        <button class="art sugg" data-name="${esc(c.name)}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span>${esc(c.why)}</span></button>`).join("")}</div>` : "";
+      box.querySelectorAll(".sugg").forEach((b) => (b.onclick = () => {
+        toggle(b.dataset.name);
+        body.querySelectorAll(`#seed-list [data-id]`).forEach((t) => t.classList.toggle("picked", picked.has(t.dataset.id)));
+      }));
+    }, 250);
+  };
   const draw = (f = $("#seed-q", body).value) => {
-    const all = cards.filter((c) => c.name.toLowerCase().includes(f.toLowerCase()) && (!onlyLegends || isLegend(c)));
+    const all = cards.filter((c) => (allowed.has(c.name) || picked.has(c.name)) && c.name.toLowerCase().includes(f.toLowerCase()) && (!onlyLegends || isLegend(c)));
     $("#seed-list", body).innerHTML = all.length
       ? `<div class="grid">${all.slice(0, limit).map((c) => tile({ ...c, key: c.name })).join("")}</div>
          ${all.length > limit ? `<button class="btn block" id="seed-more" style="margin-top:10px">Ver más (${all.length - limit})</button>` : ""}`
-      : `<div class="hint">No hay ninguna carta así.</div>`;
+      : `<div class="hint">No tienes cartas así que valgan en ${FORMAT_NAMES[format]}.</div>`;
     $("#seed-more", body)?.addEventListener("click", () => { limit += 150; draw(); });
     body.querySelectorAll("#seed-list [data-id]").forEach((b) => {
       b.classList.toggle("picked", picked.has(b.dataset.id));
-      b.onclick = () => {  // sin repintar, para que no salte la pantalla
-        picked.has(b.dataset.id) ? picked.delete(b.dataset.id) : picked.add(b.dataset.id);
-        b.classList.toggle("picked", picked.has(b.dataset.id));
-        update();
-      };
+      b.onclick = () => { toggle(b.dataset.id); b.classList.toggle("picked", picked.has(b.dataset.id)); };  // sin repintar: no salta la pantalla
     });
   };
-  $("#seed-legend", body).onclick = (e) => { onlyLegends = !onlyLegends; e.target.classList.toggle("on", onlyLegends); draw(); };
-  $("#seed-go", body).onclick = () => builderSheet([...picked], keepFormat);
-  $("#seed-cmd", body).onclick = () => {
-    const legend = [...picked].find((n) => isLegend(cards.find((c) => c.name === n)));
-    builderSheet([legend, ...[...picked].filter((n) => n !== legend)], "commander");
+  const setFormat = async (f) => {
+    format = f;
+    store("buildFormat", f);
+    body.querySelectorAll("#seed-format button").forEach((b) => b.classList.toggle("on", b.dataset.f === f));
+    $("#seed-fhint", body).textContent = FHINT[f];
+    onlyLegends = f === "commander" && ![...picked].some((n) => isLegend(cards.find((c) => c.name === n) || {}));
+    $("#seed-legend", body).classList.toggle("on", onlyLegends);
+    allowed = new Set((await api(`/api/seedhelp?format=${f}`)).allowed);
+    draw();
+    suggest();
   };
-  draw("");
-  update();
+  body.querySelectorAll("#seed-format button").forEach((b) => (b.onclick = () => setFormat(b.dataset.f)));
+  $("#seed-legend", body).onclick = (e) => { onlyLegends = !onlyLegends; e.target.classList.toggle("on", onlyLegends); draw(); };
+  $("#seed-go", body).onclick = () => {
+    let seeds = [...picked];
+    const legend = format === "commander" && seeds.find((n) => isLegend(cards.find((c) => c.name === n) || {}));
+    if (legend) seeds = [legend, ...seeds.filter((n) => n !== legend)];  // el comandante, primero
+    builderSheet(seeds, format);
+  };
   $("#seed-q", body).oninput = (e) => draw(e.target.value);
+  update();
+  await setFormat(format);
 }
 
 

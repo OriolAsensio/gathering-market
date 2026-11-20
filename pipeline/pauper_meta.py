@@ -1,6 +1,6 @@
-"""Metajuego de Pauper desde MTGTop8: arquetipos, cuota y una lista reciente de cada uno.
+"""Metajuego desde MTGTop8 (Pauper y otros formatos): arquetipos, cuota y la mejor lista de cada uno.
 
-MTGTop8 pide 5 s entre peticiones (robots.txt), así que tarda un par de minutos.
+MTGTop8 pide 5 s entre peticiones (robots.txt), así que tarda unos minutos por formato.
 """
 import re
 import sys
@@ -15,6 +15,8 @@ HEADERS = {"User-Agent": "MTGPriceTracker/0.1"}
 TOP_N = 60          # arquetipos que seguimos (en la práctica, todos)
 META = 145          # periodo de MTGTop8: últimos 2 meses (más arquetipos que "2 semanas")
 DELAY = 5           # segundos entre peticiones
+# Otros formatos: código de MTGTop8, nombre y cuántos arquetipos (los más jugados, en su periodo por defecto).
+OTHER = [("ST", "Estándar", 20), ("MO", "Modern", 20), ("PI", "Pioneer", 15), ("LE", "Legacy", 15), ("VI", "Vintage", 10)]
 
 _last = 0.0
 
@@ -31,19 +33,24 @@ def get(path: str) -> str:
     return data.decode("cp1252", errors="replace")
 
 
-ARCH_RE = re.compile(
-    r"archetype\?a=(\d+)&meta=(\d+)&f=PAU>([^<]+)</a>.*?class=S14>([\d.]+) %", re.S)  # "4 %" o "0.1 %"
+def arch_re(f):
+    return re.compile(rf"archetype\?a=(\d+)&meta=(\d+)&f={f}>([^<]+)</a>.*?class=S14>([\d.]+) %", re.S)  # "4 %" o "0.1 %"
+
+
+def deck_re(f):
+    return re.compile(
+        rf"event\?e=\d+&d=(\d+)&f={f}>([^<]+)</a></td>\s*"
+        r"<td><a class=player[^>]*>([^<]*)</a></td>\s*"
+        r"<td><a [^>]*>([^<]*)</a></td>.*?<td>([^<]*)</td>\s*<td>([^<]*)</td>", re.S)
+
+
 CAT_RE = re.compile(r"class=meta_arch[^>]*>([A-Z]+) \d+%")
-DECK_RE = re.compile(
-    r"event\?e=\d+&d=(\d+)&f=PAU>([^<]+)</a></td>\s*"
-    r"<td><a class=player[^>]*>([^<]*)</a></td>\s*"
-    r"<td><a [^>]*>([^<]*)</a></td>.*?<td>([^<]*)</td>\s*<td>([^<]*)</td>", re.S)
 
 
-def parse_archetypes(html: str):
+def parse_archetypes(html: str, f: str = "PAU"):
     cats = [(m.start(), m.group(1).title()) for m in CAT_RE.finditer(html)]
     out = []
-    for m in ARCH_RE.finditer(html):
+    for m in arch_re(f).finditer(html):
         cat = next((c for pos, c in reversed(cats) if pos < m.start()), "")
         out.append(dict(id=int(m.group(1)), meta=m.group(2), name=m.group(3).strip(),
                         share=float(m.group(4)), category=cat))
@@ -65,6 +72,34 @@ def parse_list(text: str):
     return cards
 
 
+def scrape(conn, today, f, archetypes):
+    """Guarda la foto del día de un formato: cuota de cada arquetipo y su mejor lista."""
+    saved = 0
+    for a in archetypes:
+        html = get(f"archetype?a={a['id']}&meta={a['meta']}&f={f}")
+        # La lista con mejor puesto ("1" gana a "3-4"); a igualdad, la más reciente (la primera).
+        rows = list(deck_re(f).finditer(html))
+        m = min(rows, key=lambda r: int(re.match(r"\d+", r.group(5)).group() if re.match(r"\d+", r.group(5)) else 999),
+                default=None)
+        if not m:
+            print(f"  sin listas: {a['name']}")
+            continue
+        deck_id = int(m.group(1))
+        with conn:
+            if not conn.execute("SELECT 1 FROM decks WHERE id = ?", (deck_id,)).fetchone():
+                cards = parse_list(get(f"mtgo?d={deck_id}"))
+                conn.execute("INSERT INTO decks VALUES (?,?,?,?,?,?,?,?)",
+                             (deck_id, a["id"], a["name"], m.group(2).strip(), m.group(3).strip(),
+                              m.group(4).strip(), m.group(5).strip(), m.group(6).strip()))
+                conn.executemany("INSERT OR REPLACE INTO deck_cards VALUES (?,?,?,?)",
+                                 [(deck_id, n, q, s) for n, q, s in cards])
+            conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?,?,?,?,?,?)",
+                         (today, f, a["id"], a["name"], a["category"], a["share"], deck_id))
+        saved += 1
+        print(f"  {f} {a['share']:4.0f}%  {a['name']}")
+    return saved
+
+
 def main():
     conn = connect()
     today = date.today().isoformat()
@@ -80,31 +115,10 @@ def main():
     if not archetypes:
         sys.exit("No se ha podido leer el metajuego (¿ha cambiado la web de MTGTop8?)")
 
-    prev_day = conn.execute("SELECT max(day) FROM meta WHERE day < ?", (today,)).fetchone()[0]
+    prev_day = conn.execute("SELECT max(day) FROM meta WHERE day < ? AND format = 'PAU'", (today,)).fetchone()[0]
     prev = {r[0]: r[1] for r in conn.execute(
-        "SELECT archetype, share FROM meta WHERE day = ?", (prev_day,))} if prev_day else {}
-
-    for a in archetypes:
-        html = get(f"archetype?a={a['id']}&meta={a['meta']}&f=PAU")
-        # La lista con mejor puesto ("1" gana a "3-4"); a igualdad, la más reciente (la primera).
-        rows = list(DECK_RE.finditer(html))
-        m = min(rows, key=lambda r: int(re.match(r"\d+", r.group(5)).group() if re.match(r"\d+", r.group(5)) else 999),
-                default=None)
-        if not m:
-            print(f"  sin listas: {a['name']}")
-            continue
-        deck_id = int(m.group(1))
-        with conn:
-            if not conn.execute("SELECT 1 FROM decks WHERE id = ?", (deck_id,)).fetchone():
-                cards = parse_list(get(f"mtgo?d={deck_id}"))
-                conn.execute("INSERT INTO decks VALUES (?,?,?,?,?,?,?,?)",
-                             (deck_id, a["id"], a["name"], m.group(2).strip(), m.group(3).strip(),
-                              m.group(4).strip(), m.group(5).strip(), m.group(6).strip()))
-                conn.executemany("INSERT OR REPLACE INTO deck_cards VALUES (?,?,?,?)",
-                                 [(deck_id, n, q, s) for n, q, s in cards])
-            conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?,?,?,?,?)",
-                         (today, a["id"], a["name"], a["category"], a["share"], deck_id))
-        print(f"  {a['share']:4.0f}%  {a['name']}")
+        "SELECT archetype, share FROM meta WHERE day = ? AND format = 'PAU'", (prev_day,))} if prev_day else {}
+    scrape(conn, today, "PAU", archetypes)
 
     # Avisos de cambios en el meta respecto a la última foto.
     if prev:
@@ -119,6 +133,15 @@ def main():
                     add_event(conn, today, "meta", f"📊 {a['name']} {arrow} en el meta",
                               f"Del {old:.0f}% al {a['share']:.0f}%.")
     print(f"Meta Pauper: {len(archetypes)} arquetipos guardados.")
+
+    # Otros formatos (sin avisos: la app se centra en Pauper). Un fallo en uno no para los demás.
+    for f, label, top in OTHER:
+        try:
+            arch = [a for a in parse_archetypes(get(f"format?f={f}"), f) if not a["name"].startswith("Other")]
+            arch = sorted(arch, key=lambda a: a["share"], reverse=True)[:top]
+            print(f"Meta {label}: {scrape(conn, today, f, arch)} arquetipos guardados.")
+        except Exception as e:  # noqa: BLE001
+            print(f"Meta {label}: no se ha podido leer ({e})")
 
 
 if __name__ == "__main__":
