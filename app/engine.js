@@ -214,7 +214,8 @@ const Engine = (() => {
     return u || { binders: [{ id: 1, name: "Mis cartas" }], nextId: 2, cards: { 1: {} }, pinned: { 1: [] },
       events: [], nextEvent: 1, lastPriceDay: null };
   }
-  const saveUser = () => kvSet("user", JSON.stringify(user));
+  let onSaved = null;  // la cuenta en la nube se entera de cada cambio para subirlo
+  const saveUser = () => { const p = kvSet("user", JSON.stringify(user)); onSaved?.(); return p; };
   const binderOf = (c) => { const id = +c || 1; return user.binders.find((b) => b.id === id) ? id : null; };
   const cardsOf = (c) => user.cards[c] || (user.cards[c] = {});
   /** [[índice de impresión, foil, cantidad]] de una carpeta (ignora cartas que ya no existan). */
@@ -1645,5 +1646,5 @@ const Engine = (() => {
     await saveUser();
   }
 
-  return { load, call, exportUser, importUser, get day() { return loaded ? PR.day : null; } };
+  return { load, call, exportUser, importUser, get day() { return loaded ? PR.day : null; }, set onSave(fn) { onSaved = fn; } };
 })();

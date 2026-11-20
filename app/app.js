@@ -1547,6 +1547,13 @@ async function profileSheet() {
     <div class="hint">Todo se guarda solo en este móvil: sin correo ni cuentas. La contraseña bloquea la app en este móvil; no la podrás recuperar.</div>
     <div class="row-btns"><button class="btn primary" id="pf-save">Guardar</button>${p.hash ? `<button class="btn" id="pf-nopass">Quitar contraseña</button>` : ""}</div>
     <label class="toggle" style="margin-top:10px"><input type="checkbox" id="pf-sound" ${store("sounds") === "0" ? "" : "checked"}> 🔔 Sonidos al añadir cartas</label>
+    ${Cloud.ready ? `<h2>☁️ Cuenta en la nube</h2>${Cloud.user
+      ? `<div class="hint">Conectado como: <b>${esc(Cloud.user)}</b></div><div class="hint">Tus cartas, carpetas y mazos se guardan solos y los ves entrando con tu usuario en otro móvil o en la web.</div>
+         <div class="row-btns"><button class="btn" id="cl-out">Cerrar sesión</button><button class="btn primary" id="cl-push">☁️ Guardar ahora</button></div>`
+      : `<div class="hint">Crea una cuenta (solo nombre y contraseña) para guardar tus datos en internet y usarlos en cualquier móvil, también en iPhone desde la web.</div>
+         <input class="search" id="cl-user" autocomplete="username" autocapitalize="none" placeholder="Nombre de usuario">
+         <input class="search" id="cl-pass" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 6)" style="margin-top:8px">
+         <div class="row-btns"><button class="btn" id="cl-new">Crear cuenta</button><button class="btn primary" id="cl-in">Entrar</button></div>`}` : ""}
 
     <h2>🏆 Medallas (${m.sets.length + m.precons.length + got.length})</h2>
     <div class="medals">${got.map((x) => medal("<i>⭐</i>", x.label)).join("")}</div>
@@ -1565,6 +1572,29 @@ async function profileSheet() {
     <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>
     <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>`;
   body.querySelectorAll("[data-set]").forEach((b) => (b.onclick = () => setSheet(b.dataset.set)));
+  const enter = async (create) => {
+    try {
+      const row = await Cloud.login($("#cl-user", body).value, $("#cl-pass", body).value, create);
+      const local = (await api("/api/collections")).reduce((n, b) => n + b.cards, 0);
+      if (row.data && (!local || confirm(t("Tu cuenta ya tiene datos guardados. ¿Cargarlos en este móvil? (Cancelar = subir a tu cuenta lo de este móvil)")))) {
+        await Cloud.apply(row.data);
+        cid = 1; store("cid", "1");
+        toast("Datos de tu cuenta cargados");
+      } else {
+        if (!(await api("/api/profile")).name) await api("/api/profile", { name: Cloud.user });
+        await Cloud.push();
+        toast(create ? "Cuenta creada: tus datos ya están en la nube" : "Datos de este móvil subidos a tu cuenta");
+      }
+      loadSummary(); render(); profileSheet();
+    } catch (err) { toast(err.message); }
+  };
+  $("#cl-in", body)?.addEventListener("click", () => enter(false));
+  $("#cl-new", body)?.addEventListener("click", () => enter(true));
+  $("#cl-out", body)?.addEventListener("click", () => {
+    if (!confirm(t("¿Cerrar sesión? Lo de este móvil se queda aquí; tu cuenta sigue guardada en la nube."))) return;
+    Cloud.logout(); toast("Sesión cerrada"); profileSheet();
+  });
+  $("#cl-push", body)?.addEventListener("click", () => Cloud.push().then(() => toast("Guardado en la nube")).catch((e) => toast(e.message)));
   $("#pf-sound", body).onchange = (e) => { store("sounds", e.target.checked ? "1" : "0"); if (e.target.checked) Sfx.card(5); };
   $("#pf-save", body).onclick = async () => {
     const pass = $("#pf-pass", body).value;
@@ -1595,6 +1625,78 @@ async function profileSheet() {
     catch (err) { toast(err.message); }
   };
 }
+
+// ---------- cuenta en la nube (Supabase): nombre + contraseña, tus datos en cualquier móvil o en la web ----------
+// Ver supabase/cuentas.sql. La contraseña nunca sale del móvil: se envía una clave derivada (PBKDF2) que allí se guarda con bcrypt.
+const CLOUD_ERR = { USER_TAKEN: "Ese nombre ya está cogido", BAD_LOGIN: "Nombre o contraseña incorrectos",
+  TOO_BIG: "Tus datos son demasiado grandes para la nube (más de 5 MB)", BAD_PASSWORD: "Contraseña no válida" };
+const Cloud = (() => {
+  const cfg = window.GM_SUPABASE || {};
+  const ready = !!(cfg.url && cfg.key);
+  let session = null, timer = 0, pulling = false;
+  try { session = JSON.parse(localStorage.getItem("cloud") || "null"); } catch { /* sin almacenamiento */ }
+  const persist = () => { try { session ? localStorage.setItem("cloud", JSON.stringify(session)) : localStorage.removeItem("cloud"); } catch { /* */ } };
+  const rpc = async (fn, body) => {
+    const headers = { apikey: cfg.key, "Content-Type": "application/json" };
+    if (cfg.key.startsWith("eyJ")) headers.Authorization = `Bearer ${cfg.key}`;  // clave "anon" antigua (JWT)
+    const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/rpc/${fn}`, { method: "POST", headers, body: JSON.stringify(body) });
+    const text = await r.text();
+    if (!r.ok) {
+      let m = text;
+      try { m = JSON.parse(text).message; } catch { /* texto plano */ }
+      throw new Error(CLOUD_ERR[m] || m || `Error ${r.status}`);
+    }
+    return text ? JSON.parse(text) : null;
+  };
+  const load = () => rpc("gm_load", { p_user: session.user, p_pass: session.key }).then((rows) => rows?.[0] || null);
+  const push = async () => {
+    if (!session) return;
+    clearTimeout(timer);
+    session.synced = await rpc("gm_save", { p_user: session.user, p_pass: session.key, p_data: JSON.parse(Engine.exportUser()) });
+    session.dirty = false;
+    persist();
+  };
+  const apply = async (data) => { pulling = true; try { await Engine.importUser(JSON.stringify(data)); } finally { pulling = false; } };
+  Engine.onSave = () => {
+    if (!session || pulling) return;
+    session.dirty = true;
+    persist();
+    clearTimeout(timer);
+    timer = setTimeout(() => push().catch((e) => toast(`☁️ No se ha podido guardar en la nube: ${e.message}`)), 3000);
+  };
+  return {
+    ready, push, apply,
+    get user() { return session?.user || null; },
+    async login(user, pass, create) {
+      user = user.trim().toLowerCase();
+      if (!/^[a-z0-9_.-]{3,30}$/.test(user)) throw new Error("El nombre: de 3 a 30 letras o números, sin espacios");
+      if (pass.length < 6) throw new Error("La contraseña necesita al menos 6 caracteres");
+      const key = await hashPassword(pass, `gathering-market:${user}`);
+      if (create) await rpc("gm_signup", { p_user: user, p_pass: key });
+      session = { user, key, synced: null, dirty: false };
+      const row = await load().catch((e) => { session = null; throw e; });
+      if (!row) { session = null; throw new Error(CLOUD_ERR.BAD_LOGIN); }
+      session.synced = row.updated_at;
+      persist();
+      return row;
+    },
+    logout() { clearTimeout(timer); session = null; persist(); },
+    /** Al abrir la app: baja lo guardado desde otro móvil o sube lo que cambió aquí sin conexión. */
+    async sync() {
+      if (!ready || !session) return null;
+      const row = await load();
+      if (!row) { session = null; persist(); toast("Tu sesión en la nube ha caducado: vuelve a entrar desde el perfil"); return null; }
+      const remoteNewer = row.data && Date.parse(row.updated_at) > Date.parse(session.synced || 0);
+      if (remoteNewer && (!session.dirty || confirm(t("Has cambiado cosas en este móvil y en otro. ¿Quedarte con lo de la nube? (Cancelar = quedarte con lo de este móvil)")))) {
+        await apply(row.data);
+        session.synced = row.updated_at; session.dirty = false; persist();
+        return "pulled";
+      }
+      if (session.dirty || !row.data || remoteNewer) await push();
+      return "pushed";
+    },
+  };
+})();
 
 // Pantalla de bloqueo si el perfil tiene contraseña.
 async function unlock() {
@@ -1638,6 +1740,8 @@ async function boot() {
   loadSummary();
   render();
   checkAlertDot();
+  Cloud.sync().then((r) => { if (r === "pulled") { cid = 1; store("cid", "1"); loadSummary(); render(); toast("☁️ Datos actualizados desde tu cuenta"); } })
+    .catch(() => toast("☁️ Sin conexión con la nube: se guardará cuando vuelva"));
 }
 
 // ---------- app de Android (Capacitor): botón atrás y permiso de notificaciones ----------

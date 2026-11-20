@@ -33,7 +33,7 @@ def dump(path, data):
 
 
 def main(out=None):
-    out = Path(out or ROOT / "pack")
+    out = Path(out or ROOT / "app" / "pack")  # por defecto, la copia que usan el servidor local y el APK
     out.mkdir(parents=True, exist_ok=True)
     conn = connect()
     day = conn.execute("SELECT max(day) FROM prices").fetchone()[0]
