@@ -77,6 +77,10 @@ jobs:
         run: |
           rsync -a --exclude pack --exclude config.js app/ site/
           printf 'window.GM_CONFIG = { packUrl: "./" };  // web: el paquete está al lado\n' > site/config.js
+          # Cada publicación cambia la "versión" de los archivos para que el navegador no use una copia vieja.
+          v="${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          sed -i -E "s/(src|href)=\"(app|engine|i18n|config|supabase)\.js\"/\1=\"\2.js?v=$v\"/g; s/href=\"style\.css\"/href=\"style.css?v=$v\"/" site/index.html
+          grep -c "?v=$v" site/index.html
           touch site/.nojekyll
 
       - uses: actions/configure-pages@v6
