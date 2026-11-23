@@ -387,3 +387,17 @@ body:has(#col-bar:not([hidden])) .fab { display: none; }
 .alter-box { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
 .alter-box .hint { margin: 0; }
 a.gcard { text-decoration: none; color: inherit; display: block; }
+
+/* − / + en las cartas de un mazo */
+.mini-step { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
+.mini-step button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 17px; line-height: 1; padding: 0; cursor: pointer; }
+.mini-step button:disabled { opacity: .35; cursor: default; }
+.mini-step b { min-width: 34px; text-align: center; font-size: 13px; }
+.deck-line .mini-step { margin: 0 0 0 8px; }
+
+/* Cartas que sigues */
+.chip.up { color: #6fcf7f; border-color: #6fcf7f55; }
+.chip.down { color: #e57373; border-color: #e5737355; }
+.watch .item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.w-del { padding: 4px 9px; font-size: 12px; }
+.mover[data-follow] { cursor: pointer; }

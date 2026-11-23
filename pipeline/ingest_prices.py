@@ -43,7 +43,7 @@ def card_row(c: dict):
         images.get("normal"), c.get("legalities", {}).get("pauper"),
         c["name"].split(" // ")[0], int(is_variant(c)),
         int(bool(c.get("reserved"))), c.get("legalities", {}).get("commander"),
-        c.get("legalities", {}).get("standard"),
+        c.get("legalities", {}).get("standard"), int(bool(c.get("game_changer"))),
     )
 
 
@@ -82,7 +82,7 @@ def main(force: bool = False):
 
     def flush():
         conn.executemany(
-            "INSERT OR REPLACE INTO cards VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", card_batch)
+            "INSERT OR REPLACE INTO cards VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", card_batch)
         conn.executemany(
             "INSERT OR REPLACE INTO prices VALUES (?,?,?,?,?,?)", price_batch)
         card_batch.clear()

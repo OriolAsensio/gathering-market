@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS cards (
     variant          INTEGER,            -- 1 = versión especial (promo, sin borde, showcase...)
     reserved         INTEGER,            -- 1 = Lista Reservada (no se reimprime)
     commander        TEXT,               -- legalidad en Commander
-    standard         TEXT                -- legalidad en Estándar
+    standard         TEXT,               -- legalidad en Estándar
+    game_changer     INTEGER             -- 1 = Game Changer de Commander (limita los brackets 1-3)
 );
 CREATE INDEX IF NOT EXISTS idx_cards_name ON cards(name);
 CREATE INDEX IF NOT EXISTS idx_cards_oracle ON cards(oracle_id);
@@ -149,7 +150,7 @@ def _migrate(conn):
     if "cards" in tables:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(cards)")}
         for col, kind in (("pauper", "TEXT"), ("front_name", "TEXT"), ("variant", "INTEGER"),
-                          ("reserved", "INTEGER"), ("commander", "TEXT"), ("standard", "TEXT")):
+                          ("reserved", "INTEGER"), ("commander", "TEXT"), ("standard", "TEXT"), ("game_changer", "INTEGER")):
             if col not in cols:
                 conn.execute(f"ALTER TABLE cards ADD COLUMN {col} {kind}")
     if "sets" in tables:

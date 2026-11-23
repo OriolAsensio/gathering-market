@@ -524,7 +524,7 @@ const Engine = (() => {
     scryfall: ["scryfall id", "scryfall_id", "scryfallid", "scryfall uuid"],
     name: ["name", "card name", "card", "nombre", "card_name"],
     set_name: ["set name", "edition name", "expansion name", "set_name"],
-    set: ["set code", "edition code", "setcode", "set_code", "set", "edition", "expansion", "edición"],
+    set: ["set code", "edition code", "setcode", "set_code", "set id", "set", "edition", "expansion", "edición"],
     number: ["collector number", "card number", "collector_number", "number", "cn", "collector #"],
     qty: ["quantity", "count", "qty", "amount", "cantidad", "copies"],
     foil: ["foil", "printing", "finish", "foil/variant"],
@@ -556,7 +556,7 @@ const Engine = (() => {
   }
 
   function parseImport(text) {
-    text = text.replace(/^﻿/, "");
+    text = text.replace(/^﻿/, "").replace(/^sep=.\r?\n/i, "");  // Dragon Shield empieza con "sep=,"
     const first = text.split(/\r?\n/, 1)[0] || "";
     if (/[,;\t]/.test(first) && /name|card|nombre/i.test(first)) {
       const [header, ...rows] = parseCsv(text);
@@ -592,7 +592,8 @@ const Engine = (() => {
     const set = row.set.toLowerCase();
     if (set && row.number) {
       const hit = bySetNum.get(`${set}|${row.number.replace(/^0+/, "")}`);
-      if (hit) return P[hit[0]][0];
+      // Si el CSV trae nombre, tiene que cuadrar con el número (si no, manda el nombre).
+      if (hit && (!row.name || norm(front(O[P[hit[0]][1]][0])) === norm(row.name) || norm(O[P[hit[0]][1]][0]) === norm(row.name))) return P[hit[0]][0];
     }
     const oi = row.name ? oByNorm.get(norm(row.name)) : null;
     if (oi == null) return null;
@@ -804,6 +805,35 @@ const Engine = (() => {
     return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, ...deckInfo(d, owned) };
   }
 
+  // ---------------------------------------------------------------- cartas que sigues (precio y cambios a 1, 7 y 30 días)
+  function watchList({ c }) {
+    const owned = ownedByName(binderOf(c) || 1);
+    const now = cheapest().price;
+    const past = { 1: cheapest("d1").price, 7: cheapest("d7").price, 30: cheapest("d30").price };
+    const has = (k) => PR.days && PR.days[k] && PR.days[k] !== PR.day;
+    const change = (oi, k) => (has(k) && past[k][oi] && now[oi] ? Math.round(((now[oi] - past[k][oi]) * 1000) / past[k][oi]) / 10 : null);
+    return (user.watch || []).map((name) => {
+      const oi = oByNorm.get(norm(name));
+      if (oi == null) return null;
+      return { name: front(O[oi][0]), image: oImage(oi), eur: eur(now[oi]), d1: change(oi, 1), d7: change(oi, 7), d30: change(oi, 30),
+        owned: owned.get(norm(name)) || 0 };
+    }).filter(Boolean);
+  }
+  function watchPost({ c, add, remove, top }) {
+    const list = (user.watch ||= []);
+    const has = (n) => list.some((x) => norm(x) === norm(n));
+    if (add) { const oi = oByNorm.get(norm(add)); if (oi == null) throw new Error("No conozco esa carta"); if (!has(add)) list.unshift(front(O[oi][0])); }
+    if (remove) user.watch = list.filter((x) => norm(x) !== norm(remove));
+    if (top) {  // tus cartas más valiosas
+      const cheap = cheapest().price;
+      const names = [...ownedByName(binderOf(c) || 1).keys()].map((k) => oByNorm.get(k)).filter((oi) => oi != null)
+        .sort((a, b) => (cheap[b] || 0) - (cheap[a] || 0)).slice(0, +top).map((oi) => front(O[oi][0]));
+      for (const n of names) if (!has(n)) list.push(n);
+    }
+    saveUser();
+    return { watch: user.watch };
+  }
+
   // ---------------------------------------------------------------- mercado
   function movers({ c, days = 7, scope = "pauper", min = 0.5 }) {
     const col = { 1: "d1", 7: "d7", 30: "d30" }[+days] || "d7";
@@ -940,11 +970,27 @@ const Engine = (() => {
       missing_cost: Math.round(list.filter((x) => !x.qty && !x.basic).reduce((t, x) => t + (x.eur || 0), 0) * 100) / 100,
       value_owned: Math.round(list.filter((x) => x.qty).reduce((t, x) => t + (x.eur || 0), 0) * 100) / 100, rarity };
   }
+  // Para buscar colecciones sin importar acentos ni grafías: "pirexia" encuentra Phyrexia, "teros" Theros.
+  const simple = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/ph/g, "p").replace(/th/g, "t").replace(/y/g, "i").replace(/k/g, "c").replace(/[^a-z0-9]/g, "");
   async function setsSearch({ q }) {
     const text = (q || "").trim().toLowerCase();
     if (text.length < 2) return [];
-    const hits = [...SETS.values()].filter((s) => s.name.toLowerCase().includes(text) || s.code === text);
-    return Promise.all(hits.sort((a, b) => (b.released || "").localeCompare(a.released || "")).slice(0, 15).map((s) => setInfo(s.code)));
+    const st = simple(text);
+    const hits = [...SETS.values()].filter((s) => s.code === text || (st.length >= 2 && simple(s.name).includes(st)));
+    const out = await Promise.all(hits.sort((a, b) => (b.released || "").localeCompare(a.released || "")).slice(0, 15).map((s) => setInfo(s.code)));
+    // También por carta (en cualquier idioma): en qué colecciones sale.
+    // (solo si es justo el nombre de una carta, o si no hay ninguna colección con ese nombre)
+    const cards = await search({ q });
+    const card = cards.find((c) => c.name.toLowerCase() === text) || (!out.length ? cards[0] : null);
+    if (card && out.length < 15) {
+      const seen = new Set(out.map((s) => s.code));
+      const oi = oByNorm.get(norm(card.name));
+      const codes = [...new Set((printsOf[oi] || []).map((pi) => P[pi][2]))].filter((code) => !seen.has(code) && SETS.has(code));
+      const sets = codes.map((code) => SETS.get(code)).sort((a, b) => (b.released || "").localeCompare(a.released || "")).slice(0, 15 - out.length);
+      for (const s of sets) out.push({ ...(await setInfo(s.code)), via: card.name });
+    }
+    return out;
   }
   function setsPin(body) {
     const id = binderOf(body.c) || 1;
@@ -1059,7 +1105,8 @@ const Engine = (() => {
     incoloro: ["artefactos"], vehículos: ["criaturas"],
   };
   // Temas concretos que pesan más que los genéricos (lo que de verdad pide la carta).
-  const THEME_W = { "criaturas incoloras": 2, ninjutsu: 1.5, veneno: 1.5, vehículos: 1.3 };
+  // "criaturas" pesa poco: ser una criatura no es sinergia (si no, cualquier criatura entra por encima de las cartas buenas).
+  const THEME_W = { "criaturas incoloras": 2, ninjutsu: 1.5, veneno: 1.5, vehículos: 1.3, criaturas: 0.5 };
   const LAND_NOISE = new Set(["efectos al entrar", "sacrificio", "artefactos", "tierras", "ganar vida"]);
   const NEEDS_CREATURES = new Set(["equipos", "auras", "vehículos", "ninjutsu", "evasión", "atacar", "contadores +1/+1"]);
   const THEME_PRED = Object.fromEntries(THEMES.filter((t) => t[2]).map((t) => [t[0], t[2]]));
@@ -1068,10 +1115,25 @@ const Engine = (() => {
     draw: /\bdraws? (two|three|four|x|a) cards?\b|\binvestigate\b|\bscry \d|\bsurveil \d/,
     removal: /destroy target (creature|artifact|enchantment|permanent|nonland)|exile target (creature|permanent|nonland|artifact|enchantment)|deals? \d+ damage to (any target|target creature)|target creature gets -\d+\/-\d+|counter target spell|fights? (another )?target creature/,
     wipe: /destroy all (creatures|nonland)|exile all (creatures|nonland)|deals? \d+ damage to each creature|all creatures get -\d+\/-\d+/,
+    protect: /(you control|equipped creature|enchanted creature) (gains?|has|have) [^.]{0,40}(hexproof|indestructible|shroud|protection from)|\bphases? out\b|prevent all combat damage|return (target|all) [^.]{0,40}from your graveyard to the battlefield/,
   };
-  const ROLE_NAMES = { ramp: "acelera el maná", draw: "roba cartas", removal: "quita amenazas del rival", wipe: "barre la mesa" };
+  const ROLE_NAMES = { ramp: "acelera el maná", draw: "roba cartas", removal: "quita amenazas del rival", wipe: "barre la mesa", protect: "protege tu plan" };
   // Cuántas cartas de cada función quiere un mazo (60 cartas / Commander 100).
-  const TARGETS = { 60: { removal: 6, draw: 3, ramp: 0, wipe: 0 }, 100: { removal: 8, draw: 10, ramp: 10, wipe: 2 } };
+  const TARGETS = { 60: { removal: 6, draw: 3, ramp: 0, wipe: 0, protect: 0 }, 100: { removal: 10, draw: 10, ramp: 10, wipe: 2, protect: 4 } };
+  // Nivel de optimización (1 meme … 5 competitivo): cuánto pesan la potencia de la carta (popularidad en EDHREC),
+  // la sinergia, las funciones básicas, las listas de torneo y las cartas caras.
+  const POWER = {
+    1: { rank: -3, syn: 1.4, cap: Infinity, roles: 0.4, co: 0, heavy: -0.5, gc: 0 },
+    2: { rank: 0, syn: 1.2, cap: Infinity, roles: 0.75, co: 0.5, heavy: 0, gc: 0 },
+    3: { rank: 2, syn: 1, cap: Infinity, roles: 1, co: 1, heavy: 0, gc: 0 },
+    4: { rank: 3, syn: 1, cap: Infinity, roles: 1.15, co: 1.5, heavy: 0.8, gc: 2, staples: 6 },
+    5: { rank: 4, syn: 1, cap: Infinity, roles: 1.3, co: 2, heavy: 1.6, gc: 4, staples: 12 },
+  };
+  const rankScore = (x) => (x.rank ? Math.max(0, 1 - Math.log10(x.rank) / Math.log10(30000)) : 0);
+  const POWER_NAMES = { 1: "meme", 2: "muy casual", 3: "equilibrado", 4: "optimizado", 5: "competitivo" };
+  // Brackets de Commander: cuántos Game Changers, y nada de destruir todas las tierras ni turnos extra en cadena.
+  const BRACKETS = { 1: { gc: 0, mld: false, turns: 0 }, 2: { gc: 0, mld: false, turns: 0 }, 3: { gc: 3, mld: false, turns: 1 },
+    4: { gc: Infinity, mld: true, turns: Infinity }, 5: { gc: Infinity, mld: true, turns: Infinity } };
   const COLOR_NAMES = { W: "blanco", U: "azul", B: "negro", R: "rojo", G: "verde", C: "incoloro" };
   const BASIC_FOR = { W: "Plains", U: "Island", B: "Swamp", R: "Mountain", G: "Forest", C: "Wastes" };
   const FORMATS = { pauper: 6, standard: 10, commander: 9 };  // índice en la fila de la carta (legalidad)
@@ -1093,6 +1155,9 @@ const Engine = (() => {
     c.is_creature = front.includes("creature");
     c.can_command = (type.includes("legendary") && type.includes("creature")) || text.includes("can be your commander");
     c.cmdr_only = /\bcommander/.test(text.replace("can be your commander", ""));  // "your commander's color identity"…
+    c.mld = /destroy all (nonbasic )?lands|(each player|each opponent) sacrifices [^.]{0,20}lands|exile all lands|destroy all permanents/.test(text);
+    c.extra_turn = /extra turn/.test(text);
+    c.one_sided = /(your opponents control|you don't control|each opponent)/.test(text);
     c.text = text;
     return c;
   }
@@ -1123,8 +1188,8 @@ const Engine = (() => {
       if (THEME_PRED[t]) bump(plan.wantsType, t, tw); // y si es un tipo de carta, quiere cartas de ese tipo
       for (const r of RELATED[t] || []) bump(plan.wantsText, r, w * 0.4);
     }
-    for (const t of c.type_tags) bump(plan.wantsText, t, w * 0.5);  // lo que es la carta: le gustan quienes lo aprovechan
-    for (const t of c.text_tags) if (NEEDS_CREATURES.has(t)) bump(plan.wantsType, "criaturas", w * 0.5);
+    for (const t of c.type_tags) bump(plan.wantsText, t, w * 0.5 * (THEME_W[t] || 1));  // lo que es la carta: le gustan quienes lo aprovechan
+    for (const t of c.text_tags) if (NEEDS_CREATURES.has(t)) bump(plan.wantsType, "criaturas", w * 0.25);
     for (const t of c.subtypes) if (w >= 3 && mentions(t, c.text)) plan.tribes.add(t);
   }
   function fit(plan, c, skip = null) {
@@ -1226,10 +1291,10 @@ const Engine = (() => {
   // Estilos: cambian la curva, las tierras, cuántas criaturas y cuántas respuestas lleva el mazo.
   const STYLES = {
     aggro: { caps: { 0: 4, 1: 12, 2: 16, 3: 10, 4: 5, 5: 2, 6: 1 }, land: -1.5, creature: 1.2, heavyAt: 4, heavy: 2.5,
-      target: { 60: { removal: 4, draw: 1, ramp: 0, wipe: 0 }, 100: { removal: 7, draw: 9, ramp: 9, wipe: 0 } } },
+      target: { 60: { removal: 4, draw: 1, ramp: 0, wipe: 0, protect: 0 }, 100: { removal: 8, draw: 10, ramp: 9, wipe: 1, protect: 5 } } },
     midrange: { caps: { 0: 4, 1: 10, 2: 14, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 0, creature: 0.4, heavyAt: 6, heavy: 1.5, target: TARGETS },
     control: { caps: { 0: 4, 1: 8, 2: 12, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 1, creature: -0.8, heavyAt: 7, heavy: 0.5,
-      target: { 60: { removal: 9, draw: 5, ramp: 0, wipe: 1 }, 100: { removal: 10, draw: 12, ramp: 10, wipe: 4 } } },
+      target: { 60: { removal: 9, draw: 5, ramp: 0, wipe: 1, protect: 0 }, 100: { removal: 12, draw: 12, ramp: 10, wipe: 4, protect: 3 } } },
   };
   /** Estilo que piden las cartas base (si el usuario elige "auto"). */
   function autoStyle(base, plan) {
@@ -1241,15 +1306,17 @@ const Engine = (() => {
     return "midrange";
   }
 
-  function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto" }) {
+  function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3 }) {
+    const power = POWER[+pw] ? +pw : 3, PW = POWER[power];
+    const bracket = BRACKETS[+br] ? +br : 3;
     const id = binderOf(c) || 1;
     let fmt = format;
     const cheap = cheapest().price;
     const warnings = [];
     const mk = (oi, owned) => {
-      const [name, type_line, cost, cmc, ci, oracle_text, pauper, rank, , commander, standard] = O[oi];
+      const [name, type_line, cost, cmc, ci, oracle_text, pauper, rank, , commander, standard, gc] = O[oi];
       return analyse({ name: front(name), owned, type_line, oracle_text, mana_cost: cost || "", cmc: cmc || 0,
-        colors: new Set(ci || ""), legal: { pauper, commander, standard }, rank, oi });
+        colors: new Set(ci || ""), legal: { pauper, commander, standard }, rank, oi, gc: gc === 1 });
     };
     const pool = new Map();
     for (const [pi, , qty] of entries(id)) {
@@ -1281,7 +1348,8 @@ const Engine = (() => {
     }
     const size = fmt === "commander" ? 100 : 60;
     const maxCopies = size === 100 ? 1 : 4;
-    const legal = (x) => !(size === 60 && x.cmdr_only) && (fmt === "casual" || x.legal[fmt] === 1);
+    const BR = fmt === "commander" ? BRACKETS[bracket] : BRACKETS[5];
+    const legal = (x) => !(size === 60 && x.cmdr_only) && (fmt === "casual" || x.legal[fmt] === 1) && (BR.mld || !x.mld);
 
     // "C" = incoloro: solo C → mazo incoloro; C con colores → esos colores premiando las cartas incoloras.
     const wantC = /c/i.test(colors || "");
@@ -1311,7 +1379,7 @@ const Engine = (() => {
     // 1) Cartas base.
     const chosen = [];   // [carta, copias, motivos]
     const curve = {};
-    const roles = { ramp: 0, draw: 0, removal: 0, wipe: 0 };
+    const roles = { ramp: 0, draw: 0, removal: 0, wipe: 0, protect: 0 };
     const take = (x, n, why, score = 99) => {
       chosen.push([x, n, why, score]);
       const b = Math.min(Math.floor(x.cmc), 6);
@@ -1334,7 +1402,9 @@ const Engine = (() => {
       const n = chosen.reduce((s, e) => s + e[1], 0);
       const avg = n ? chosen.reduce((s, [x, k]) => s + x.cmc * k, 0) / n : 2.5;
       // Como en los mazos reales: agresivo de curva 2 ≈ 17-18 tierras; control ≈ 23-24. Commander 33-38.
-      return size === 100 ? Math.max(33, Math.min(38, Math.round(31 + 2 * avg + st.land))) : Math.max(16, Math.min(24, Math.round(13.5 + 2.4 * avg + st.land)));
+      // Commander: 38 tierras como mínimo (menos solo en competitivo, con curva muy baja y mucha aceleración).
+      return size === 100 ? (power === 5 ? Math.max(33, Math.min(37, Math.round(29 + 2 * avg + st.land))) : Math.max(38, Math.min(40, Math.round(32 + 2 * avg + st.land))))
+        : Math.max(16, Math.min(24, Math.round(13.5 + 2.4 * avg + st.land)));
     };
     // Cartas que aparecen junto a las base en listas de torneo (sinergia probada, no "lo que más se juega").
     const coPlay = new Map();
@@ -1344,15 +1414,35 @@ const Engine = (() => {
       for (const d of decksWith) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) if (!baseNames.has(k) && !BASICS.has(k)) coPlay.set(k, (coPlay.get(k) || 0) + 1);
       for (const [k, n] of coPlay) if (n / decksWith.length < 0.34) coPlay.delete(k);  // solo lo habitual en esas listas
     }
-    const coBonus = (x) => Math.min(4, 1.5 * (coPlay.get(norm(x.name)) || 0));
+    const coBonus = (x) => Math.min(4, 1.5 * (coPlay.get(norm(x.name)) || 0)) * PW.co;
     let minCreatures = size === 100 ? 22 : { aggro: 16, midrange: 13, control: 8 }[style] || 12;
     if ((plan.wantsText.get("hechizos") || 0) >= 3 && !(plan.wantsType.get("criaturas") > 0)) minCreatures = Math.round(minCreatures / 2);
     const colorlessFocus = colorlessOnly || wantC || (plan.wantsType.get("incoloro") || 0) > 0;
     const creaturesIn = () => chosen.reduce((n, [x, k]) => n + (x.is_creature ? k : 0), 0);
     const capScale = size / 60;
     const CURVE_CAP = st.caps;
-    const target = st.target[size];
+    const target = Object.fromEntries(Object.entries(st.target[size]).map(([k, v]) => [k, Math.round(v * PW.roles)]));
+    // Sin "piloto automático": si el comandante ya acelera, hace falta menos rampa; si cuesta 3 o menos, nada de rampa de 3+ (Cultivate…).
+    if (commander?.roles.has("ramp")) target.ramp = Math.round(target.ramp / 2);
+    const voltron = !!commander && ["equipos", "auras"].some((t) => (plan.wantsText.get(t) || 0) >= 3);
+    let gcCount = chosen.filter(([x]) => x.gc).length + (commander?.gc ? 1 : 0), turnsCount = chosen.filter(([x]) => x.extra_turn).length;
     const left = new Set(candidates);
+    // Optimizado/competitivo: primero los mejores básicos de la carpeta (las cartas más jugadas que aceleran, roban,
+    // quitan amenazas o protegen, y los Game Changers que permita el bracket); el resto del mazo, sinergia.
+    if (PW.staples) {
+      const fitsCurve = (x) => (curve[Math.min(Math.floor(x.cmc), 6)] || 0) < CURVE_CAP[Math.min(Math.floor(x.cmc), 6)] * capScale;
+      const staples = [...left].filter((x) => x.rank && x.rank <= 400 && (x.roles.size || x.gc) && !x.extra_turn && !(voltron && x.roles.has("wipe") && !x.one_sided))
+        .sort((a, b) => (b.gc - a.gc) * (BR.gc > 0 ? 1 : 0) || a.rank - b.rank);
+      let n = 0;
+      for (const x of staples) {
+        if (n >= PW.staples * (size === 100 ? 1 : 0.5)) break;
+        if ((x.gc && gcCount >= BR.gc) || !fitsCurve(x)) continue;
+        left.delete(x);
+        take(x, Math.min(x.owned, maxCopies), [`básico del formato (${POWER_NAMES[power]})`, ...[...x.roles].map((r) => ROLE_NAMES[r])]);
+        if (x.gc) gcCount++;
+        n++;
+      }
+    }
     while (left.size) {
       const used = chosen.reduce((s, e) => s + e[1], 0);
       if (used >= spellSlots()) break;
@@ -1365,7 +1455,12 @@ const Engine = (() => {
       for (const x of left) {
         if (!fits(x)) continue;
         if (mustRole && ![...x.roles].some((r) => roles[r] < target[r])) continue;
-        const [s, why] = fit(plan, x);
+        if (x.gc && gcCount >= BR.gc) continue;                       // bracket: tope de Game Changers
+        if (x.extra_turn && turnsCount >= BR.turns) continue;         // bracket: turnos extra
+        if (voltron && x.roles.has("wipe") && !x.one_sided) continue; // Voltron: un barrido simétrico mata a tu comandante
+        const [s0, why] = fit(plan, x);
+        // En optimizado/competitivo la sinergia tiene techo (rendimientos decrecientes) para que entren las cartas potentes.
+        const s = PW.cap === Infinity ? s0 * PW.syn : PW.cap * (1 - Math.exp(-(s0 * PW.syn) / PW.cap));
         let need = 0;
         const roleWhy = [];
         for (const r of x.roles) if (roles[r] < target[r]) { need += 4 * (1 - roles[r] / target[r]) + 1; roleWhy.push(ROLE_NAMES[r]); }
@@ -1373,8 +1468,9 @@ const Engine = (() => {
         const cr = creaturesIn();
         if (x.is_creature && cr < minCreatures) { need += 3 * (1 - cr / minCreatures) + 1; if (!roleWhy.length && cr < minCreatures / 2) roleWhy.push("faltan criaturas"); }
         const onColor = !colorlessFocus && x.colors.size ? 0.8 : 0;  // en un mazo de color, mejor cartas de ese color que relleno incoloro
-        const score = s + need + co + onColor + (x.rank ? Math.max(0, 1 - x.rank / 20000) * 0.5 : 0) + (x.is_creature ? st.creature : 0)
-          - (x.cmc >= st.heavyAt ? st.heavy : 0);
+        const autopilot = commander && commander.cmc <= 3 && x.roles.has("ramp") && !x.is_creature && x.cmc >= 3 ? 2 : 0;
+        const score = s + need + co + onColor + rankScore(x) * PW.rank + (x.is_creature ? st.creature : 0)
+          - (x.cmc >= st.heavyAt ? st.heavy : 0) - (x.cmc >= 5 ? PW.heavy : 0) - autopilot + (x.gc ? PW.gc : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)), ...(co ? ["se juegan juntas en torneos"] : []), ...roleWhy]; }
       }
       if (!best || (bestScore <= 0.5 && used >= spellSlots() * 0.6)) break;  // sin nada que encaje: mejor menos cartas que relleno
@@ -1384,6 +1480,12 @@ const Engine = (() => {
       const reservable = [...left].some((x) => x !== best && fits(x) && [...x.roles].some((r) => roles[r] < target[r]));
       const free = spellSlots() - used - (fillsRole || !reservable ? 0 : deficit);  // no comerse los huecos reservados
       take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room)), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
+      if (best.gc) gcCount++;
+      if (best.extra_turn) turnsCount++;
+    }
+    if (fmt === "commander") {
+      const gcBase = base.filter((x) => x.gc).map((x) => x.name);
+      if (gcBase.length > BR.gc) warnings.push(`${gcBase.join(", ")} ${gcBase.length > 1 ? "son Game Changers" : "es Game Changer"}: con bracket ${bracket} no debería${gcBase.length > 1 ? "n" : ""} ir. Sube el bracket o quítala${gcBase.length > 1 ? "s" : ""}.`);
     }
     const spellsTotal = chosen.reduce((s, e) => s + e[1], 0);
     const landsWanted = Math.min(landsFor(), size - (commander ? 1 : 0) - spellsTotal);
@@ -1437,6 +1539,7 @@ const Engine = (() => {
       base.forEach((x) => have.add(x.oi));
       const capCents = fmt === "pauper" ? 300 : fmt === "commander" ? 1500 : 1000;
       const ok = (oi) => { const x = ALL[oi]; return !x.is_land && legal(x) && subset(x.colors, deckColors) && (!colorlessOnly || !x.colors.size)
+        && !(x.gc && gcCount >= BR.gc) && !(voltron && x.roles.has("wipe") && !x.one_sided)
         && cheap[oi] && cheap[oi] <= capCents && !BASICS.has(norm(O[oi][0])); };
       const scored = new Map();
       for (const [oi, sc, why] of synergyCandidates(plan, have).slice(0, 400)) if (ok(oi)) scored.set(oi, [sc, why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`))]);
@@ -1469,7 +1572,8 @@ const Engine = (() => {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
       colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(),
       commander: commander ? out(commander, 1, "comandante", ["comandante"]) : null,
-      style, style_auto: wanted === "auto" || !STYLES[wanted],
+      style, style_auto: wanted === "auto" || !STYLES[wanted], power, bracket: fmt === "commander" ? bracket : null,
+      game_changers: chosen.filter(([x]) => x.gc).map(([x]) => x.name).concat(commander?.gc ? [commander.name] : []),
       guide: deckGuide({ chosen, base, commander, plan, landsN: landRows.reduce((s, r) => s + r.qty, 0), style }),
       themes: [...themes, ...[...plan.tribes].map((t) => `tribu ${t}`)], cards: cardsOut, lands: landRows, warnings,
       stats: { total: all.reduce((s, r) => s + r.qty, 0) + (commander ? 1 : 0), spells: spellsTotal, lands: landRows.reduce((s, r) => s + r.qty, 0),
@@ -1490,7 +1594,7 @@ const Engine = (() => {
   function indexAll() {
     if (ALL) return;
     ALL = O.map((o, oi) => analyse({ name: front(o[0]), type_line: o[1], oracle_text: o[5], mana_cost: o[2] || "", cmc: o[3] || 0,
-      colors: new Set(o[4] || ""), legal: { pauper: o[6], commander: o[9], standard: o[10] }, rank: o[7], oi, owned: 0 }));
+      colors: new Set(o[4] || ""), legal: { pauper: o[6], commander: o[9], standard: o[10] }, rank: o[7], oi, owned: 0, gc: o[11] === 1 }));
     BY_TAG = new Map(); BY_TYPE = new Map(); BY_SUB = new Map();
     const push = (m, k, oi) => { if (!m.has(k)) m.set(k, []); m.get(k).push(oi); };
     ALL.forEach((x, oi) => {
@@ -1624,9 +1728,9 @@ const Engine = (() => {
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
-    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute };
+    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/profile": profilePost, "/api/alter": alterPost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/profile": profilePost, "/api/alter": alterPost, "/api/watch": watchPost };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

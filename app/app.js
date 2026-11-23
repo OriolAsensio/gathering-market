@@ -111,7 +111,7 @@ $("#lang-btn").onclick = () => {
 function importSheet() {
   const body = openSheet(`
     <h3>Importar cartas</h3>
-    <div class="hint">Exporta tus cartas como <b>CSV</b> desde ManaBox (opción de exportar), Moxfield, Deckbox o Dragon Shield, y elige el archivo aquí. También vale una lista de texto tipo <code>4 Lightning Bolt</code>.</div>
+    <div class="hint">Exporta tus cartas como <b>CSV</b> desde tu otra app (ManaBox, Moxfield, Deckbox, Dragon Shield, TCGplayer, Archidekt, MTGGoldfish, Delver Lens…) y elige el archivo aquí: se respetan la edición, el número y el foil. También vale una lista de texto tipo <code>4 Lightning Bolt</code>.</div>
     <label class="btn block" for="import-file">📄 Elegir archivo (.csv o .txt)</label>
     <input type="file" id="import-file" accept=".csv,.txt,text/csv,text/plain" hidden>
     <div class="field"><label>O pega aquí la lista</label><textarea class="search" id="import-text" rows="4" placeholder="4 Lightning Bolt&#10;2 Counterspell (MH2) 267"></textarea></div>
@@ -415,6 +415,7 @@ function cardSheet(c) {
     ${c.decks.length ? `<h2>La juegan en Pauper</h2><div class="item-meta">${c.decks.map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}</div>` : ""}
     ${/land/i.test(c.type || "") ? "" : `<button class="btn block" id="build-from" style="margin-top:12px">🔨 Crear un mazo con esta carta${/legendary.*creature/i.test(c.type || "") ? " (o de Commander)" : ""}</button>`}
     <button class="btn block" id="open-set" style="margin-top:8px">📜 Ver la colección ${esc(c.set_name)}</button>
+    <button class="btn block" id="follow" style="margin-top:8px">☆ Seguir su precio en Mercado</button>
     <button class="btn block" id="open-syn" style="margin-top:8px">🔮 Cartas que combinan con esta</button>
     <a class="btn block" style="margin-top:8px;text-decoration:none" target="_blank" rel="noopener"
        href="${cardmarketUrl(c.name)}">🛒 Ver en Cardmarket</a>
@@ -423,6 +424,7 @@ function cardSheet(c) {
   $("#build-from", body)?.addEventListener("click", () => pickSeed([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
   $("#open-set", body).onclick = () => setSheet(c.set);
   $("#open-syn", body).onclick = () => synergySheet(c.name);
+  followButton(body, c.name);
   $("#add-version", body).onclick = () => addSheet([{ name: c.name }]);
   const drawVersions = async () => {
     const mine = (await api("/api/collection")).filter((x) => x.name === c.name);
@@ -624,9 +626,12 @@ function importDeckSheet() {
 async function deckSheet(id, keep = null) {
   const body = keep ? $("#sheet-body") : openSheet(skeleton(3));
   const d = await api(`/api/deck?id=${encodeURIComponent(id)}`);
+  // − / + para marcar cuántas copias de cada carta tienes (se añaden o quitan de tu carpeta, de una en una).
+  const stepper = (c) => (c.basic ? "" : `<div class="mini-step"><button data-step="-1" data-name="${esc(c.name)}" ${c.have ? "" : "disabled"} aria-label="Quitar una">−</button>
+    <b>${c.have}/${c.qty}</b><button data-step="1" data-name="${esc(c.name)}" ${c.have < c.qty ? "" : "disabled"} aria-label="Añadir una">+</button></div>`);
   const line = (c) => {
     const cls = c.have >= c.qty ? "full" : c.have > 0 ? "part" : "none";
-    return `<div class="deck-line" ${c.basic ? "" : `data-mark="${esc(c.name)}"`}><span class="qty ${cls}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span><span class="n">${esc(c.name)}</span><span class="${c.basic ? "sub" : "price"}">${c.basic ? "básica" : euro(c.eur)}</span></div>`;
+    return `<div class="deck-line"><span class="qty ${cls}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span><span class="n">${esc(c.name)}</span><span class="${c.basic ? "sub" : "price"}">${c.basic ? "básica" : euro(c.eur)}</span>${stepper(c)}</div>`;
   };
   const main = d.cards.filter((c) => !c.side), side = d.cards.filter((c) => c.side);
   const missing = d.cards.filter((c) => !c.basic && c.have < c.qty).map((c) => `${c.qty - c.have} ${c.name}`);
@@ -649,38 +654,29 @@ async function deckSheet(id, keep = null) {
     <button class="btn block" id="deck-keep" style="margin-top:8px">${d.mine ? "🗑 Borrar de Mis mazos" : "⭐ Guardar en Mis mazos"}</button>`;
   const tileD = (c) => {
     const missingN = c.basic ? 0 : c.qty - c.have;
-    return `<div class="gcard ${missingN === c.qty ? "missing" : ""}" ${c.basic ? "" : `data-mark="${esc(c.name)}"`}>
+    return `<div class="gcard ${missingN === c.qty ? "missing" : ""}">
       <img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
       <span class="badge ${missingN ? (c.have ? "part" : "none") : "full"}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span>
-      <div class="why">${c.basic ? "básica" : euro(c.eur)}</div></div>`;
+      <div class="why">${c.basic ? "básica" : euro(c.eur)}</div>${stepper(c)}</div>`;
   };
   const drawCards = () => {
     const mode = store("deckView") || "img";
     body.querySelectorAll("#deck-view button").forEach((b) => b.classList.toggle("on", b.dataset.v === mode));
     $("#deck-hint", body).textContent = mode === "img"
-      ? "En gris, las cartas que no tienes. El número es copias tuyas / copias del mazo. Toca una carta para marcarla como tuya (o quitarla)."
-      : "Precio con la edición más barata de cada carta (Cardmarket). Verde: la tienes; amarillo: te faltan copias. Toca una para marcarla.";
+      ? "En gris, las cartas que no tienes. Con − y + marcas cuántas copias tienes de cada una (se suman o quitan de tu carpeta)."
+      : "Precio con la edición más barata de cada carta (Cardmarket). Verde: la tienes; amarillo: te faltan copias. Con − y + marcas las que tienes.";
     const section = (cards) => (mode === "img" ? `<div class="grid">${cards.map(tileD).join("")}</div>` : cards.map(line).join(""));
     $("#deck-cards", body).innerHTML = `
       <h2>Main (${main.reduce((s, c) => s + c.qty, 0)})</h2>${section(main)}
       ${side.length ? `<h2>Sideboard (${side.reduce((s, c) => s + c.qty, 0)})</h2>${section(side)}` : ""}`;
-    body.querySelectorAll("[data-mark]").forEach((el) => (el.onclick = () => mark(el.dataset.mark)));
+    body.querySelectorAll("[data-step]").forEach((el) => (el.onclick = () => step(el.dataset.name, +el.dataset.step)));
   };
-  // Tocar una carta: si te faltan copias, se añaden a la carpeta (edición más barata); si ya las tienes todas, se quitan.
   const need = new Map();
   for (const c of d.cards) if (!c.basic) { const x = need.get(c.name) || { qty: 0, have: 0 }; x.qty += c.qty; x.have += c.have; need.set(c.name, x); }
   const redraw = async () => { const y = $("#sheet").scrollTop; await deckSheet(id, true); $("#sheet").scrollTop = y; loadSummary(); closeSheet.dirty = true; };
-  const mark = async (name) => {
-    const x = need.get(name);
-    if (x.have >= x.qty) {
-      if (!confirm(t(`¿Quitar ${name} de tu carpeta? (×${x.qty})`))) return;
-      await api("/api/owncards", { op: "remove", cards: [[name, x.qty]] });
-      toast(`${name}: quitada`);
-    } else {
-      const r = await api("/api/owncards", { op: "add", cards: [[name, x.qty - x.have]] });
-      toast(`${name}: ✓ la tienes`);
-      celebrate(r);
-    }
+  const step = async (name, delta) => {
+    const r = await api("/api/owncards", { op: delta > 0 ? "add" : "remove", cards: [[name, 1]] });
+    if (delta > 0) celebrate(r);
     redraw();
   };
   body.querySelectorAll("#deck-view button").forEach((b) => (b.onclick = () => { store("deckView", b.dataset.v); drawCards(); }));
@@ -721,6 +717,7 @@ function setRow(s, withProgress = true) {
     ${setIcon(s)}
     <div class="item-main">
       <div class="item-title">${esc(s.name)}</div>
+      ${s.via ? `<div class="item-meta"><span class="chip gold">🃏 ${esc(s.via)}</span></div>` : ""}
       <div class="item-meta">${s.pinned ? '<span class="pin">📌 Siguiendo</span>' : ""}<span>${s.code.startsWith("deck:") ? esc(s.type) : s.code === "reserved" ? "" : esc(s.code.toUpperCase())}${s.released ? ` · ${year(s.released)}` : ""} · ${s.total} cartas</span></div>
       ${withProgress ? `<div class="bar"><i style="width:${s.pct}%"></i></div>
         <div class="deck-foot"><span>Tienes ${s.owned} de ${s.total}</span><span>${s.pct}%</span></div>` : ""}
@@ -737,11 +734,13 @@ views.sets = async () => {
       <button class="item set-row" id="sp-precons"><span class="set-icon set-emoji">🎁</span><div class="item-main"><div class="item-title">Mazos preconstruidos</div>
         <div class="item-meta">Todos los mazos oficiales de la historia: Commander, Theme Decks, Intro Packs, Duel Decks…</div></div></button>
     </div>
-    <input class="search" id="set-q" placeholder="Buscar una colección para seguirla…" style="margin-top:14px">
+    <button class="btn block" id="set-import" style="margin-top:10px">📥 Importar tus cartas de otra app (CSV)</button>
+    <input class="search" id="set-q" placeholder="Buscar colección o carta (en cualquier idioma)…" style="margin-top:14px">
     <div class="list" id="set-search"></div>
     <div id="set-list">${skeleton(4)}</div>`;
   $("#sp-reserved").onclick = () => setSheet("reserved");
   $("#sp-precons").onclick = preconSheet;
+  $("#set-import").onclick = importSheet;
   const sets = await api("/api/sets");
   const pinned = sets.filter((s) => s.pinned), started = sets.filter((s) => !s.pinned);
   $("#set-list").innerHTML = (pinned.length ? `<h2>Siguiendo</h2><div class="list">${pinned.map((s) => setRow(s)).join("")}</div>` : "")
@@ -756,7 +755,7 @@ views.sets = async () => {
       const box = $("#set-search");
       if (text.length < 2) { box.innerHTML = ""; return; }
       const found = await api(`/api/sets/search?q=${encodeURIComponent(text)}`);
-      box.innerHTML = found.length ? found.map((s) => setRow(s, false)).join("") : `<div class="hint">No encuentro ninguna colección con ese nombre.</div>`;
+      box.innerHTML = found.length ? found.map((s) => setRow(s, false)).join("") : `<div class="hint">No encuentro ninguna colección ni carta con ese nombre.</div>`;
       box.querySelectorAll("[data-code]").forEach((b) => (b.onclick = () => setSheet(b.dataset.code)));
     }, 250);
   };
@@ -782,7 +781,7 @@ async function preconSheet() {
 async function setSheet(code, opts = {}) {
   const body = openSheet(skeleton(3));
   const sheet = $("#sheet");
-  let all = !!opts.all, rarity = opts.rarity || "all", show = opts.show || store("setShow") || "all", d, foil = false;
+  let all = !!opts.all, rarity = opts.rarity || "all", show = opts.show || store("setShow") || "all", d, foil = false, q = opts.q || "";
   const updateBar = (s) => {
     const bar = $("#sel-bar", body);
     if (!bar) return;
@@ -793,7 +792,7 @@ async function setSheet(code, opts = {}) {
     $("#sel-toggle", body).textContent = s.on ? "✓ Seleccionando… (toca para salir)" : "☑ Seleccionar varias (o mantén pulsada una carta)";
     $("#sel-toggle", body).classList.toggle("primary", s.on);
   };
-  const back = () => ({ all, rarity, show, scroll: sheet.scrollTop });
+  const back = () => ({ all, rarity, show, q, scroll: sheet.scrollTop });
   const sel = gridSelect(body, {
     onTap: (id) => { const c = d.cards.find((x) => x.id === id); const b = back(); addSheet([{ name: c.name, best: c.id }], { onDone: () => setSheet(code, b) }); },
     onChange: updateBar,
@@ -807,7 +806,9 @@ async function setSheet(code, opts = {}) {
   const draw = () => {
     const y = sheet.scrollTop;
     const pct = d.total ? Math.round((100 * d.owned) / d.total) : 0;
-    const cards = d.cards.filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? !c.qty : c.qty)));
+    const qn = q.trim().toLowerCase();
+    const cards = d.cards.filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? !c.qty : c.qty))
+      && (!qn || c.name.toLowerCase().includes(qn) || String(c.number).toLowerCase() === qn));
     const missing = d.cards.filter((c) => !c.qty && !c.basic);
     body.innerHTML = `
       <div class="set-head">${setIcon(d)}<div>
@@ -822,6 +823,7 @@ async function setSheet(code, opts = {}) {
       <div class="rarity-row">${RARITIES.filter(([k]) => d.rarity[k]).map(([k, n]) => `<div><b>${d.rarity[k].owned}/${d.rarity[k].total}</b><i class="r r-${k}"></i> ${n}</div>`).join("")}</div>
       ${d.special ? "" : `<div class="seg" id="set-all"><button data-a="0" class="${all ? "" : "on"}">Colección base</button><button data-a="1" class="${all ? "on" : ""}">Todas las versiones</button></div>`}
       <div class="seg" id="set-show"><button data-s="all">Todas</button><button data-s="missing">Me faltan (${missing.length})</button><button data-s="have">Las tengo</button></div>
+      <input class="search" id="set-cq" placeholder="Buscar en esta colección (nombre o número)…" value="${esc(q)}">
       <div class="seg" id="set-rarity"><button data-r="all">Cualquier rareza</button>${RARITIES.map(([k, n]) => `<button data-r="${k}">${n}</button>`).join("")}</div>
       <div class="hint">${d.special ? "Vale cualquier edición de cada carta." : all ? "Incluye promos, versiones sin borde, showcase…" : "Cartas normales de la colección; vale cualquier versión de la misma edición."}
         Toca una carta para añadirla.</div>
@@ -841,6 +843,11 @@ async function setSheet(code, opts = {}) {
     body.querySelectorAll("#set-rarity button").forEach((b) => b.classList.toggle("on", b.dataset.r === rarity));
     body.querySelectorAll("#set-show button").forEach((b) => (b.onclick = () => { show = b.dataset.s; store("setShow", show); draw(); }));
     body.querySelectorAll("#set-rarity button").forEach((b) => (b.onclick = () => { rarity = b.dataset.r; draw(); }));
+    $("#set-cq", body).oninput = (e) => {
+      q = e.target.value;
+      clearTimeout(draw.t);
+      draw.t = setTimeout(() => { draw(); const i = $("#set-cq", body); i.focus(); i.setSelectionRange(q.length, q.length); }, 250);
+    };
     body.querySelectorAll("#set-all button").forEach((b) => (b.onclick = () => { all = b.dataset.a === "1"; load(); }));
     $("#set-pin", body).onclick = async () => {
       await api("/api/sets", d.pinned ? { unpin: d.code } : { pin: d.code });
@@ -896,6 +903,10 @@ async function setSheet(code, opts = {}) {
 const COLORS = [["W", "Blanco"], ["U", "Azul"], ["B", "Negro"], ["R", "Rojo"], ["G", "Verde"], ["C", "Incoloro"]];
 const FORMAT_NAMES = { pauper: "Pauper", commander: "Commander", standard: "Estándar", casual: "Casual" };
 const STYLE_NAMES = { auto: "Auto", aggro: "Agresivo", midrange: "Medio rango", control: "Control" };
+const POWER_LABELS = { 1: "🤡 Meme", 2: "🍺 Muy casual", 3: "⚖️ Equilibrado", 4: "🎯 Optimizado", 5: "🏆 Competitivo" };
+const BRACKET_LABELS = { 1: "1 · Exhibición", 2: "2 · Básico", 3: "3 · Mejorado", 4: "4 · Optimizado", 5: "5 · cEDH" };
+const BRACKET_HINTS = { 1: "Temático y sin Game Changers, sin destruir tierras ni turnos extra.", 2: "Como un mazo preconstruido: sin Game Changers, sin destruir tierras ni turnos extra en cadena.",
+  3: "Hasta 3 Game Changers; sin destruir todas las tierras ni encadenar turnos extra.", 4: "Sin límites: Game Changers, destruir tierras y turnos extra permitidos.", 5: "Competitivo (cEDH): lo más fuerte que tengas, sin límites." };
 const manaIcon = (k, label = k) => `<img class="mana-icon" src="mana/${k}.svg" alt="${esc(label)}">`;
 
 async function builderSheet(seeds, startFormat) {
@@ -903,12 +914,13 @@ async function builderSheet(seeds, startFormat) {
   seeds = [].concat(seeds);
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
   let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
+  let power = store("buildPower") || "3", bracket = store("buildBracket") || "3";
   const run = async () => {
     $("h3", body).textContent = `Mazo con ${seeds.join(", ")}`;
     $("#b-body", body).innerHTML = `<div class="hint">Buscando cartas que encajen con el plan…</div>${skeleton(4)}`;
     let d;
     try {
-      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}${colors ? `&colors=${colors}` : ""}`);
+      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}${colors ? `&colors=${colors}` : ""}`);
     } catch (err) {
       $("#b-body", body).innerHTML = `<div class="empty"><strong>No he podido montarlo</strong>${esc(err.message)}</div>`;
       return;
@@ -927,6 +939,10 @@ async function builderSheet(seeds, startFormat) {
     $("#b-body", body).innerHTML = `
       <div class="seg" id="b-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
       <div class="seg" id="b-style">${Object.entries(STYLE_NAMES).map(([k, n]) => `<button data-s="${k}" class="${style === k ? "on" : ""}">${k === "auto" && style === "auto" ? `Auto (${STYLE_NAMES[d.style].toLowerCase()})` : n}</button>`).join("")}</div>
+      <div class="field"><label>Nivel del mazo</label><div class="seg" id="b-power">${Object.entries(POWER_LABELS).map(([k, n]) => `<button data-p="${k}" class="${power === k ? "on" : ""}">${n}</button>`).join("")}</div></div>
+      ${format === "commander" ? `<div class="field"><label>Bracket de Commander</label><div class="seg" id="b-bracket">${Object.entries(BRACKET_LABELS).map(([k, n]) => `<button data-b="${k}" class="${bracket === k ? "on" : ""}">${n}</button>`).join("")}</div>
+        <div class="hint">${BRACKET_HINTS[bracket]}</div><div class="hint">Game Changers en el mazo: <b>${d.game_changers.length}</b></div>
+        ${d.game_changers.length ? `<div class="item-meta">${d.game_changers.map((n) => `<span class="chip gold">${esc(n)}</span>`).join("")}</div>` : ""}</div>` : ""}
       <button class="btn block" id="b-more" style="margin:4px 0 8px">➕ Más cartas base (${seeds.length})</button>
       <div class="seg mana-row" id="b-colors">${COLORS.map(([k, n]) => `<button data-c="${k}" class="mana ${colors.includes(k) ? "on" : ""}" aria-label="${n}" title="${n}">${manaIcon(k, n)}</button>`).join("")}</div>
       ${d.warnings.map((w) => `<div class="warn">⚠️ ${esc(w)}</div>`).join("")}
@@ -945,7 +961,7 @@ async function builderSheet(seeds, startFormat) {
         ${d.guide.turns.length ? `<p><b>Turno a turno:</b></p><ul>${d.guide.turns.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
         <p><b>Mulligan:</b> ${esc(d.guide.mulligan)}</p>
       </details>
-      <div class="item-meta" style="margin-top:6px">Funciones: <span class="chip">${s.roles.removal} quitan amenazas</span><span class="chip">${s.roles.draw} roban</span>${format === "commander" ? `<span class="chip">${s.roles.ramp} aceleran maná</span><span class="chip">${s.roles.wipe} barridos</span>` : ""}</div>
+      <div class="item-meta" style="margin-top:6px">Funciones: <span class="chip">${s.roles.removal} quitan amenazas</span><span class="chip">${s.roles.draw} roban</span>${format === "commander" ? `<span class="chip">${s.roles.ramp} aceleran maná</span><span class="chip">${s.roles.wipe} barridos</span><span class="chip">${s.roles.protect} protegen</span>` : ""}</div>
       <h2>Curva de maná · media ${s.avg_cmc}</h2>
       <div class="curve">${Object.entries(s.curve).map(([k, n]) => `<div><i style="height:${(n / maxCurve) * 100}%"></i><b>${n || ""}</b><span>${k === "6" ? "6+" : k}</span></div>`).join("")}</div>
       <div class="hint">${s.creatures} criaturas y ${s.spells - s.creatures} hechizos. Debajo de cada carta, por qué está.</div>
@@ -978,6 +994,8 @@ async function builderSheet(seeds, startFormat) {
     $("#b-other", body).onclick = () => pickSeed();
     $("#b-more", body).onclick = () => pickSeed(seeds, format);
     body.querySelectorAll("#b-style button").forEach((b) => (b.onclick = () => { style = b.dataset.s; store("buildStyle", style); run(); }));
+    body.querySelectorAll("#b-power button").forEach((b) => (b.onclick = () => { power = b.dataset.p; store("buildPower", power); run(); }));
+    body.querySelectorAll("#b-bracket button").forEach((b) => (b.onclick = () => { bracket = b.dataset.b; store("buildBracket", bracket); run(); }));
     $("#b-save", body).onclick = async () => {
       const r = await api("/api/mydecks", { save: { name: `${d.commander ? d.commander.name : d.seed} (${FORMAT_NAMES[format]})`, format: FORMAT_NAMES[format],
         cards: rows.map((c) => [c.name, c.qty, 0]) } });
@@ -1085,7 +1103,7 @@ views.market = async () => {
   const v = $("#view");
   const section = store("marketTab") || "moves";
   v.innerHTML = `<h2>Mercado</h2>
-    <div class="seg" id="m-tab"><button data-t="moves">📈 Movimientos</button><button data-t="pred">🔮 Predicciones</button><button data-t="syn">🧩 Sinergias</button></div>
+    <div class="seg" id="m-tab"><button data-t="watch">⭐ Sigo</button><button data-t="moves">📈 Movimientos</button><button data-t="pred">🔮 Predicciones</button><button data-t="syn">🧩 Sinergias</button></div>
     <div id="m-section"></div>`;
   v.querySelectorAll("#m-tab button").forEach((b) => {
     b.classList.toggle("on", b.dataset.t === section);
@@ -1094,6 +1112,7 @@ views.market = async () => {
   const box = $("#m-section");
   if (section === "pred") return predictionsView(box);
   if (section === "syn") return synergiesView(box);
+  if (section === "watch") return watchView(box);
   box.innerHTML = `
     <div class="seg" id="m-scope"><button data-s="pauper">Legales en Pauper</button><button data-s="collection">Mis cartas</button><button data-s="all">Todas</button></div>
     <div class="seg" id="m-days"><button data-d="1">1 día</button><button data-d="7">7 días</button><button data-d="30">30 días</button></div>
@@ -1103,7 +1122,7 @@ views.market = async () => {
     box.querySelectorAll("#m-days button").forEach((b) => b.classList.toggle("on", +b.dataset.d === state.marketDays));
     $("#m-body").innerHTML = skeleton(5);
     const m = await api(`/api/movers?scope=${state.marketScope}&days=${state.marketDays}&min=${state.marketScope === "collection" ? 0 : 0.5}`);
-    const row = (i) => `<div class="mover"><span class="pct ${i.pct > 0 ? "up" : "down"}">${pct(i.pct)}</span><span class="n">${esc(i.name)}${i.set ? ` <span class="chip">${esc(i.set.toUpperCase())}</span>` : ""}</span><span class="from">${euro(i.old)} → <b>${euro(i.new)}</b></span></div>`;
+    const row = (i) => `<div class="mover" data-follow="${esc(i.name)}"><span class="pct ${i.pct > 0 ? "up" : "down"}">${pct(i.pct)}</span><span class="n">${esc(i.name)}${i.set ? ` <span class="chip">${esc(i.set.toUpperCase())}</span>` : ""}</span><span class="from">${euro(i.old)} → <b>${euro(i.new)}</b></span></div>`;
     if (m.base === m.latest) {
       $("#m-body").innerHTML = `<div class="empty"><strong>Acumulando historial</strong>Hay precios del ${esc(m.latest)}. Las subidas y bajadas aparecerán a partir de mañana, y la vista semanal en 7 días.</div>`;
       return;
@@ -1111,11 +1130,63 @@ views.market = async () => {
     $("#m-body").innerHTML = `<div class="hint">Del ${esc(m.base)} al ${esc(m.latest)} · solo cartas de 0,50 € o más</div>
       <h2>📈 Suben</h2><div class="list">${m.up.map(row).join("") || '<div class="hint">Nada.</div>'}</div>
       <h2>📉 Bajan</h2><div class="list">${m.down.map(row).join("") || '<div class="hint">Nada.</div>'}</div>`;
+    $("#m-body").querySelectorAll("[data-follow]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.follow)));
   };
   box.querySelectorAll("#m-scope button").forEach((b) => (b.onclick = () => { state.marketScope = b.dataset.s; store("marketScope", b.dataset.s); draw(); }));
   box.querySelectorAll("#m-days button").forEach((b) => (b.onclick = () => { state.marketDays = +b.dataset.d; store("marketDays", b.dataset.d); draw(); }));
   draw();
 };
+
+// Cartas que sigues: precio de Cardmarket y cuánto ha subido o bajado en 1, 7 y 30 días.
+async function watchView(box) {
+  box.innerHTML = `<div class="hint">Sigue cartas concretas (tuyas o no) y mira cómo cambia su precio. Toca una para verla; ✕ para dejar de seguirla.</div>
+    <input class="search" id="w-q" placeholder="Buscar una carta para seguirla…">
+    <div class="list" id="w-search"></div>
+    <button class="btn block" id="w-top" style="margin-top:8px">⭐ Seguir mis 20 cartas más valiosas</button>
+    <div id="w-list">${skeleton(3)}</div>`;
+  const chg = (v, label) => `<span class="chip ${v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : ""}">${label} ${v == null ? "—" : pct(v)}</span>`;
+  const draw = async () => {
+    const rows = await api("/api/watch");
+    $("#w-list", box).innerHTML = rows.length ? `<div class="list">${rows.map((c) => `
+      <div class="item watch" data-name="${esc(c.name)}"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ` <span class="chip gold">La tienes ×${c.owned}</span>` : ""}</div>
+          <div class="item-meta">${chg(c.d1, "1 d")}${chg(c.d7, "7 d")}${chg(c.d30, "30 d")}</div></div>
+        <div class="item-side"><div class="price">${euro(c.eur)}</div><button class="btn w-del" data-del="${esc(c.name)}" aria-label="Dejar de seguir">✕</button></div></div>`).join("")}</div>`
+      : `<div class="empty"><strong>Aún no sigues ninguna carta</strong>Búscala arriba, o pulsa ⭐ en la ficha de una carta o en Movimientos.</div>`;
+    box.querySelectorAll(".watch[data-name]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del]")) synergySheet(el.dataset.name); }));
+    box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => { await api("/api/watch", { remove: b.dataset.del }); draw(); }));
+  };
+  let t;
+  $("#w-q", box).oninput = (e) => {
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      const q = e.target.value.trim(), out = $("#w-search", box);
+      if (q.length < 2) { out.innerHTML = ""; return; }
+      const res = await api(`/api/search?q=${encodeURIComponent(q)}`);
+      out.innerHTML = res.slice(0, 8).map((r) => `<button class="item" data-add="${esc(r.name)}"><img class="thumb" loading="lazy" src="${esc(r.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(r.name)}</div>${r.alias ? `<div class="item-meta"><span class="chip">${esc(r.alias)}</span></div>` : ""}</div>
+        <div class="item-side"><div class="price">${euro(r.eur)}</div><div class="sub">⭐ Seguir</div></div></button>`).join("") || `<div class="hint">No la encuentro.</div>`;
+      out.querySelectorAll("[data-add]").forEach((b) => (b.onclick = async () => {
+        await api("/api/watch", { add: b.dataset.add });
+        toast(`⭐ Sigues ${b.dataset.add}`);
+        out.innerHTML = ""; $("#w-q", box).value = "";
+        draw();
+      }));
+    }, 250);
+  };
+  $("#w-top", box).onclick = async () => { await api("/api/watch", { top: 20 }); toast("Siguiendo tus cartas más valiosas"); draw(); };
+  draw();
+}
+
+// Botón ⭐ para seguir (o dejar de seguir) el precio de una carta desde su ficha.
+async function followButton(root, name) {
+  const btn = $("#follow", root);
+  if (!btn) return;
+  const paint = (on) => { btn.textContent = on ? "⭐ Siguiendo su precio (toca para dejarlo)" : "☆ Seguir su precio en Mercado"; btn.classList.toggle("primary", !on); };
+  let on = (await api("/api/watch")).some((c) => c.name === name);
+  paint(on);
+  btn.onclick = async () => { await api("/api/watch", on ? { remove: name } : { add: name }); on = !on; paint(on); toast(on ? `⭐ Sigues ${name}` : "Ya no la sigues"); };
+}
 
 async function predictionsView(box) {
   box.innerHTML = `<div class="hint">Señales para comprar antes de que suban (precios de Cardmarket). Son pistas, no garantías.</div>${skeleton(4)}`;
@@ -1170,10 +1241,12 @@ async function synergySheet(name) {
   try {
     const d = await api(`/api/cardsynergy?name=${encodeURIComponent(name)}`);
     body.innerHTML = `<h3>Combinan con ${esc(d.name)}</h3><img class="card-big" src="${esc(d.image)}" alt="${esc(d.name)}">
+      <button class="btn block" id="follow" style="margin:8px 0">☆ Seguir su precio en Mercado</button>
       <div class="hint">Las cartas de todo Magic que mejor encajan con ella. "La tienes" = está en tu carpeta.</div>
       <div class="list">${d.cards.map(predRow).join("") || '<div class="hint">No he encontrado sinergias claras.</div>'}</div>
       <a class="btn block" style="margin-top:10px;text-decoration:none" target="_blank" rel="noopener" href="${cardmarketUrl(d.name)}">🛒 Ver ${esc(d.name)} en Cardmarket</a>`;
     bindPred(body);
+    followButton(body, d.name);
   } catch (err) { body.innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
 }
 
@@ -1566,7 +1639,8 @@ async function profileSheet() {
     ${!m.sets.length && !m.precons.length ? `<div class="hint">Completa una colección o un mazo preconstruido para ganar su medalla.</div>` : ""}
     <div class="medals">${m.ladder.filter((x) => !x.done).slice(0, 3).map((x) => `<div class="medal locked"><i>🔒</i><div><b>${esc(x.label)}</b></div></div>`).join("")}</div>
 
-    <h2>Copias de seguridad</h2>
+    <h2>Importar y copias de seguridad</h2>
+    <button class="btn block" id="pf-import">📥 Importar cartas de otra app (CSV)</button>
     <div class="hint">El CSV lleva todas tus carpetas y se puede importar aquí, en ManaBox o en Moxfield. La copia completa guarda también tus mazos y el perfil.</div>
     <button class="btn block" id="pf-csv">📤 Exportar todas mis cartas (CSV)</button>
     <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>
@@ -1612,6 +1686,7 @@ async function profileSheet() {
     profileSheet();
   });
   const day = new Date().toISOString().slice(0, 10);
+  $("#pf-import", body).onclick = importSheet;
   $("#pf-csv", body).onclick = async () => {
     const r = await api("/api/exportcsv");
     if (!r.rows) return toast("Aún no tienes cartas");

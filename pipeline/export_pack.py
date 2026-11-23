@@ -42,16 +42,17 @@ def main(out=None):
     oracle, o_index, printings = [], {}, []
     rows = conn.execute(f"""
         SELECT id, name, front_name, set_code, collector_number, rarity, variant, type_line, mana_cost,
-               cmc, color_identity, oracle_text, pauper, edhrec_rank, released_at, reserved, commander, standard
+               cmc, color_identity, oracle_text, pauper, edhrec_rank, released_at, reserved, commander, standard,
+               coalesce(game_changer, 0)
         FROM cards WHERE {NOT_TOKEN} ORDER BY front_name, released_at DESC""").fetchall()
     for (cid, name, front, set_code, number, rarity, variant, type_line, cost, cmc, ci, text,
-         pauper, rank, released, reserved, commander, standard) in rows:
+         pauper, rank, released, reserved, commander, standard, game_changer) in rows:
         if front not in o_index:
             o_index[front] = len(oracle)
-            # [nombre, tipo, coste, cmc, identidad, texto, pauper, rank, reservada, commander, estándar]
+            # [nombre, tipo, coste, cmc, identidad, texto, pauper, rank, reservada, commander, estándar, game changer]
             oracle.append([name, type_line or "", cost or "", cmc or 0, ci or "", text or "",
                            PAUPER.get(pauper, 0), rank or 0, reserved or 0,
-                           PAUPER.get(commander, 0), PAUPER.get(standard, 0)])
+                           PAUPER.get(commander, 0), PAUPER.get(standard, 0), game_changer])
         elif PAUPER.get(pauper, 0) and not oracle[o_index[front]][6]:
             oracle[o_index[front]][6] = PAUPER[pauper]  # legalidad por nombre (la más permisiva)
         printings.append([cid, o_index[front], set_code, number, RARITY.get(rarity, "c"), variant or 0])
