@@ -1130,6 +1130,7 @@ const Engine = (() => {
     ["descarte", /\bdiscards?\b|\bmadness\b/],
     ["molino", /\bmills?\b/],
     ["tierras", /\blandfall\b|\ba land enters\b|additional land|lands? you control/, (t) => t.includes("land")],
+    ["entran criaturas", /whenever (a|another|one or more) (other )?(nontoken )?creatures? (you control )?enters?\b|whenever a creature enters the battlefield under your control/],
     ["efectos al entrar", /when (this \w+|it) enters|whenever (a|another) (creature|permanent) .{0,20}enters|\bevoke\b/],
     ["parpadeo", /\bexile .{0,50}\breturn (it|that card|them) to the battlefield/],
     ["devolver a la mano", /return (target|a|another) .{0,40} to (its|their) owner'?s hands?/],
@@ -1141,7 +1142,7 @@ const Engine = (() => {
   ];
   // Temas que se complementan aunque no se llamen igual (quien sacrifica quiere fichas, etc.).
   const RELATED = {
-    sacrificio: ["fichas", "efectos al entrar", "morir"], fichas: ["sacrificio", "criaturas"], morir: ["sacrificio", "fichas"], cementerio: ["molino", "descarte"],
+    "entran criaturas": ["fichas", "efectos al entrar", "parpadeo"], sacrificio: ["fichas", "efectos al entrar", "morir"], fichas: ["sacrificio", "criaturas"], morir: ["sacrificio", "fichas"], cementerio: ["molino", "descarte"],
     molino: ["cementerio"], descarte: ["cementerio", "robar cartas"], contadores: ["contadores +1/+1", "planeswalkers"],
     "contadores +1/+1": ["contadores"], parpadeo: ["efectos al entrar"], "efectos al entrar": ["parpadeo", "devolver a la mano"],
     "devolver a la mano": ["efectos al entrar"], hechizos: ["robar cartas"], equipos: ["criaturas"], auras: ["criaturas"],
@@ -1150,9 +1151,11 @@ const Engine = (() => {
   };
   // Temas concretos que pesan más que los genéricos (lo que de verdad pide la carta).
   // "criaturas" pesa poco: ser una criatura no es sinergia (si no, cualquier criatura entra por encima de las cartas buenas).
-  const THEME_W = { "criaturas incoloras": 2, ninjutsu: 1.5, veneno: 1.5, vehículos: 1.3, criaturas: 0.5 };
+  const THEME_W = { "criaturas incoloras": 2, ninjutsu: 1.5, veneno: 1.5, vehículos: 1.3, criaturas: 0.5, "entran criaturas": 1.5 };
   const LAND_NOISE = new Set(["efectos al entrar", "sacrificio", "artefactos", "tierras", "ganar vida"]);
-  const NEEDS_CREATURES = new Set(["equipos", "auras", "vehículos", "ninjutsu", "evasión", "atacar", "contadores +1/+1"]);
+  const NEEDS_CREATURES = new Set(["equipos", "auras", "vehículos", "ninjutsu", "evasión", "atacar", "contadores +1/+1", "entran criaturas"]);
+  // Temas que piden MUCHAS criaturas (cuantas más entren, mejor): pesan como un tipo de carta.
+  const WANTS_MANY_CREATURES = new Set(["entran criaturas"]);
   const THEME_PRED = Object.fromEntries(THEMES.filter((t) => t[2]).map((t) => [t[0], t[2]]));
   const ROLES = {
     ramp: /\badd (\{|one mana|two mana|three mana|x mana|mana|an amount of)|search your library for (a|up to \w+) (basic )?(land|forest|plains|island|swamp|mountain)|put (a|up to \w+) land cards? .{0,30}onto the battlefield/,
@@ -1233,7 +1236,7 @@ const Engine = (() => {
       for (const r of RELATED[t] || []) bump(plan.wantsText, r, w * 0.4);
     }
     for (const t of c.type_tags) bump(plan.wantsText, t, w * 0.5 * (THEME_W[t] || 1));  // lo que es la carta: le gustan quienes lo aprovechan
-    for (const t of c.text_tags) if (NEEDS_CREATURES.has(t)) bump(plan.wantsType, "criaturas", w * 0.25);
+    for (const t of c.text_tags) if (NEEDS_CREATURES.has(t)) bump(plan.wantsType, "criaturas", w * (WANTS_MANY_CREATURES.has(t) ? 1 : 0.25));
     for (const t of c.subtypes) if (w >= 3 && mentions(t, c.text)) plan.tribes.add(t);
   }
   function fit(plan, c, skip = null) {
@@ -1275,6 +1278,7 @@ const Engine = (() => {
     legendarios: "Prioriza tus cartas legendarias: el mazo las premia.",
     vehículos: "Ten criaturas pequeñas para tripular tus vehículos.",
     criaturas: "Llena la mesa de criaturas: tus cartas premian tener muchas a la vez.",
+    "entran criaturas": "Baja muchas criaturas baratas y fichas: cada una que entra activa tus cartas clave (daño, vida, robo…).",
     morir: "Tus criaturas valen más muertas: cada vez que una muere (o la sacrificas) sacas algo a cambio.",
     "criaturas incoloras": "Baja criaturas incoloras (artefacto o Eldrazi): son las que tus cartas clave potencian.",
     incoloro: "Juega cartas incoloras (artefactos, Eldrazi): tus cartas clave solo potencian o premian lo incoloro.",
@@ -1344,12 +1348,23 @@ const Engine = (() => {
   function autoStyle(base, plan) {
     const avg = base.reduce((s, x) => s + x.cmc, 0) / base.length;
     const spells = base.filter((x) => !x.is_creature).length / base.length;
-    const fast = ["atacar", "fichas", "daño directo", "veneno", "equipos", "auras"].some((t) => (plan.wantsText.get(t) || 0) >= 3);
+    const fast = ["atacar", "fichas", "daño directo", "veneno", "equipos", "auras", "entran criaturas", "ninjutsu"].some((t) => (plan.wantsText.get(t) || 0) >= 3);
+    if (base.some((x) => x.text_tags.has("entran criaturas"))) return "aggro";
+    if (base.every((x) => !x.is_creature) && base.some((x) => /counter target/.test(x.text))) return "control";
     if (avg <= 2.5 && !base.some((x) => x.cmc >= 5) && (fast || base.every((x) => x.is_creature))) return "aggro";
     if (spells >= 0.6 && base.some((x) => x.roles.has("removal") || x.roles.has("draw") || x.text_tags.has("hechizos") || x.text_tags.has("planeswalkers"))) return "control";
     return "midrange";
   }
 
+  const FORMAT_META = { pauper: "PAU", standard: "ST" };
+  /** Cuánto se juega cada carta en el main de las listas de torneo del formato (0-1, ponderado por la cuota de cada arquetipo). */
+  function metaPlay(code) {
+    const out = new Map();
+    const decks = META.filter((d) => d.format === code);
+    const total = decks.reduce((s, d) => s + (d.share || 0), 0) || 1;
+    for (const d of decks) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) out.set(k, (out.get(k) || 0) + (d.share || 0) / total);
+    return out;
+  }
   function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3 }) {
     const power = POWER[+pw] ? +pw : 3, PW = POWER[power];
     const bracket = BRACKETS[+br] ? +br : 3;
@@ -1414,7 +1429,19 @@ const Engine = (() => {
         deckColors = new Set([[...by.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "R"]);
       }
     }
-    const style = STYLES[wanted] ? wanted : autoStyle(base, plan);
+    // Estilo: si las cartas base salen en listas del meta, el que tienen esos mazos (Aggro/Control/Combo); si no, lo que piden.
+    const metaCode = FORMAT_META[fmt] || null;
+    const metaStyle = (() => {
+      if (!metaCode) return null;
+      const keys = new Set(base.map((x) => norm(x.name)));
+      const votes = {};
+      for (const d of META.filter((d) => d.format === metaCode && d.cards.some(([n, , side]) => !side && keys.has(norm(n))))) {
+        const st = { aggro: "aggro", control: "control", combo: "midrange" }[(d.category || "").toLowerCase()];
+        if (st) votes[st] = (votes[st] || 0) + (d.share || 1);
+      }
+      return Object.entries(votes).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    })();
+    const style = STYLES[wanted] ? wanted : metaStyle || autoStyle(base, plan);
     const st = STYLES[style];
 
     const baseKeys = new Set(base.map((x) => norm(x.name)));
@@ -1452,9 +1479,11 @@ const Engine = (() => {
     };
     // Cartas que aparecen junto a las base en listas de torneo (sinergia probada, no "lo que más se juega").
     const coPlay = new Map();
+    const played = metaCode ? metaPlay(metaCode) : new Map();  // cuánto se juega cada carta en el formato
+    const metaScore = (x) => Math.min(1, (played.get(norm(x.name)) || 0) * 2);  // 50 % del meta o más = 1
     {
       const baseNames = new Set(base.map((x) => norm(x.name)));
-      const decksWith = META.filter((d) => d.cards.some(([n, , side]) => !side && baseNames.has(norm(n))));
+      const decksWith = META.filter((d) => (!metaCode || d.format === metaCode) && d.cards.some(([n, , side]) => !side && baseNames.has(norm(n))));
       for (const d of decksWith) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) if (!baseNames.has(k) && !BASICS.has(k)) coPlay.set(k, (coPlay.get(k) || 0) + 1);
       for (const [k, n] of coPlay) if (n / decksWith.length < 0.34) coPlay.delete(k);  // solo lo habitual en esas listas
     }
@@ -1475,8 +1504,13 @@ const Engine = (() => {
     // quitan amenazas o protegen, y los Game Changers que permita el bracket); el resto del mazo, sinergia.
     if (PW.staples) {
       const fitsCurve = (x) => (curve[Math.min(Math.floor(x.cmc), 6)] || 0) < CURVE_CAP[Math.min(Math.floor(x.cmc), 6)] * capScale;
-      const staples = [...left].filter((x) => x.rank && x.rank <= 400 && (x.roles.size || x.gc) && !x.extra_turn && !(voltron && x.roles.has("wipe") && !x.one_sided))
-        .sort((a, b) => (b.gc - a.gc) * (BR.gc > 0 ? 1 : 0) || a.rank - b.rank);
+      // Commander: lo más jugado según EDHREC. Formatos de 60: lo más jugado en el meta del formato que encaja (Thought Vessel
+      // es un básico de Commander, pero en Pauper no lo juega nadie).
+      const staples = size === 100
+        ? [...left].filter((x) => x.rank && x.rank <= 400 && (x.roles.size || x.gc) && !x.extra_turn && !(voltron && x.roles.has("wipe") && !x.one_sided))
+          .sort((a, b) => (b.gc - a.gc) * (BR.gc > 0 ? 1 : 0) || a.rank - b.rank)
+        : [...left].filter((x) => metaScore(x) >= 0.1 && (x.roles.has("removal") || x.roles.has("draw") || coPlay.has(norm(x.name))))
+          .sort((a, b) => metaScore(b) - metaScore(a));  // interacción y robo del meta, o lo que se juega con tus cartas base
       let n = 0;
       for (const x of staples) {
         if (n >= PW.staples * (size === 100 ? 1 : 0.5)) break;
@@ -1513,7 +1547,11 @@ const Engine = (() => {
         if (x.is_creature && cr < minCreatures) { need += 3 * (1 - cr / minCreatures) + 1; if (!roleWhy.length && cr < minCreatures / 2) roleWhy.push("faltan criaturas"); }
         const onColor = !colorlessFocus && x.colors.size ? 0.8 : 0;  // en un mazo de color, mejor cartas de ese color que relleno incoloro
         const autopilot = commander && commander.cmc <= 3 && x.roles.has("ramp") && !x.is_creature && x.cmc >= 3 ? 2 : 0;
-        const score = s + need + co + onColor + rankScore(x) * PW.rank + (x.is_creature ? st.creature : 0)
+        // Potencia: en Commander, popularidad en EDHREC; en formatos con meta, lo que se juega en torneos; en Casual, un poco de EDHREC.
+        // (un staple que no pinta nada en tu plan —p. ej. Myr Enforcer sin artefactos— cuenta poco)
+        const power_ = size === 100 ? rankScore(x) : metaCode ? metaScore(x) * 1.5 * (s0 > 0 || x.roles.size || co ? 1 : 0.25) : rankScore(x) * 0.4;
+        const cheapBody = x.is_creature && x.cmc <= 2 && (plan.wantsText.get("entran criaturas") || 0) >= 3 ? 2 : 0;  // muchas y baratas
+        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + (x.is_creature ? st.creature : 0)
           - (x.cmc >= st.heavyAt ? st.heavy : 0) - (x.cmc >= 5 ? PW.heavy : 0) - autopilot + (x.gc ? PW.gc : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)), ...(co ? ["se juegan juntas en torneos"] : []), ...roleWhy]; }
       }
