@@ -427,3 +427,5 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 /* Cartel de proxy encima de la carta */
 .proxy-tag { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); padding: 3px 10px; border-radius: 6px;
   background: rgba(150, 30, 30, .88); color: #fff; font: 700 13px var(--display); letter-spacing: .12em; border: 2px solid #fff3; pointer-events: none; white-space: nowrap; }
+/* Las filas de opciones saltan de línea: así se ven todas, también con ratón (sin barra de desplazamiento escondida) */
+.seg { flex-wrap: wrap; overflow-x: visible; }
