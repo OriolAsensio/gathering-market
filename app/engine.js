@@ -1502,7 +1502,13 @@ const Engine = (() => {
     for (const d of decks) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) out.set(k, (out.get(k) || 0) + (d.share || 0) / total);
     return out;
   }
-  async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "" }) {
+  // Power 9: las nueve cartas más potentes de Magic. Con la opción activa entran (aunque no las tengas) las que van con el mazo:
+  // Black Lotus siempre, el Mox de cada color del mazo, y las azules (Ancestral Recall, Time Walk, Timetwister) si es azul.
+  const POWER9 = { "Black Lotus": "", "Mox Pearl": "W", "Mox Sapphire": "U", "Mox Jet": "B", "Mox Ruby": "R", "Mox Emerald": "G",
+    "Ancestral Recall": "U", "Time Walk": "U", "Timetwister": "U" };
+  async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "", p9 = "" }) {
+    const withP9 = String(p9) === "1";
+    if (withP9 && format !== "casual") format = "casual";  // solo son legales en Vintage (y prohibidas en Commander): el mazo va a Casual
     const power = POWER[+pw] ? +pw : 3, PW = POWER[power];
     const excluded = new Set(String(exclude || "").split("|").map((n) => norm(n.trim())).filter(Boolean));  // cartas que has quitado
     // Mazos oficiales (preconstruidos) con tus cartas base: las cartas que van con ellas son sinergia probada.
@@ -1625,6 +1631,16 @@ const Engine = (() => {
     }
     if (commander) addToPlan(plan, commander, 0);
 
+    if (withP9) {
+      const p9cards = Object.entries(POWER9).filter(([, col]) => !col || deckColors.has(col) || colorlessOnly && false).map(([n]) => n);
+      for (const n of p9cards) {
+        const oi = oByNorm.get(norm(n));
+        if (oi == null || excluded.has(norm(n)) || chosen.some(([x]) => x.oi === oi)) continue;
+        const x = pool.get(norm(n)) || mk(oi, 0);
+        take(x, 1, [x.owned ? "Power 9" : "Power 9 (no la tienes)"]);  // restringidas: 1 copia
+        const k = norm(n); for (const y of candidates) if (norm(y.name) === k) candidates.splice(candidates.indexOf(y), 1);
+      }
+    }
     // 2) Tierras según la curva (se recalcula al final) y relleno greedy por encaje + funciones.
     const spellSlots = () => size - (commander ? 1 : 0) - landsFor();
     const landsFor = () => {
@@ -1752,7 +1768,7 @@ const Engine = (() => {
       + (!colorlessFocus && x.colors.size ? 0.8 : 0) + (x.is_creature ? st.creature : 0);
     const swaps = [];
     for (let round = 0; round < (PW.swaps || 8); round++) {
-      const weak = chosen.filter(([x, , why]) => !why[0]?.startsWith("carta base") && !why[0]?.startsWith("básico")
+      const weak = chosen.filter(([x, , why]) => !why[0]?.startsWith("carta base") && !why[0]?.startsWith("básico") && !why[0]?.startsWith("Power 9")
         && ![...x.roles].some((r) => roles[r] <= target[r]) && !(x.is_creature && creaturesIn() <= minCreatures))
         .map((e) => [e, valueOf(e[0])]).sort((a, b) => a[1] - b[1])[0];
       if (!weak) break;
@@ -1798,6 +1814,20 @@ const Engine = (() => {
       }
     }
     if (filledOwned || filledBuy) warnings.push(`Tu carpeta no llegaba para un mazo completo: he añadido ${filledOwned ? `${filledOwned} cartas más de tu carpeta` : ""}${filledOwned && filledBuy ? " y " : ""}${filledBuy ? `${filledBuy} que no tienes (para comprar o usar como proxy)` : ""}.`);
+    {
+      const minLands = Math.max(size === 100 ? 33 : 16, landsFor() - (power >= 5 ? 1 : 0));
+      let extra = chosen.reduce((s, e) => s + e[1], 0) - (size - (commander ? 1 : 0) - minLands);
+      while (extra > 0) {
+        const cut = chosen.filter(([x, , w]) => !w[0]?.startsWith("carta base") && !w[0]?.startsWith("Power 9"))
+          .map((e) => [e, valueOf(e[0])]).sort((a, b) => a[1] - b[1])[0];
+        if (!cut) break;
+        const e = cut[0];
+        const n = Math.min(e[1], extra);
+        e[1] -= n; extra -= n;
+        curve[Math.min(Math.floor(e[0].cmc), 6)] -= n; for (const r of e[0].roles) roles[r] -= n;
+        if (!e[1]) chosen.splice(chosen.indexOf(e), 1);
+      }
+    }
     const spellsTotal = chosen.reduce((s, e) => s + e[1], 0);
     const landsWanted = size - (commander ? 1 : 0) - spellsTotal;  // lo que falte, tierras
 
@@ -1810,6 +1840,11 @@ const Engine = (() => {
       const useful = [...makes].filter((col) => deckColors.has(col) || (colorlessOnly && col === "C"));
       const inIdentity = subset(land.colors, deckColors);  // nada de tierras (ni cartas dobles) de otros colores
       if (!inIdentity || !useful.length || room <= 0) continue;
+      // En Pauper/Estándar: una tierra que no se juega en el meta solo entra si es dual de tus colores (o encaja muchísimo).
+      const playedLand = !metaCode || metaScore(land) >= 0.04 || (deckColors.size > 1 && useful.length >= 2) || s >= 6;
+      if (!playedLand) continue;
+      // Si entra girada en un mazo de un color, mejor una básica.
+      if (deckColors.size === 1 && /enters (the battlefield )?tapped/.test(land.text) && metaScore(land) < 0.04) continue;
       if (deckColors.size > 1 ? useful.length >= 2 || s >= 2 : s >= 2.5) {
         const n = Math.min(land.owned, maxCopies, room);
         lands.push([land, n, s > 0 ? ["encaja con el plan"] : [`da maná ${useful.map((m) => COLOR_NAMES[m]).join(" y ")}`]]);
@@ -1927,7 +1962,7 @@ const Engine = (() => {
     return {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
       colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(), meta_recs: metaRecs(), swaps,
-      focus: FO ? focus : "", excluded: [...excluded],
+      focus: FO ? focus : "", excluded: [...excluded], p9: withP9,
       focus_options: Object.entries(FOCUS).map(([key, f]) => {
         const ts = Object.keys(f.themes), rs = Object.keys(f.roles || {});
         const count = [...pool.values()].filter((x) => !x.is_land && legal(x) && subset(x.colors, deckColors)

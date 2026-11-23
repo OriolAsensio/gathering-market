@@ -207,7 +207,7 @@ function gridSelect(root, { onTap, onChange }) {
 const tile = (c, extra = "") => `<button class="gcard ${c.qty ? "" : "missing"}" data-id="${esc(c.key || c.id)}">
     <img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
     ${c.qty ? `<span class="badge full">×${c.qty}</span>` : ""}<span class="check" aria-hidden="true">✓</span>${extra}
-    <div class="why">${esc(c.name)} · ${euro(c.eur)}</div>
+    <div class="why">${esc(c.name)} · ${c.proxy && c.proxy >= c.qty ? "proxy" : euro(c.eur)}</div>
   </button>`;
 
 async function copy(text, msg) {
@@ -320,6 +320,7 @@ views.collection = async () => {
   v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
+    <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">✍️ Alteradas</button></div>
     <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">🖼 Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
@@ -343,7 +344,10 @@ views.collection = async () => {
   const paintSeg = () => v.querySelectorAll("#col-view button").forEach((b) => b.classList.toggle("on", b.dataset.v === (sel.on ? "select" : mode)));
   const draw = () => {
     const f = state.collectionFilter.toLowerCase();
-    const shown = items.filter((c) => !f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f)));
+    const kind = store("colKind") || "all";
+    v.querySelectorAll("#col-kind button").forEach((b) => b.classList.toggle("on", b.dataset.k === kind));
+    const kindOk = (c) => kind === "all" || (kind === "proxy" ? c.proxy > 0 : kind === "real" ? c.proxy < c.qty : !!c.alter);
+    const shown = items.filter((c) => kindOk(c) && (!f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f))));
     const page = shown.slice(0, limit);
     const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, (c.foil || c.alter ? `<span class="num-tag">${[c.foil ? "Foil" : "", c.alter ? "✍️" : ""].filter(Boolean).join(" ")}</span>` : "")
       + (c.proxy ? `<span class="proxy-tag">PROXY${c.proxy < c.qty ? ` ×${c.proxy}` : ""}</span>` : ""))).join("")}</div>`
@@ -357,7 +361,7 @@ views.collection = async () => {
             ${c.pauper === "banned" ? '<span class="chip ban">Baneada</span>' : ""}</div>
           ${c.decks.length ? `<div class="item-meta">${c.decks.slice(0, 3).map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}${c.decks.length > 3 ? `<span class="chip">+${c.decks.length - 3}</span>` : ""}</div>` : ""}
         </div>
-        <div class="item-side"><div class="price">${euro(c.eur)}</div><div class="sub">×${c.qty}</div></div>
+        <div class="item-side"><div class="price">${c.proxy && c.proxy >= c.qty ? "Proxy" : euro(c.eur)}</div><div class="sub">×${c.qty}</div></div>
       </button>`).join("")}</div>`;
     box.innerHTML = items.length === 0
       ? f ? "" : `<div class="empty"><strong>Esta carpeta está vacía</strong>Pulsa el sello rojo para escanear cartas, escribe su nombre arriba o importa un CSV de ManaBox.</div>`
@@ -372,6 +376,7 @@ views.collection = async () => {
     sel.bind();
     paintSeg();
   };
+  v.querySelectorAll("#col-kind button").forEach((b) => (b.onclick = () => { store("colKind", b.dataset.k); draw(); }));
   v.querySelectorAll("#col-view button").forEach((b) => (b.onclick = () => {
     if (b.dataset.v === "select") return sel.set(!sel.on);
     sel.set(false);
@@ -997,14 +1002,14 @@ async function builderSheet(seeds, startFormat) {
   seeds = [].concat(seeds);
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
   let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
-  let power = store("buildPower") || "3", bracket = store("buildBracket") || "3", focus = "";
+  let power = store("buildPower") || "3", bracket = store("buildBracket") || "3", focus = "", p9 = false;
   const excluded = [];  // cartas que has quitado del mazo
   const run = async () => {
     $("h3", body).textContent = `Mazo con ${seeds.join(", ")}`;
     $("#b-body", body).innerHTML = `<div class="hint">Buscando cartas que encajen con el plan…</div>${skeleton(4)}`;
     let d;
     try {
-      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}&focus=${encodeURIComponent(focus)}&exclude=${encodeURIComponent(excluded.join("|"))}${colors ? `&colors=${colors}` : ""}`);
+      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}&focus=${encodeURIComponent(focus)}&exclude=${encodeURIComponent(excluded.join("|"))}${p9 ? "&p9=1" : ""}${colors ? `&colors=${colors}` : ""}`);
     } catch (err) {
       $("#b-body", body).innerHTML = `<div class="empty"><strong>No he podido montarlo</strong>${esc(err.message)}</div>`;
       return;
@@ -1031,6 +1036,7 @@ async function builderSheet(seeds, startFormat) {
       ${format === "commander" ? `<div class="field"><label>Bracket de Commander</label><div class="seg" id="b-bracket">${Object.entries(BRACKET_LABELS).map(([k, n]) => `<button data-b="${k}" class="${bracket === k ? "on" : ""}">${n}</button>`).join("")}</div>
         <div class="hint">${BRACKET_HINTS[bracket]}</div><div class="hint">Game Changers en el mazo: <b>${d.game_changers.length}</b></div>
         ${d.game_changers.length ? `<div class="item-meta">${d.game_changers.map((n) => `<span class="chip gold">${esc(n)}</span>`).join("")}</div>` : ""}</div>` : ""}
+      <label class="toggle" style="margin:4px 0 10px"><input type="checkbox" id="b-p9" ${p9 ? "checked" : ""}> ⚡ Power 9 (Black Lotus, los Mox de tus colores y, si es azul, Ancestral Recall, Time Walk y Timetwister; aunque no los tengas. Solo Casual)</label>
       <div class="field"><label>Meter una carta concreta</label><input class="search" id="b-addq" placeholder="Escribe el nombre de una carta…"><div class="list" id="b-addres"></div></div>
       ${excluded.length ? `<div class="item-meta">Quitadas: ${excluded.map((n) => `<button class="chip" data-back="${esc(n)}">↩ ${esc(n)}</button>`).join("")}</div>` : ""}
       <button class="btn block" id="b-more" style="margin:4px 0 8px">➕ Más cartas base (${seeds.length})</button>
@@ -1089,6 +1095,7 @@ async function builderSheet(seeds, startFormat) {
     $("#b-more", body).onclick = () => pickSeed(seeds, format);
     body.querySelectorAll("#b-style button").forEach((b) => (b.onclick = () => { style = b.dataset.s; store("buildStyle", style); run(); }));
     body.querySelectorAll("#b-power button").forEach((b) => (b.onclick = () => { power = b.dataset.p; store("buildPower", power); run(); }));
+    $("#b-p9", body).onchange = (e) => { p9 = e.target.checked; run(); };
     body.querySelectorAll("#b-focus button").forEach((b) => (b.onclick = () => { focus = b.dataset.fo; run(); }));
     body.querySelectorAll("[data-out]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); excluded.push(b.dataset.out); toast(`${b.dataset.out}: fuera del mazo`); run(); }));
     body.querySelectorAll("[data-back]").forEach((b) => (b.onclick = () => { excluded.splice(excluded.indexOf(b.dataset.back), 1); run(); }));
