@@ -1185,6 +1185,63 @@ const Engine = (() => {
   const NEEDS_CREATURES = new Set(["equipos", "auras", "vehículos", "ninjutsu", "evasión", "atacar", "contadores +1/+1", "entran criaturas"]);
   // Temas que piden MUCHAS criaturas (cuantas más entren, mejor): pesan como un tipo de carta.
   const WANTS_MANY_CREATURES = new Set(["entran criaturas"]);
+  /* Cada habilidad y acción de palabra clave de las Reglas Completas (19-jun-2026, secciones 701 y 702) apunta al tema
+   * con el que hace sinergia. Así se reconocen mecánicas aunque el texto no diga "graveyard" o "token". */
+  const KEYWORD_THEMES = {
+    cementerio: ["flashback", "dredge", "delve", "unearth", "escape", "embalm", "eternalize", "disturb", "retrace", "jump-start", "aftermath",
+      "scavenge", "recover", "encore", "harmonize", "forage", "collect evidence", "surveil", "mayhem", "threshold", "delirium", "undergrowth", "descend"],
+    molino: ["mill"],
+    descarte: ["madness", "connive", "hellbent"],
+    ciclo: ["cycling"],
+    sacrificio: ["exploit", "casualty", "emerge", "devour", "offering", "bargain", "blitz", "decayed"],
+    morir: ["afterlife", "persist", "undying", "morbid", "revolt"],
+    fichas: ["populate", "amass", "incubate", "fabricate", "mobilize", "myriad", "squad", "offspring", "living weapon"],  // (Tesoros y Pistas son artefactos, no fichas de criatura)
+    "contadores +1/+1": ["evolve", "adapt", "outlast", "modular", "bolster", "support", "training", "mentor", "backup", "renown", "monstrosity",
+      "graft", "riot", "ravenous", "unleash", "tribute", "bloodthirst", "increment"],
+    contadores: ["proliferate", "level up", "fading", "vanishing", "suspend", "time travel"],
+    veneno: ["infect", "toxic", "poisonous", "wither", "for mirrodin!"],
+    hechizos: ["prowess", "storm", "magecraft", "rebound", "splice", "replicate", "cipher", "foretell", "spree", "epic", "gravestorm"],
+    atacar: ["dash", "battle cry", "exalted", "melee", "raid", "annihilator", "enlist", "freerunning", "boast", "firebending", "max speed", "start your engines!", "battalion", "bushido", "flanking", "rampage", "afflict"],
+    evasión: ["shadow", "horsemanship", "intimidate", "fear", "menace", "skulk", "landwalk", "swampwalk", "islandwalk", "forestwalk", "mountainwalk", "plainswalk"],
+    "efectos al entrar": ["evoke", "ingest", "disguise", "morph", "manifest", "cloak", "explore", "discover", "cascade"],
+    parpadeo: ["phasing"],
+    artefactos: ["affinity", "improvise", "metalcraft", "living metal", "craft", "prototype", "assemble", "fortify"],
+    vehículos: ["crew", "saddle", "station"],
+    encantamientos: ["constellation", "bestow", "umbra armor", "eerie"],
+    equipos: ["equip", "reconfigure"],
+    auras: ["enchant creature", "aura swap"],
+    tierras: ["landfall", "awaken", "domain", "earthbend"],
+    "ganar vida": ["lifelink", "extort"],
+    vuelo: ["flying"],
+  };
+  const KW_RX = Object.entries(KEYWORD_THEMES).map(([t, kws]) => [t, new RegExp(`(^|[\\n(,;.] ?|\\b)(${kws.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`)]);
+  /* Facilitadores y recompensas (setup / payoff, EDHREC y StarCityGames): un plan necesita muchas cartas que HACEN la cosa
+   * por cada carta que la PREMIA; si no, las recompensas se quedan en la mano. Recompensa = "cada vez que…", "por cada…". */
+  const PAYOFF = {
+    fichas: /whenever (a|one or more) (creature )?tokens?|for each (creature|token)|creatures? you control get \+|tokens you control/,
+    sacrificio: /whenever you sacrifice|sacrifice (a|another) (creature|permanent|artifact|token)[^:]{0,20}:/,
+    morir: /whenever (a|another) (nontoken )?creature (you control )?dies/,
+    cementerio: /from your graveyard|for each card in your graveyard|\bflashback\b|\bescape\b|\bdelve\b|\bthreshold\b|\bdelirium\b/,
+    hechizos: /whenever you cast (an|a) (instant|sorcery|noncreature)|\bprowess\b|\bmagecraft\b|instant (and|or) sorcery cards? in your graveyard/,
+    artefactos: /for each artifact|\baffinity for artifacts\b|\bmetalcraft\b|whenever (an|another) artifact|\bimprovise\b/,
+    "ganar vida": /whenever you gain life/,
+    tierras: /\blandfall\b|whenever a land (you control )?enters/,
+    "contadores +1/+1": /with a \+1\/\+1 counter|for each \+1\/\+1 counter|whenever one or more \+1\/\+1 counters|\bproliferate\b/,
+    "entran criaturas": /whenever (a|another|one or more) (other )?(nontoken )?creatures? (you control )?enters?/,
+    encantamientos: /\bconstellation\b|whenever (an|another) enchantment|for each enchantment/,
+    descarte: /whenever you discard|\bmadness\b/,
+  };
+  const ENABLER = {
+    fichas: /create .{0,40}tokens?|\bpopulate\b|\bamass\b|\bmyriad\b/,
+    sacrificio: /create .{0,40}tokens?|when (this card|it) dies|\bafterlife\b|\bpersist\b|\bundying\b/,
+    morir: /create .{0,40}tokens?|sacrifice (a|another) creature/,
+    cementerio: /\bmills?\b|\bsurveil\b|\bdiscard\b|\bdredge\b|\bcycling\b|\bthis card\b[^.]{0,30}into your graveyard/,
+    "ganar vida": /\bgains? (\d+|x|that much) life\b|\blifelink\b/,
+    tierras: /search your library for (a|an|up to \w+) (basic )?land|put (a|up to \w+) land cards? .{0,40}onto the battlefield|additional land|return (a|target) land/,
+    "contadores +1/+1": /put (a|two|three|x|that many) \+1\/\+1 counters?|\bevolve\b|\badapt\b|\boutlast\b|\btraining\b|\bmentor\b|\bbolster\b/,
+    descarte: /\bdiscards? (a|two|that|your hand)|\bcycling\b|\bconnive\b|\bfaithless looting\b/,
+    encantamientos: /./,  // cualquier encantamiento lo es (se mira por tipo)
+  };
   const THEME_PRED = Object.fromEntries(THEMES.filter((t) => t[2]).map((t) => [t[0], t[2]]));
   const ROLES = {
     ramp: /\badd (\{|one mana|two mana|three mana|x mana|mana|an amount of)|search your library for (a|up to \w+) (basic )?(land|forest|plains|island|swamp|mountain)|put (a|up to \w+) land cards? .{0,30}onto the battlefield/,
@@ -1252,7 +1309,13 @@ const Engine = (() => {
     c.colorless = !type.includes("land") && (!/\{[^}]*[WUBRG][^}]*\}/.test(c.mana_cost || "") && !(c.colors && c.colors.size && !c.mana_cost) || /\bdevoid\b/.test(text));
     c.text = text;
     c.text_tags = new Set(THEMES.filter(([, rx]) => rx.test(text)).map(([n]) => n));
+    for (const [t, rx] of KW_RX) if (rx.test(text)) c.text_tags.add(t);
     c.type_tags = new Set(THEMES.filter(([, , pred]) => pred && pred(type, c)).map(([n]) => n));
+    c.payoff = new Set(Object.keys(PAYOFF).filter((t) => PAYOFF[t].test(text)));
+    c.enabler = new Set(Object.keys(ENABLER).filter((t) => (t === "encantamientos" ? type.includes("enchantment")
+      : t === "hechizos" ? false : ENABLER[t].test(text)) && !c.payoff.has(t)));
+    if ((type.includes("instant") || type.includes("sorcery")) && !c.payoff.has("hechizos")) c.enabler.add("hechizos");
+    if (type.split(" // ")[0].includes("artifact") && !c.payoff.has("artefactos")) c.enabler.add("artefactos");
     c.subtypes = new Set((c.type_line || "").includes("—") ? c.type_line.split("—")[1].replace(/\/\//g, " ").split(/\s+/).filter(Boolean) : []);
     c.roles = new Set(Object.keys(ROLES).filter((r) => ROLES[r].test(text)));
     if (type.split(" // ")[0].includes("land")) c.roles.delete("ramp");
@@ -1643,7 +1706,14 @@ const Engine = (() => {
         // (un staple que no pinta nada en tu plan —p. ej. Myr Enforcer sin artefactos— cuenta poco)
         const power_ = size === 100 ? rankScore(x) : metaCode ? metaScore(x) * 1.5 * (s0 > 0 || x.roles.size || co ? 1 : 0.25) : rankScore(x) * 0.4;
         const cheapBody = x.is_creature && x.cmc <= 2 && (plan.wantsText.get("entran criaturas") || 0) >= 3 ? 2 : 0;  // muchas y baratas
-        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + (x.is_creature ? st.creature : 0)
+        let balance = 0;
+        for (const th of new Set([...x.payoff, ...x.enabler])) {
+          if ((plan.wantsText.get(th) || 0) < 3) continue;
+          const pay = chosen.reduce((n, [y, k]) => n + (y.payoff.has(th) ? k : 0), 0), en = chosen.reduce((n, [y, k]) => n + (y.enabler.has(th) ? k : 0), 0);
+          if (x.enabler.has(th) && en < 2 * pay + 4) balance += 2;      // faltan cartas que hagan la cosa
+          if (x.payoff.has(th) && pay * 2 > en + 4) balance -= 2;       // demasiadas recompensas para lo que hay
+        }
+        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + balance + (x.is_creature ? st.creature : 0)
           - (x.cmc >= st.heavyAt ? st.heavy : 0) - (x.cmc >= 5 ? PW.heavy : 0) - autopilot + (x.gc ? PW.gc : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)),
           ...(coPlay.has(norm(x.name)) ? ["se juegan juntas en torneos"] : preco.has(x.oi) ? ["van juntas en mazos oficiales"] : []), ...roleWhy]; }
@@ -1739,7 +1809,22 @@ const Engine = (() => {
     const basicsN = landsWanted - lands.reduce((s, e) => s + e[1], 0);
     const totalPips = Object.values(pips).reduce((a, b) => a + b, 0);
     const cols = colorlessOnly ? ["C"] : [..."WUBRG"].filter((x) => deckColors.has(x));
-    const exact = Object.fromEntries(cols.map((x) => [x, totalPips ? ((pips[x] || 0) / totalPips) * basicsN : basicsN / cols.length]));
+    /* Fuentes de color que hacen falta (Frank Karsten, ~90 % de lanzarla a tiempo; 60 cartas): 1 símbolo en el turno 1: 14,
+     * turno 2: 13, turno 3: 12…; 2 símbolos en el turno 2: 21, turno 3: 18…; 3 símbolos en el turno 3: 23. Commander: ×1,4.
+     * Cada color pide lo de su carta más exigente; las básicas se reparten según lo que le falte a cada uno. */
+    const KARSTEN = { 1: [14, 14, 13, 12, 11, 10, 10], 2: [21, 21, 21, 18, 16, 15, 14], 3: [23, 23, 23, 23, 21, 19, 18] };
+    const needSrc = {};
+    for (const [x] of chosen) for (const col of cols) {
+      const k = ((x.mana_cost || "").match(new RegExp(`\\{${col}(\\/[WUBRG])?\\}`, "g")) || []).length;
+      if (!k) continue;
+      const turn = Math.max(1, Math.min(6, Math.round(x.cmc)));
+      needSrc[col] = Math.max(needSrc[col] || 0, KARSTEN[Math.min(k, 3)][turn] * (size === 100 ? 1.4 : 1));
+    }
+    const srcFrom = (col) => lands.reduce((n, [l, k]) => n + (producedColors(l).has(col) ? k : 0), 0);
+    const deficit = Object.fromEntries(cols.map((col) => [col, Math.max(1, (needSrc[col] || 0) - srcFrom(col))]));
+    const totalDef = Object.values(deficit).reduce((a, b) => a + b, 0);
+    // mitad según lo que pide Karsten, mitad según los símbolos de todo el mazo (lo que se lanza más a menudo)
+    const exact = Object.fromEntries(cols.map((x) => [x, basicsN * (0.5 * deficit[x] / totalDef + 0.5 * (totalPips ? (pips[x] || 0) / totalPips : 1 / cols.length))]));
     const rounded = Object.fromEntries(cols.map((x) => [x, Math.floor(exact[x])]));
     cols.slice().sort((a, b) => (exact[b] - rounded[b]) - (exact[a] - rounded[a])).slice(0, basicsN - Object.values(rounded).reduce((a, b) => a + b, 0)).forEach((x) => rounded[x]++);
 
