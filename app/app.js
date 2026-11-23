@@ -1907,18 +1907,47 @@ async function unlock() {
   const p = await api("/api/profile");
   if (!p.hash) return;
   await new Promise((done) => {
+    // Un <form>: Intro envía, y el navegador (y los gestores de contraseñas) lo tratan como un inicio de sesión normal.
     document.body.insertAdjacentHTML("beforeend", `<div class="lock-screen" id="lock">
       <svg class="crest" viewBox="0 0 64 64"><use href="#i-crest"/></svg>
       <h3>${esc(p.name ? `Hola, ${p.name}` : "Gathering Market")}</h3>
-      <input class="search" id="lock-pass" type="password" autocomplete="current-password" placeholder="Contraseña">
-      <button class="btn primary block" id="lock-ok">Entrar</button><div class="sub" id="lock-msg"></div></div>`);
-    const go = async () => {
-      if ((await hashPassword($("#lock-pass").value, p.salt)) === p.hash) { $("#lock").remove(); done(); }
-      else { $("#lock-msg").textContent = t("Contraseña incorrecta"); $("#lock-pass").select(); }
+      <form id="lock-form" class="lock-form" autocomplete="on">
+        <input type="text" name="username" autocomplete="username" value="${esc(p.name || "")}" hidden>
+        <div class="lock-row"><input class="search" id="lock-pass" name="password" type="password" autocomplete="current-password" placeholder="Contraseña" autofocus>
+          <button type="button" class="btn" id="lock-eye" aria-label="Mostrar la contraseña">👁</button></div>
+        <button type="submit" class="btn primary block" id="lock-ok">Entrar</button>
+      </form>
+      <div class="sub" id="lock-msg"></div>
+      ${Cloud.ready ? `<button class="btn" id="lock-cloud" style="margin-top:6px">¿No puedes entrar? Usa tu cuenta de la nube</button>` : ""}</div>`);
+    const input = $("#lock-pass");
+    const focus = () => { if (document.activeElement !== input) input.focus({ preventScroll: true }); };
+    // Tocar en cualquier parte de la pantalla devuelve el foco al campo (si el navegador no lo había puesto).
+    $("#lock").addEventListener("pointerup", (e) => { if (!e.target.closest("button, input")) focus(); });
+    setTimeout(focus, 50); setTimeout(focus, 400);
+    $("#lock-eye").onclick = () => { input.type = input.type === "password" ? "text" : "password"; focus(); };
+    $("#lock-form").onsubmit = async (e) => {
+      e.preventDefault();
+      if (!input.value) { $("#lock-msg").textContent = t("Escribe tu contraseña"); focus(); return; }
+      if ((await hashPassword(input.value, p.salt)) === p.hash) { $("#lock").remove(); done(); }
+      else { $("#lock-msg").textContent = t("Contraseña incorrecta"); input.select(); }
     };
-    $("#lock-ok").onclick = go;
-    $("#lock-pass").onkeydown = (e) => e.key === "Enter" && go();
-    $("#lock-pass").focus();
+    // Recuperar el acceso con la cuenta de la nube: si nombre y contraseña son correctos, se quita el bloqueo de este móvil.
+    $("#lock-cloud")?.addEventListener("click", () => {
+      $("#lock-form").innerHTML = `<input class="search" id="lc-user" autocomplete="username" autocapitalize="none" placeholder="Nombre de usuario">
+        <input class="search" id="lc-pass" type="password" autocomplete="current-password" placeholder="Contraseña de la cuenta" style="margin-top:8px">
+        <button type="submit" class="btn primary block" style="margin-top:8px">Entrar con la cuenta</button>`;
+      $("#lock-cloud").remove();
+      $("#lc-user").focus();
+      $("#lock-form").onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          await Cloud.login($("#lc-user").value, $("#lc-pass").value, false);
+          await api("/api/profile", { clearPassword: true });
+          toast("Bloqueo quitado: pon una contraseña nueva en tu perfil si quieres");
+          $("#lock").remove(); done();
+        } catch (err) { $("#lock-msg").textContent = err.message; }
+      };
+    });
   });
 }
 
