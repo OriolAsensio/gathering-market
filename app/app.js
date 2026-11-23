@@ -5,6 +5,8 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const euro = (v) => (v == null ? "—" : v.toLocaleString("es-ES", { style: "currency", currency: "EUR" }));
 const pct = (v) => `${v > 0 ? "+" : ""}${v.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
+// Iconos propios (app/icons/*.png, pintados con el color del tema).
+const ico = (name) => `<i class="ico ico-${name}" aria-hidden="true"></i>`;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 // Todos los precios son de Cardmarket (en euros), vía Scryfall.
 const cardmarketUrl = (name) => `https://www.cardmarket.com/es/Magic/Products/Search?searchString=${encodeURIComponent(String(name).split(" // ")[0])}`;
@@ -100,7 +102,19 @@ $("#top-label").onclick = collectionsSheet;
 
 // Idioma de la app (ver i18n.js): al cambiarlo se recarga para traducir todo de nuevo.
 $("#lang-btn").textContent = LANG.toUpperCase();
+$("#profile-btn").innerHTML = ico("user");
 $("#profile-btn").onclick = () => Engine.day && profileSheet();
+// Compartir la web (solo en la versión web: en el APK no hay enlace que pasar).
+if (window.Capacitor?.isNativePlatform?.()) $("#share-btn").hidden = true;
+else {
+  $("#share-btn").innerHTML = ico("share");
+  $("#share-btn").onclick = async () => {
+    const url = location.origin + location.pathname;
+    try { if (navigator.share) return await navigator.share({ title: "Gathering Market", text: t("Precios, colecciones y mazos de Magic"), url }); }
+    catch (e) { if (/abort|cancel/i.test(String(e?.name || e))) return; }
+    copy(url, t("Enlace copiado: pásaselo a quien quieras"));
+  };
+}
 $("#lang-btn").onclick = () => {
   const body = openSheet(`<h3>Idioma · Language · Idioma</h3><div class="list">${Object.entries(LANGS).map(([k, n]) => `
     <button class="item ${k === LANG ? "on" : ""}" data-lang="${k}"><div class="item-main"><div class="item-title">${k === LANG ? "✓ " : ""}${n}</div></div></button>`).join("")}</div>`);
@@ -303,7 +317,7 @@ const skeleton = (n = 4) => `<div class="list">${'<div class="skeleton"></div>'.
 views.collection = async () => {
   const v = $("#view");
   let mode = store("colView") || "grid";
-  v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">📥 Importar</button><button class="btn" id="col-build">🔨 Crear mazo</button></div>
+  v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
     <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">🖼 Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
@@ -413,7 +427,7 @@ function cardSheet(c) {
       <div class="stat"><b>${euro((c.eur || 0) * c.qty)}</b><span>Total</span></div>
     </div>
     ${c.decks.length ? `<h2>La juegan en Pauper</h2><div class="item-meta">${c.decks.map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}</div>` : ""}
-    ${/land/i.test(c.type || "") ? "" : `<button class="btn block" id="build-from" style="margin-top:12px">🔨 Crear un mazo con esta carta${/legendary.*creature/i.test(c.type || "") ? " (o de Commander)" : ""}</button>`}
+    ${/land/i.test(c.type || "") ? "" : `<button class="btn block" id="build-from" style="margin-top:12px">${ico("plus")}Crear un mazo con esta carta${/legendary.*creature/i.test(c.type || "") ? " (o de Commander)" : ""}</button>`}
     <button class="btn block" id="open-set" style="margin-top:8px">📜 Ver la colección ${esc(c.set_name)}</button>
     <button class="btn block" id="follow" style="margin-top:8px">☆ Seguir su precio en Mercado</button>
     <button class="btn block" id="open-syn" style="margin-top:8px">🔮 Cartas que combinan con esta</button>
@@ -551,12 +565,12 @@ const META_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pionee
 views.decks = async () => {
   const v = $("#view");
   v.innerHTML = `<button class="item builder-cta" id="deck-build">
-      <span class="cta-icon">🔨</span>
+      <span class="cta-icon">${ico("plus")}</span>
       <div class="item-main"><div class="item-title">Crear un mazo con tus cartas</div>
         <div class="item-meta">Pauper, Commander, Estándar o Casual: a partir de una o varias cartas, o de un comandante.</div></div>
     </button>
     <button class="item builder-cta" id="deck-import">
-      <span class="cta-icon">📥</span>
+      <span class="cta-icon">${ico("import")}</span>
       <div class="item-main"><div class="item-title">Importar mi mazo</div>
         <div class="item-meta">Pega la lista (o un .txt) y marca qué cartas ya tienes.</div></div>
     </button>
@@ -711,7 +725,7 @@ async function deckSheet(id, keep = null) {
 const RARITIES = [["common", "Común"], ["uncommon", "Infrecuente"], ["rare", "Rara"], ["mythic", "Mítica"]];
 const year = (d) => (d ? d.slice(0, 4) : "");
 const setIcon = (s, cls = "set-icon") => (s.icon ? `<img class="${cls}" src="${esc(s.icon)}" alt="">`
-  : `<span class="${cls} set-emoji">${s.code === "reserved" ? "📜" : "🎁"}</span>`);
+  : `<span class="${cls} set-emoji">${ico(s.code === "reserved" ? "reserved" : "precons")}</span>`);
 
 function setRow(s, withProgress = true) {
   return `<button class="item set-row" data-code="${esc(s.code)}">
@@ -730,14 +744,14 @@ views.sets = async () => {
   v.innerHTML = `<h2>Colecciones</h2>
     <div class="hint">Cada vez que registras una carta, su colección aparece aquí. Fija las que quieras completar para seguirlas y ver qué te falta.</div>
     <div class="list">
-      <button class="item set-row" id="sp-reserved"><span class="set-icon set-emoji">📜</span><div class="item-main"><div class="item-title">Lista Reservada</div>
+      <button class="item set-row" id="sp-reserved"><span class="set-icon set-emoji">${ico("reserved")}</span><div class="item-main"><div class="item-title">Lista Reservada</div>
         <div class="item-meta">Las cartas que Wizards se ha comprometido a no reimprimir nunca.</div></div></button>
-      <button class="item set-row" id="sp-staples"><span class="set-icon set-emoji">⭐</span><div class="item-main"><div class="item-title">Staples de cada formato</div>
+      <button class="item set-row" id="sp-staples"><span class="set-icon set-emoji">${ico("star")}</span><div class="item-main"><div class="item-title">Staples de cada formato</div>
         <div class="item-meta">Las cartas más jugadas en Pauper, Estándar, Modern, Pioneer, Legacy, Vintage y Commander: ¿cuántas tienes?</div></div></button>
-      <button class="item set-row" id="sp-precons"><span class="set-icon set-emoji">🎁</span><div class="item-main"><div class="item-title">Mazos preconstruidos</div>
+      <button class="item set-row" id="sp-precons"><span class="set-icon set-emoji">${ico("precons")}</span><div class="item-main"><div class="item-title">Mazos preconstruidos</div>
         <div class="item-meta">Todos los mazos oficiales de la historia: Commander, Theme Decks, Intro Packs, Duel Decks…</div></div></button>
     </div>
-    <button class="btn block" id="set-import" style="margin-top:10px">📥 Importar tus cartas de otra app (CSV)</button>
+    <button class="btn block" id="set-import" style="margin-top:10px">${ico("import")}Importar tus cartas de otra app (CSV)</button>
     <input class="search" id="set-q" placeholder="Buscar colección o carta (en cualquier idioma)…" style="margin-top:14px">
     <div class="list" id="set-search"></div>
     <div id="set-list">${skeleton(4)}</div>`;
@@ -1234,7 +1248,7 @@ async function predictionsView(box) {
     ${group("💎 Baratas que pueden volver a subir", "Bajaron mucho en 30 días, ya no bajan y se siguen jugando.", p.rebound, p.history.d30 ? "Ahora mismo ninguna cumple las condiciones." : wait)}
     ${group("🚀 Empiezan a subir", "Estaban planas y esta semana suben un 15% o más.", p.rising, p.history.d7 ? "Esta semana ninguna." : wait)}
     ${group("🔥 Muy jugadas y baratas", "Están en varios mazos del meta de Pauper y cuestan poco.", p.staples, "Sin datos del meta todavía.")}
-    ${group("📜 Lista Reservada más jugada", "No se reimprimen nunca: con el tiempo suelen subir.", p.reserved, "—")}`;
+    ${group(`${ico("reserved")}Lista Reservada más jugada`, "No se reimprimen nunca: con el tiempo suelen subir.", p.reserved, "—")}`;
   bindPred(box);
 }
 
@@ -1676,7 +1690,7 @@ async function profileSheet() {
     <div class="medals">${m.ladder.filter((x) => !x.done).slice(0, 3).map((x) => `<div class="medal locked"><i>🔒</i><div><b>${esc(x.label)}</b></div></div>`).join("")}</div>
 
     <h2>Importar y copias de seguridad</h2>
-    <button class="btn block" id="pf-import">📥 Importar cartas de otra app (CSV)</button>
+    <button class="btn block" id="pf-import">${ico("import")}Importar cartas de otra app (CSV)</button>
     <div class="hint">El CSV lleva todas tus carpetas y se puede importar aquí, en ManaBox o en Moxfield. La copia completa guarda también tus mazos y el perfil.</div>
     <button class="btn block" id="pf-csv">📤 Exportar todas mis cartas (CSV)</button>
     <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>

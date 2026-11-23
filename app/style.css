@@ -402,3 +402,15 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 .w-del { padding: 4px 9px; font-size: 12px; }
 .mover[data-follow] { cursor: pointer; }
 .mini-step b.over { color: var(--gold); }
+
+/* Iconos propios: máscara pintada con el color del texto */
+.ico { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-right: .4em; background: currentColor;
+  -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; flex: none; }
+.ico-import { --m: url(icons/import.png); } .ico-plus { --m: url(icons/plus.png); } .ico-star { --m: url(icons/star.png); }
+.ico-share { --m: url(icons/share.png); } .ico-user { --m: url(icons/user.png); } .ico-precons { --m: url(icons/precons.png); } .ico-reserved { --m: url(icons/reserved.png); }
+.set-emoji .ico, .cta-icon .ico { width: 26px; height: 26px; margin: 0; color: var(--gold); vertical-align: middle; }
+.icon-btn { display: inline-grid; place-items: center; padding: 6px 10px; }
+.icon-btn .ico { width: 20px; height: 20px; margin: 0; }
+#share-btn { margin-left: auto; }
+#share-btn + #profile-btn { margin-left: 6px; }
+#share-btn[hidden] + #profile-btn { margin-left: auto; }
