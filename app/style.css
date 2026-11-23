@@ -423,3 +423,7 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 .proxy-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 .proxy-row .mini { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); padding: 0; cursor: pointer; }
 .proxy-row .mini:disabled { opacity: .35; }
+
+/* Cartel de proxy encima de la carta */
+.proxy-tag { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); padding: 3px 10px; border-radius: 6px;
+  background: rgba(150, 30, 30, .88); color: #fff; font: 700 13px var(--display); letter-spacing: .12em; border: 2px solid #fff3; pointer-events: none; white-space: nowrap; }

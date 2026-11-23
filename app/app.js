@@ -345,7 +345,8 @@ views.collection = async () => {
     const f = state.collectionFilter.toLowerCase();
     const shown = items.filter((c) => !f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f)));
     const page = shown.slice(0, limit);
-    const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, c.foil || c.alter ? `<span class="num-tag">${[c.foil ? "Foil" : "", c.alter ? "✍️" : ""].filter(Boolean).join(" ")}</span>` : "")).join("")}</div>`
+    const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, (c.foil || c.alter ? `<span class="num-tag">${[c.foil ? "Foil" : "", c.alter ? "✍️" : ""].filter(Boolean).join(" ")}</span>` : "")
+      + (c.proxy ? `<span class="proxy-tag">PROXY${c.proxy < c.qty ? ` ×${c.proxy}` : ""}</span>` : ""))).join("")}</div>`
       : `<div class="list">${page.map((c) => `
       <button class="item" data-row="${esc(c.key)}">
         <img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
@@ -446,14 +447,16 @@ function cardSheet(c) {
         <img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(x.set_name)} #${esc(x.number)}</div>
           <div class="item-meta">${x.foil ? '<span class="chip foil">Foil</span>' : ""}${euro(x.eur)}</div>
-          <div class="item-meta proxy-row"><span class="sub">Proxies</span><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" ${x.proxy ? "" : "disabled"}>−</button><b>${x.proxy || 0}</b><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" ${x.proxy < x.qty ? "" : "disabled"}>+</button>${x.proxy ? `<span class="sub">(no suman valor; solo para Casual)</span>` : ""}</div>
+          <div class="item-meta proxy-row"><span class="sub">Proxies</span><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" ${x.proxy ? "" : "disabled"}>−</button><b>${x.proxy || 0}</b><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" ${x.proxy < x.qty ? "" : "disabled"}>+</button>${x.proxy ? `<span class="sub">(no suman valor; solo para Casual${x.proxy_collect ? "" : "; no cuentan para la colección"})</span>` : ""}</div>
           ${x.alter ? `<div class="item-meta"><span class="chip gold">✍️ ${esc(x.alter.name)} ×${x.alter.qty}</span> ~${euro(x.alter.estimate[0])}–${euro(x.alter.estimate[1])}${x.alter.note ? ` · ${esc(x.alter.note)}` : ""}</div>` : ""}
           <button class="btn alter-btn" data-alter="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-q="${x.qty}">✍️ ${x.alter ? "Cambiar alteración" : "¿Firmada o con arte propio?"}</button></div>
         <div class="stepper"><button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" aria-label="Quitar una">−</button><b class="num">${x.qty}</b>
           <button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" aria-label="Añadir otra">+</button></div>
       </div>`).join("") || `<div class="hint">Ya no tienes ninguna.</div>`;
     body.querySelectorAll("#versions [data-px]").forEach((b) => (b.onclick = async () => {
-      await api("/api/proxy", { card_id: b.dataset.px, foil: b.dataset.f === "1", delta: +b.dataset.d });
+      const row = mine.find((x) => x.id === b.dataset.px && x.foil === (b.dataset.f === "1"));
+      const first = +b.dataset.d > 0 && !row?.proxy;  // al marcar el primer proxy, se pregunta si cuenta para la colección
+      await api("/api/proxy", { card_id: b.dataset.px, foil: b.dataset.f === "1", delta: +b.dataset.d, ...(first ? { collect: confirm(t("¿Quieres que este proxy cuente para la colección? (completar colecciones y número de cartas). Aceptar = sí, Cancelar = no")) } : {}) });
       closeSheet.dirty = true; drawVersions(); loadSummary();
     }));
     body.querySelectorAll("#versions [data-alter]").forEach((b) => (b.onclick = () => alterBox(b, mine.find((x) => x.id === b.dataset.alter && x.foil === (b.dataset.f === "1")))));
@@ -542,7 +545,7 @@ async function addSheet(candidates, opts = {}) {
     body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { qty = Math.max(1, qty + +b.dataset.q); draw(); }));
     $("#add-ok", body).onclick = async () => {
       const r = await api("/api/collection", { card_id: p.id, foil, qty });
-      if (proxy) await api("/api/proxy", { card_id: p.id, foil, delta: qty });
+      if (proxy) await api("/api/proxy", { card_id: p.id, foil, delta: qty, collect: confirm(t("¿Quieres que este proxy cuente para la colección? (completar colecciones y número de cartas). Aceptar = sí, Cancelar = no")) });
       toast(`${qty}× ${c.name} añadida${proxy ? " (proxy)" : ""}`);
       if (!proxy) celebrate(r);
       loadSummary();

@@ -231,6 +231,16 @@ const Engine = (() => {
     }
     return out;
   }
+  /** Como entries(), pero sin los proxies que has marcado como "no cuentan para la colección". */
+  function entriesForSets(c) {
+    const out = [];
+    for (const [pi, foil, qty] of entries(c)) {
+      const key = `${P[pi][0]}|${foil ? 1 : 0}`;
+      const q = user.proxyNoSet?.[c]?.[key] ? qty - Math.min(user.proxies?.[c]?.[key] || 0, qty) : qty;
+      if (q > 0) out.push([pi, foil, q]);
+    }
+    return out;
+  }
   function ownedByName(c) {
     const out = new Map();
     for (const [pi, , qty] of entries(c)) {
@@ -294,8 +304,11 @@ const Engine = (() => {
     const map = ((user.proxies ||= {})[id] ||= {});
     const n = Math.max(0, Math.min(have, body.set != null ? +body.set : (map[key] || 0) + (+body.delta || 0)));
     if (n) map[key] = n; else delete map[key];
+    const noSet = ((user.proxyNoSet ||= {})[id] ||= {});
+    if (body.collect === false) noSet[key] = true;
+    else if (body.collect === true || !n) delete noSet[key];
     saveUser();
-    return { proxy: n };
+    return { proxy: n, collect: !noSet[key] };
   }
   function summary({ c }) {
     const id = binderOf(c);
@@ -303,10 +316,11 @@ const Engine = (() => {
     let value = 0, prev = 0, cards = 0, unique = 0;
     const hasPrev = PR.days && PR.days["1"] && PR.days["1"] !== PR.day;
     for (const [pi, foil, qty] of entries(id)) {
-      const real = qty - proxyOf(id, `${P[pi][0]}|${foil ? 1 : 0}`, qty);  // los proxies no suman valor
+      const key = `${P[pi][0]}|${foil ? 1 : 0}`, px = proxyOf(id, key, qty);
+      const real = qty - px;  // los proxies no suman valor
       value += real * (priceOf(pi, foil) || 0);
       prev += real * ((foil ? PR.eur_foil[pi] : PR.d1[pi] ?? PR.eur[pi]) || 0);
-      cards += qty;
+      cards += user.proxyNoSet?.[id]?.[key] ? real : qty;  // ni cuentan como cartas si has dicho que no
       unique++;
     }
     return { day: PR.day, value: eur(value), prev_value: hasPrev ? eur(prev) : null, cards, unique,
@@ -397,7 +411,7 @@ const Engine = (() => {
       return { row_id: `${r.id}|${foil ? 1 : 0}`, id: r.id, name: r.name, set: r.set, set_name: r.set_name, number: r.number,
         rarity: r.rarity, image: r.image, qty, foil, eur: eur(priceOf(pi, foil)), pauper: r.pauper, type: o[1],
         decks: used.get(norm(o[0])) || [], alter: alterOf(id, `${r.id}|${foil ? 1 : 0}`, eur(priceOf(pi, foil)), qty),
-        proxy: proxyOf(id, `${r.id}|${foil ? 1 : 0}`, qty) };
+        proxy: proxyOf(id, `${r.id}|${foil ? 1 : 0}`, qty), proxy_collect: !user.proxyNoSet?.[id]?.[`${r.id}|${foil ? 1 : 0}`] };
     });
     rows.sort((a, b) => (b.eur || 0) - (a.eur || 0) || a.name.localeCompare(b.name));
     return rows;
@@ -408,7 +422,7 @@ const Engine = (() => {
     const total = setTotals(code);
     if (total < 10) return false;
     const have = new Set();
-    for (const [pi] of entries(id)) if (P[pi][2] === code && !P[pi][5]) have.add(P[pi][1]);
+    for (const [pi] of entriesForSets(id)) if (P[pi][2] === code && !P[pi][5]) have.add(P[pi][1]);
     return have.size >= total;
   }
   /** Ejecuta `fn` y devuelve los nombres de las ediciones (de `pis`) que ha completado. */
@@ -942,7 +956,7 @@ const Engine = (() => {
     }
     return null;
   }
-  const ownedOracles = (id) => { const s = new Set(); for (const [pi] of entries(id)) s.add(P[pi][1]); return s; };
+  const ownedOracles = (id) => { const s = new Set(); for (const [pi] of entriesForSets(id)) s.add(P[pi][1]); return s; };
   async function setInfo(code, owned) {
     const sp = await special(code);
     if (sp) {
@@ -956,7 +970,7 @@ const Engine = (() => {
   async function sets({ c }) {
     const id = binderOf(c) || 1;
     const owned = new Map();
-    for (const [pi] of entries(id)) {
+    for (const [pi] of entriesForSets(id)) {
       const set = P[pi][2];
       if (!owned.has(set)) owned.set(set, new Set());
       owned.get(set).add(P[pi][1]);
@@ -994,7 +1008,7 @@ const Engine = (() => {
     const s = await setInfo(code);
     const sp = s.special ? await special(code) : null;
     const qtyById = new Map(), qtyByName = new Map();
-    for (const [pi, , qty] of entries(id)) {
+    for (const [pi, , qty] of entriesForSets(id)) {
       qtyById.set(pi, (qtyById.get(pi) || 0) + qty);
       if (sp || P[pi][2] === code) qtyByName.set(P[pi][1], (qtyByName.get(P[pi][1]) || 0) + qty);
     }
