@@ -89,3 +89,10 @@ jobs:
           path: site
       - id: deploy
         uses: actions/deploy-pages@v5
+        continue-on-error: true   # a veces GitHub aún no "ve" lo recién subido: se reintenta abajo
+      - name: Esperar y reintentar la publicación
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 45
+      - id: deploy_retry
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v5
