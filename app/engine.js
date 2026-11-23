@@ -1340,8 +1340,9 @@ const Engine = (() => {
   const STYLES = {
     aggro: { caps: { 0: 4, 1: 12, 2: 16, 3: 10, 4: 5, 5: 2, 6: 1 }, land: -1.5, creature: 1.2, heavyAt: 4, heavy: 2.5,
       target: { 60: { removal: 4, draw: 1, ramp: 0, wipe: 0, protect: 0 }, 100: { removal: 8, draw: 10, ramp: 9, wipe: 1, protect: 5 } } },
-    midrange: { caps: { 0: 4, 1: 10, 2: 14, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 0, creature: 0.4, heavyAt: 6, heavy: 1.5, target: TARGETS },
-    control: { caps: { 0: 4, 1: 8, 2: 12, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 1, creature: -0.8, heavyAt: 7, heavy: 0.5,
+    midrange: { caps: { 0: 4, 1: 12, 2: 14, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 0, creature: 0.4, heavyAt: 6, heavy: 1.5, target: TARGETS },
+    // control: en Pauper, Brainstorm, Preordain, Faerie Seer… son de coste 1
+    control: { caps: { 0: 4, 1: 12, 2: 12, 3: 12, 4: 9, 5: 6, 6: 4 }, land: 1, creature: -0.8, heavyAt: 7, heavy: 0.5,
       target: { 60: { removal: 9, draw: 5, ramp: 0, wipe: 1, protect: 0 }, 100: { removal: 12, draw: 12, ramp: 10, wipe: 4, protect: 3 } } },
   };
   /** Estilo que piden las cartas base (si el usuario elige "auto"). */
@@ -1485,9 +1486,10 @@ const Engine = (() => {
       const baseNames = new Set(base.map((x) => norm(x.name)));
       const decksWith = META.filter((d) => (!metaCode || d.format === metaCode) && d.cards.some(([n, , side]) => !side && baseNames.has(norm(n))));
       for (const d of decksWith) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) if (!baseNames.has(k) && !BASICS.has(k)) coPlay.set(k, (coPlay.get(k) || 0) + 1);
-      for (const [k, n] of coPlay) if (n / decksWith.length < 0.34) coPlay.delete(k);  // solo lo habitual en esas listas
+      for (const [k, n] of coPlay) { const r = n / decksWith.length; if (r < 0.34) coPlay.delete(k); else coPlay.set(k, r); }  // solo lo habitual en esas listas
     }
-    const coBonus = (x) => Math.min(4, 1.5 * (coPlay.get(norm(x.name)) || 0)) * PW.co;
+    // Lo que juegan las listas de torneo con tus cartas base: en competitivo pesa mucho (es lo que haría un jugador: copiar lo que funciona).
+    const coBonus = (x) => 4 * (coPlay.get(norm(x.name)) || 0) * PW.co;
     let minCreatures = size === 100 ? 22 : { aggro: 16, midrange: 13, control: 8 }[style] || 12;
     if ((plan.wantsText.get("hechizos") || 0) >= 3 && !(plan.wantsType.get("criaturas") > 0)) minCreatures = Math.round(minCreatures / 2);
     const colorlessFocus = colorlessOnly || wantC || (plan.wantsType.get("incoloro") || 0) > 0;
@@ -1569,6 +1571,31 @@ const Engine = (() => {
       const gcBase = base.filter((x) => x.gc).map((x) => x.name);
       if (gcBase.length > BR.gc) warnings.push(`${gcBase.join(", ")} ${gcBase.length > 1 ? "son Game Changers" : "es Game Changer"}: con bracket ${bracket} no debería${gcBase.length > 1 ? "n" : ""} ir. Sube el bracket o quítala${gcBase.length > 1 ? "s" : ""}.`);
     }
+    // Repaso final: con el mazo ya hecho (el plan reforzado), cambiar las cartas más flojas por otras de la carpeta que
+    // valgan claramente más, sin tocar las cartas base, sin dejar funciones por debajo de lo necesario y en una curva parecida.
+    const valueOf = (x) => fit(plan, x)[0] * PW.syn + coBonus(x) + (size === 100 ? rankScore(x) : metaCode ? metaScore(x) * 1.5 : rankScore(x) * 0.4) * PW.rank
+      + (!colorlessFocus && x.colors.size ? 0.8 : 0) + (x.is_creature ? st.creature : 0);
+    const swaps = [];
+    for (let round = 0; round < 8; round++) {
+      const weak = chosen.filter(([x, , why]) => !why[0]?.startsWith("carta base") && !why[0]?.startsWith("básico")
+        && ![...x.roles].some((r) => roles[r] <= target[r]) && !(x.is_creature && creaturesIn() <= minCreatures))
+        .map((e) => [e, valueOf(e[0])]).sort((a, b) => a[1] - b[1])[0];
+      if (!weak) break;
+      const [[wx, wn, wwhy], wv] = weak;
+      const wb = Math.min(Math.floor(wx.cmc), 6);
+      const better = [...left].filter((x) => Math.abs(Math.min(Math.floor(x.cmc), 6) - wb) <= 1 && x.owned >= Math.min(wn, maxCopies)
+        && !(x.gc && gcCount >= BR.gc) && !(x.extra_turn && turnsCount >= BR.turns) && !(voltron && x.roles.has("wipe") && !x.one_sided))
+        .map((x) => [x, valueOf(x)]).sort((a, b) => b[1] - a[1])[0];
+      if (!better || better[1] < wv + 2) break;
+      const [bx] = better;
+      const i = chosen.findIndex((e) => e[0] === wx);
+      chosen.splice(i, 1);
+      curve[wb] -= wn; for (const r of wx.roles) roles[r] -= wn;
+      left.delete(bx); left.add(wx);
+      take(bx, Math.min(wn, bx.owned, maxCopies), [...fit(plan, bx)[1].map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)).slice(0, 2), `mejor que ${wx.name}`], valueOf(bx));
+      if (bx.gc) gcCount++;
+      swaps.push([wx.name, bx.name]);
+    }
     const spellsTotal = chosen.reduce((s, e) => s + e[1], 0);
     const landsWanted = Math.min(landsFor(), size - (commander ? 1 : 0) - spellsTotal);
 
@@ -1615,6 +1642,36 @@ const Engine = (() => {
     if (spellsTotal < spellSlots()) warnings.push(`Solo hay ${spellsTotal} cartas que encajen (harían falta ${spellSlots()}). Prueba otro color o Casual, o añade cartas a la carpeta.`);
 
     // Cartas que no tienes y mejorarían el mazo: por sinergia con el plan y por jugarse con las base en torneos.
+    // Tercera opinión, el meta: lo que juegan las listas de torneo del formato con tus cartas base (o, si no hay, las de tus colores).
+    function metaRecs() {
+      if (!metaCode) return [];
+      const keys = new Set(base.map((x) => norm(x.name)));
+      const decks = META.filter((d) => d.format === metaCode);
+      const colorsOf = (d) => new Set(d.cards.filter(([, , side]) => !side).flatMap(([n]) => { const oi = oByNorm.get(norm(n)); return oi != null ? [...(O[oi][4] || "")] : []; }));
+      let similar = decks.filter((d) => d.cards.some(([n, , side]) => !side && keys.has(norm(n))));
+      let why = "con tus cartas base";
+      if (!similar.length) {  // listas cuyo main es (casi todo) de tus colores
+        similar = decks.filter((d) => {
+          const ois = d.cards.filter(([, , side]) => !side).map(([n]) => oByNorm.get(norm(n))).filter((oi) => oi != null && !O[oi][1].includes("Land"));
+          return ois.length && ois.filter((oi) => [...(O[oi][4] || "")].every((col) => deckColors.has(col))).length / ois.length >= 0.8;
+        });
+        why = "de tus colores";
+      }
+      if (!similar.length) return [];
+      const inDeck = new Set(chosen.map(([x]) => norm(x.name)));
+      const count = new Map();
+      for (const d of similar) for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) count.set(k, (count.get(k) || 0) + 1);
+      // carta del mazo que sacarías: la de menos valor que no sea base ni cubra una función justa
+      const weakest = (kind) => chosen.filter(([x, , w]) => !w[0]?.startsWith("carta base") && (kind == null || x.is_creature === kind))
+        .map(([x]) => [x, valueOf(x)]).sort((a, b) => a[1] - b[1])[0]?.[0]?.name || null;
+      return [...count.entries()].filter(([k]) => !inDeck.has(k) && !BASICS.has(k))
+        .map(([k, n]) => [oByNorm.get(k), n]).filter(([oi]) => oi != null)
+        .map(([oi, n]) => [oi, n, mk(oi, pool.get(norm(O[oi][0]))?.owned || 0)])
+        .filter(([, , x]) => legal(x) && !x.is_land && subset(x.colors, deckColors))
+        .sort((a, b) => b[1] - a[1]).slice(0, 8)
+        .map(([oi, n, x]) => ({ name: x.name, image: oImage(oi), eur: cheap[oi] ? eur(cheap[oi]) : null, owned: x.owned,
+          pct: Math.round((100 * n) / similar.length), lists: similar.length, why, replaces: weakest(x.is_creature) || weakest(null) }));
+    }
     function buyList() {
       indexAll();
       const have = new Set([...pool.values()].map((x) => x.oi));
@@ -1652,7 +1709,7 @@ const Engine = (() => {
     const themes = [...plan.wantsText.entries()].filter(([, w]) => w >= 3).sort((a, b) => b[1] - a[1]).map(([k]) => k).slice(0, 6);
     return {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
-      colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(),
+      colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(), meta_recs: metaRecs(), swaps,
       commander: commander ? out(commander, 1, "comandante", ["comandante"]) : null,
       style, style_auto: wanted === "auto" || !STYLES[wanted], power, bracket: fmt === "commander" ? bracket : null,
       game_changers: chosen.filter(([x]) => x.gc).map(([x]) => x.name).concat(commander?.gc ? [commander.name] : []),

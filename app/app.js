@@ -1019,6 +1019,10 @@ async function builderSheet(seeds, startFormat) {
       ${d.bench.length ? `<h2>➕ Te recomiendo añadir (ya las tienes)</h2><div class="hint">Toca una para meterla en el mazo como carta base.</div>
         <div class="grid">${d.bench.map((c) => `<button class="gcard rec" data-add="${esc(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
           ${c.eur != null ? `<span class="badge full">${euro(c.eur)}</span>` : ""}<div class="why">${esc(c.reasons.join(" · "))}</div></button>`).join("")}</div>` : ""}
+      ${d.meta_recs?.length ? `<h2>📊 Lo que juega el meta</h2><div class="hint">Cartas habituales en las listas de torneo ${d.meta_recs[0].why === "con tus cartas base" ? "con tus cartas base" : "de tus colores"} que no están en tu mazo. Toca una para meterla (si no la tienes, entra igual, marcada para comprar).</div>
+        <div class="grid">${d.meta_recs.map((c) => `<button class="gcard rec ${c.owned ? "" : "missing"}" data-add="${esc(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
+          <span class="badge ${c.owned ? "full" : "none"}">${c.pct}%</span>
+          <div class="why">${c.owned ? `La tienes ×${c.owned}` : euro(c.eur)}${c.replaces ? ` · en lugar de ${esc(c.replaces)}` : ""}</div></button>`).join("")}</div>` : ""}
       ${d.buy?.length ? `<h2>🛒 Te recomiendo comprar</h2><div class="hint">No las tienes y mejorarían el mazo. Toca una para verla en Cardmarket.</div>
         <div class="grid">${d.buy.map((c) => `<a class="gcard rec" target="_blank" rel="noopener" href="${cardmarketUrl(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
           <span class="badge part">${euro(c.eur)}</span><div class="why">${esc(c.reasons.join(" · "))}</div></a>`).join("")}</div>` : ""}
