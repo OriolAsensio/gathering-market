@@ -401,3 +401,4 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 .watch .item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .w-del { padding: 4px 9px; font-size: 12px; }
 .mover[data-follow] { cursor: pointer; }
+.mini-step b.over { color: var(--gold); }

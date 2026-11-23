@@ -626,9 +626,10 @@ function importDeckSheet() {
 async function deckSheet(id, keep = null) {
   const body = keep ? $("#sheet-body") : openSheet(skeleton(3));
   const d = await api(`/api/deck?id=${encodeURIComponent(id)}`);
-  // − / + para marcar cuántas copias de cada carta tienes (se añaden o quitan de tu carpeta, de una en una).
-  const stepper = (c) => (c.basic ? "" : `<div class="mini-step"><button data-step="-1" data-name="${esc(c.name)}" ${c.have ? "" : "disabled"} aria-label="Quitar una">−</button>
-    <b>${c.have}/${c.qty}</b><button data-step="1" data-name="${esc(c.name)}" ${c.have < c.qty ? "" : "disabled"} aria-label="Añadir una">+</button></div>`);
+  // − / + para sumar o quitar copias de tu carpeta, de una en una. Se puede pasar de lo que pide el mazo (4/3):
+  // es la forma cómoda de registrar cartas sin escribir su nombre. El número es todas las copias que tienes.
+  const stepper = (c) => (c.basic ? "" : `<div class="mini-step"><button data-step="-1" data-name="${esc(c.name)}" ${c.owned ? "" : "disabled"} aria-label="Quitar una">−</button>
+    <b class="${c.owned > c.qty ? "over" : ""}">${c.owned}/${c.qty}</b><button data-step="1" data-name="${esc(c.name)}" aria-label="Añadir una">+</button></div>`);
   const line = (c) => {
     const cls = c.have >= c.qty ? "full" : c.have > 0 ? "part" : "none";
     return `<div class="deck-line"><span class="qty ${cls}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span><span class="n">${esc(c.name)}</span><span class="${c.basic ? "sub" : "price"}">${c.basic ? "básica" : euro(c.eur)}</span>${stepper(c)}</div>`;
@@ -663,8 +664,8 @@ async function deckSheet(id, keep = null) {
     const mode = store("deckView") || "img";
     body.querySelectorAll("#deck-view button").forEach((b) => b.classList.toggle("on", b.dataset.v === mode));
     $("#deck-hint", body).textContent = mode === "img"
-      ? "En gris, las cartas que no tienes. Con − y + marcas cuántas copias tienes de cada una (se suman o quitan de tu carpeta)."
-      : "Precio con la edición más barata de cada carta (Cardmarket). Verde: la tienes; amarillo: te faltan copias. Con − y + marcas las que tienes.";
+      ? "En gris, las cartas que no tienes. Con − y + sumas o quitas copias de tu carpeta (puedes pasar de las del mazo, p. ej. 4/3)."
+      : "Precio con la edición más barata de cada carta (Cardmarket). Verde: la tienes; amarillo: te faltan copias. Con − y + sumas o quitas copias de tu carpeta.";
     const section = (cards) => (mode === "img" ? `<div class="grid">${cards.map(tileD).join("")}</div>` : cards.map(line).join(""));
     $("#deck-cards", body).innerHTML = `
       <h2>Main (${main.reduce((s, c) => s + c.qty, 0)})</h2>${section(main)}
@@ -731,6 +732,8 @@ views.sets = async () => {
     <div class="list">
       <button class="item set-row" id="sp-reserved"><span class="set-icon set-emoji">📜</span><div class="item-main"><div class="item-title">Lista Reservada</div>
         <div class="item-meta">Las cartas que Wizards se ha comprometido a no reimprimir nunca.</div></div></button>
+      <button class="item set-row" id="sp-staples"><span class="set-icon set-emoji">⭐</span><div class="item-main"><div class="item-title">Staples de cada formato</div>
+        <div class="item-meta">Las cartas más jugadas en Pauper, Estándar, Modern, Pioneer, Legacy, Vintage y Commander: ¿cuántas tienes?</div></div></button>
       <button class="item set-row" id="sp-precons"><span class="set-icon set-emoji">🎁</span><div class="item-main"><div class="item-title">Mazos preconstruidos</div>
         <div class="item-meta">Todos los mazos oficiales de la historia: Commander, Theme Decks, Intro Packs, Duel Decks…</div></div></button>
     </div>
@@ -740,6 +743,7 @@ views.sets = async () => {
     <div id="set-list">${skeleton(4)}</div>`;
   $("#sp-reserved").onclick = () => setSheet("reserved");
   $("#sp-precons").onclick = preconSheet;
+  $("#sp-staples").onclick = () => staplesSheet();
   $("#set-import").onclick = importSheet;
   const sets = await api("/api/sets");
   const pinned = sets.filter((s) => s.pinned), started = sets.filter((s) => !s.pinned);
@@ -760,6 +764,37 @@ views.sets = async () => {
     }, 250);
   };
 };
+
+// Staples: las cartas más jugadas de cada formato y cuántas tienes.
+const STAPLE_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage", EDH: "Commander" };
+async function staplesSheet(format = store("stapleFormat") || "PAU", keepScroll = 0) {
+  const body = keepScroll ? $("#sheet-body") : openSheet(`<h3>Staples</h3>${skeleton(4)}`);
+  const d = await api(`/api/staples?format=${format}`);
+  const pctOwned = d.total ? Math.round((100 * d.have) / d.total) : 0;
+  const tileS = (c) => `<button class="gcard ${c.owned ? "" : "missing"}" data-name="${esc(c.name)}">
+      <img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
+      <span class="badge ${c.owned >= c.want ? "full" : c.owned ? "part" : "none"}">${c.owned}/${c.want}</span>
+      <div class="why">${c.pct != null ? `${String(c.pct).replace(".", ",")}% del meta · ${String(c.avg).replace(".", ",")} copias` : `Nº ${c.rank} en EDHREC`} · ${euro(c.eur)}</div></button>`;
+  const missing = d.cards.filter((c) => c.owned < c.want);
+  body.innerHTML = `<h3>Staples de ${esc(STAPLE_FORMATS[format])}</h3>
+    <div class="seg" id="st-format">${Object.entries(STAPLE_FORMATS).map(([k, n]) => `<button data-f="${k}" class="${k === format ? "on" : ""}">${n}</button>`).join("")}</div>
+    <div class="hint">${format === "EDH" ? "Las 100 cartas más jugadas en Commander según EDHREC." : "Las cartas más jugadas en las listas de torneo de MTGTop8: qué parte del meta las lleva y cuántas copias de media."} El número es copias tuyas / copias que se suelen jugar. Toca una para añadirla.</div>
+    ${d.total ? `<div class="stats"><div class="stat"><b>${d.have}/${d.total}</b><span>Las tienes (${pctOwned}%)</span></div>
+      <div class="stat"><b>${euro(d.missing_cost)}</b><span>Completarlas cuesta</span></div></div><div class="bar"><i style="width:${pctOwned}%"></i></div>
+      <div class="grid" style="margin-top:12px">${d.cards.map(tileS).join("")}</div>
+      <div class="row-btns"><button class="btn" id="st-copy" ${missing.length ? "" : "disabled"}>Copiar lo que falta</button>
+        <button class="btn primary" id="st-share" ${missing.length ? "" : "disabled"}>Compartir lo que falta (${missing.length})</button></div>`
+      : `<div class="empty"><strong>Aún no hay datos del meta de ${esc(STAPLE_FORMATS[format])}</strong>Se descargan dos veces al día.</div>`}`;
+  if (keepScroll) $("#sheet").scrollTop = keepScroll;
+  body.querySelectorAll("#st-format button").forEach((b) => (b.onclick = () => { store("stapleFormat", b.dataset.f); staplesSheet(b.dataset.f); }));
+  body.querySelectorAll(".gcard[data-name]").forEach((b) => (b.onclick = () => {
+    const y = $("#sheet").scrollTop;
+    addSheet([{ name: b.dataset.name }], { onDone: () => staplesSheet(format, y || 1) });
+  }));
+  const text = () => missing.map((c) => `${c.want - c.owned} ${c.name}`).join("\n");
+  $("#st-copy", body)?.addEventListener("click", () => copy(text(), "Lista de lo que falta copiada"));
+  $("#st-share", body)?.addEventListener("click", () => shareText(`Staples de ${STAPLE_FORMATS[format]} que me faltan`, text()));
+}
 
 async function preconSheet() {
   const body = openSheet(`<h3>Mazos preconstruidos</h3>

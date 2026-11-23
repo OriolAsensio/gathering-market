@@ -800,9 +800,44 @@ const Engine = (() => {
       const have = basic ? qty : Math.min(left.get(k) || 0, qty);
       if (!basic) left.set(k, (left.get(k) || 0) - have);
       const oi = oByNorm.get(k);
-      return { name, qty, side: !!side, have, basic, eur: basic || oi == null ? null : eur(cheap[oi]), image: oi != null ? oImage(oi) : null };
+      return { name, qty, side: !!side, have, owned: basic ? qty : owned.get(k) || 0, basic, eur: basic || oi == null ? null : eur(cheap[oi]), image: oi != null ? oImage(oi) : null };
     });
     return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, ...deckInfo(d, owned) };
+  }
+
+  // ---------------------------------------------------------------- staples de cada formato
+  /* Como en MTGDecks: qué parte del meta juega cada carta (sumando la cuota de cada arquetipo que la lleva) y cuántas
+   * copias de media. Sale de las listas de torneo de MTGTop8 (una por arquetipo). Commander: las más jugadas en EDHREC. */
+  function staples({ c, format = "PAU" }) {
+    const owned = ownedByName(binderOf(c) || 1);
+    const cheap = cheapest().price;
+    const rows = new Map();
+    if (format === "EDH") {
+      O.map((o, oi) => oi).filter((oi) => O[oi][7] && O[oi][9] === 1 && !O[oi][1].startsWith("Basic"))
+        .sort((a, b) => O[a][7] - O[b][7]).slice(0, 100)
+        .forEach((oi, i) => rows.set(norm(O[oi][0]), { oi, pct: null, avg: 1, rank: i + 1 }));
+    } else {
+      const decks = META.filter((d) => d.format === format);
+      const total = decks.reduce((s, d) => s + (d.share || 0), 0) || 1;
+      for (const d of decks) {
+        const qty = new Map();
+        for (const [name, q] of d.cards) { const k = norm(name); if (!BASICS.has(k)) qty.set(k, (qty.get(k) || 0) + q); }
+        for (const [k, q] of qty) {
+          const oi = oByNorm.get(k);
+          if (oi == null || (format === "PAU" && O[oi][6] !== 1) || (format === "ST" && O[oi][10] !== 1)) continue;  // solo lo legal hoy
+          const r = rows.get(k) || { oi, share: 0, decks: 0, copies: 0 };
+          r.share += d.share || 0; r.decks++; r.copies += q;
+          rows.set(k, r);
+        }
+      }
+      for (const r of rows.values()) { r.pct = Math.round((1000 * r.share) / total) / 10; r.avg = Math.round((10 * r.copies) / r.decks) / 10; }
+    }
+    const list = [...rows.entries()].sort((a, b) => (b[1].pct ?? 0) - (a[1].pct ?? 0) || (a[1].rank || 0) - (b[1].rank || 0)).slice(0, format === "EDH" ? 100 : 60)
+      .map(([k, r]) => ({ name: front(O[r.oi][0]), image: oImage(r.oi), eur: eur(cheap[r.oi]), pct: r.pct, avg: r.avg, rank: r.rank || null,
+        owned: owned.get(k) || 0, want: Math.max(1, Math.round(r.avg)) }));
+    const have = list.filter((x) => x.owned >= x.want).length;
+    const missingCost = Math.round(list.reduce((s, x) => s + Math.max(0, x.want - x.owned) * (x.eur || 0), 0) * 100) / 100;
+    return { format, cards: list, have, total: list.length, missing_cost: missingCost, decks: META.filter((d) => d.format === format).length };
   }
 
   // ---------------------------------------------------------------- cartas que sigues (precio y cambios a 1, 7 y 30 días)
@@ -1728,7 +1763,7 @@ const Engine = (() => {
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
-    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList };
+    "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
     "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/profile": profilePost, "/api/alter": alterPost, "/api/watch": watchPost };
 
