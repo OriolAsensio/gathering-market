@@ -58,7 +58,7 @@ const Engine = (() => {
   const today = () => new Date().toISOString().slice(0, 10);
 
   // ---------------------------------------------------------------- datos del paquete
-  let O = [], P = [], PR = null, SETS = new Map(), META = [], PACK_EVENTS = [];
+  let O = [], P = [], PR = null, SETS = new Map(), META = [], PACK_EVENTS = [], STAPLES = {};
   let byId, oByNorm, printsOf, bySetNum, bySet, cheapCache = new Map(), decksByCardCache = null;
   let user = null;
   let loaded = false;
@@ -130,6 +130,8 @@ const Engine = (() => {
     const newLive = newDay || (version && version.live_version !== saved.live_version);  // meta actualizado el mismo día
     const metaText = await fresh("meta", "meta.json", newLive);
     const eventsText = await fresh("events", "events.json", newLive);
+    let staplesText = null;
+    try { staplesText = await fresh("staples", "staples.json", newLive); } catch { /* paquete antiguo sin staples */ }
     if (version) await kvSet("version", version);
     VERSION = version || saved;
 
@@ -139,6 +141,7 @@ const Engine = (() => {
     PR = JSON.parse(pricesText);
     SETS = new Map(JSON.parse(setsText || "[]").map(([code, name, type, released, icon]) => [code, { code, name, type, released, icon }]));
     META = JSON.parse(metaText || "[]");
+    try { STAPLES = JSON.parse(staplesText || "{}"); } catch { STAPLES = {}; }
     for (const d of META) d.format ||= "PAU";  // paquetes antiguos: solo Pauper
     PACK_EVENTS = JSON.parse(eventsText || "[]");
     byId = new Map();
@@ -816,6 +819,12 @@ const Engine = (() => {
       O.map((o, oi) => oi).filter((oi) => O[oi][7] && O[oi][9] === 1 && !O[oi][1].startsWith("Basic"))
         .sort((a, b) => O[a][7] - O[b][7]).slice(0, 100)
         .forEach((oi, i) => rows.set(norm(O[oi][0]), { oi, pct: null, avg: 1, rank: i + 1 }));
+    } else if (STAPLES[format]?.cards?.length) {  // calculados con varias listas por arquetipo (paquete diario)
+      for (const [name, pct, avg] of STAPLES[format].cards) {
+        const k = norm(name), oi = oByNorm.get(k);
+        if (oi == null || (format === "PAU" && O[oi][6] !== 1) || (format === "ST" && O[oi][10] !== 1)) continue;
+        rows.set(k, { oi, pct, avg });
+      }
     } else {
       const decks = META.filter((d) => d.format === format);
       const total = decks.reduce((s, d) => s + (d.share || 0), 0) || 1;
@@ -832,12 +841,12 @@ const Engine = (() => {
       }
       for (const r of rows.values()) { r.pct = Math.round((1000 * r.share) / total) / 10; r.avg = Math.round((10 * r.copies) / r.decks) / 10; }
     }
-    const list = [...rows.entries()].sort((a, b) => (b[1].pct ?? 0) - (a[1].pct ?? 0) || (a[1].rank || 0) - (b[1].rank || 0)).slice(0, format === "EDH" ? 100 : 60)
+    const list = [...rows.entries()].sort((a, b) => (b[1].pct ?? 0) - (a[1].pct ?? 0) || (a[1].rank || 0) - (b[1].rank || 0)).slice(0, 100)
       .map(([k, r]) => ({ name: front(O[r.oi][0]), image: oImage(r.oi), eur: eur(cheap[r.oi]), pct: r.pct, avg: r.avg, rank: r.rank || null,
-        owned: owned.get(k) || 0, want: Math.max(1, Math.round(r.avg)) }));
+        owned: owned.get(k) || 0, want: format === "EDH" ? 1 : 4 }));  // un playset: el meta cambia y es más cómodo tener las 4
     const have = list.filter((x) => x.owned >= x.want).length;
     const missingCost = Math.round(list.reduce((s, x) => s + Math.max(0, x.want - x.owned) * (x.eur || 0), 0) * 100) / 100;
-    return { format, cards: list, have, total: list.length, missing_cost: missingCost, decks: META.filter((d) => d.format === format).length };
+    return { format, cards: list, have, total: list.length, missing_cost: missingCost, lists: STAPLES[format]?.lists || META.filter((d) => d.format === format).length };
   }
 
   // ---------------------------------------------------------------- cartas que sigues (precio y cambios a 1, 7 y 30 días)

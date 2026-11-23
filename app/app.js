@@ -778,7 +778,8 @@ async function staplesSheet(format = store("stapleFormat") || "PAU", keepScroll 
   const missing = d.cards.filter((c) => c.owned < c.want);
   body.innerHTML = `<h3>Staples de ${esc(STAPLE_FORMATS[format])}</h3>
     <div class="seg" id="st-format">${Object.entries(STAPLE_FORMATS).map(([k, n]) => `<button data-f="${k}" class="${k === format ? "on" : ""}">${n}</button>`).join("")}</div>
-    <div class="hint">${format === "EDH" ? "Las 100 cartas más jugadas en Commander según EDHREC." : "Las cartas más jugadas en las listas de torneo de MTGTop8: qué parte del meta las lleva y cuántas copias de media."} El número es copias tuyas / copias que se suelen jugar. Toca una para añadirla.</div>
+    <div class="hint">${format === "EDH" ? "Las 100 cartas más jugadas en Commander según EDHREC. El número es copias tuyas / 1." : "Las 100 cartas más jugadas en las listas de torneo de MTGTop8: qué parte del meta las lleva y cuántas copias de media. El número es copias tuyas / un playset (4)."} Toca una para añadirla.</div>
+    ${d.lists && format !== "EDH" ? `<div class="hint">Calculado con ${d.lists} listas de torneo.</div>` : ""}
     ${d.total ? `<div class="stats"><div class="stat"><b>${d.have}/${d.total}</b><span>Las tienes (${pctOwned}%)</span></div>
       <div class="stat"><b>${euro(d.missing_cost)}</b><span>Completarlas cuesta</span></div></div><div class="bar"><i style="width:${pctOwned}%"></i></div>
       <div class="grid" style="margin-top:12px">${d.cards.map(tileS).join("")}</div>

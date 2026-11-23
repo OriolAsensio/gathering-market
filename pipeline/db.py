@@ -113,6 +113,14 @@ CREATE TABLE IF NOT EXISTS meta (
     deck_id      INTEGER,
     PRIMARY KEY (day, format, archetype_id)
 );
+-- Todas las listas de torneo que se miran de cada arquetipo (para los staples: qué juega el meta de verdad).
+CREATE TABLE IF NOT EXISTS meta_lists (
+    day          TEXT,
+    format       TEXT,
+    archetype_id INTEGER,
+    deck_id      INTEGER,
+    PRIMARY KEY (day, format, archetype_id, deck_id)
+);
 CREATE TABLE IF NOT EXISTS decks (
     id           INTEGER PRIMARY KEY,    -- id de MTGTop8
     archetype_id INTEGER,

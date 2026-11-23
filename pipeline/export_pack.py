@@ -8,6 +8,7 @@ estos ficheros, que se publican cada día en internet (GitHub Pages):
   prices.json   precio de hoy y de hace 1, 7 y 30 días de cada impresión (cambia cada día)
   sets.json     ediciones
   meta.json     meta de Pauper y otros formatos: arquetipos, cuota y una lista de cada uno
+  staples.json  staples de cada formato: % del meta que juega cada carta y copias de media
   events.json   avisos (baneos, colecciones nuevas, cambios de meta)
 
 Uso:  python pipeline/export_pack.py [carpeta_salida]   (por defecto: pack/)
@@ -93,11 +94,39 @@ def main(out=None):
             "SELECT format, archetype_id, archetype, category, share, deck_id FROM meta m "
             "WHERE day = (SELECT max(day) FROM meta WHERE format = m.format) ORDER BY format, share DESC"):
         d = conn.execute("SELECT player, event, result, date FROM decks WHERE id = ?", (deck_id,)).fetchone()
+        if not d:
+            continue  # lista que no se pudo bajar
         cards = conn.execute("SELECT name, qty, sideboard FROM deck_cards WHERE deck_id = ? ORDER BY sideboard, name",
                              (deck_id,)).fetchall()
         meta.append(dict(id=deck_id, format=fmt, archetype=arch, category=cat, share=share, player=d[0], event=d[1],
                          result=d[2], date=d[3], cards=[list(c) for c in cards]))
     dump(out / "meta.json", meta)
+
+    # --- Staples de cada formato (como en MTGDecks): de todas las listas que se miran de cada arquetipo,
+    # qué parte del meta juega cada carta (cuota del arquetipo × proporción de sus listas que la llevan) y cuántas copias.
+    staples = {}
+    for (fmt,) in conn.execute("SELECT DISTINCT format FROM meta"):
+        day = conn.execute("SELECT max(day) FROM meta WHERE format = ?", (fmt,)).fetchone()[0]
+        archs = conn.execute("SELECT archetype_id, share, deck_id FROM meta WHERE format = ? AND day = ?", (fmt, day)).fetchall()
+        total = sum(s or 0 for _, s, _ in archs) or 1
+        score, copies, lists_with, n_lists = {}, {}, {}, 0
+        for arch_id, share, main_deck in archs:
+            ids = [d for (d,) in conn.execute(
+                "SELECT deck_id FROM meta_lists WHERE format = ? AND day = ? AND archetype_id = ?", (fmt, day, arch_id))] or [main_deck]
+            n_lists += len(ids)
+            per = {}
+            for d in ids:
+                for name, qty in conn.execute("SELECT name, sum(qty) FROM deck_cards WHERE deck_id = ? GROUP BY name", (d,)):
+                    per.setdefault(name, []).append(qty)
+            for name, qs in per.items():
+                score[name] = score.get(name, 0) + (share or 0) * len(qs) / len(ids)
+                copies[name] = copies.get(name, 0) + sum(qs)
+                lists_with[name] = lists_with.get(name, 0) + len(qs)
+        BASIC = {"Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"} | {f"Snow-Covered {b}" for b in ("Plains", "Island", "Swamp", "Mountain", "Forest")}
+        rows = sorted(((n, round(100 * v / total, 1), round(copies[n] / lists_with[n], 1), lists_with[n])
+                       for n, v in score.items() if n not in BASIC), key=lambda r: -r[1])[:150]
+        staples[fmt] = {"lists": n_lists, "cards": [list(r) for r in rows]}
+    dump(out / "staples.json", staples)
 
     # --- Avisos generales (los de tus cartas los calcula el móvil).
     events = conn.execute("SELECT id, day, kind, title, body FROM events WHERE kind != 'price' OR title LIKE '%mazos top%' "
@@ -122,7 +151,7 @@ def main(out=None):
 
     sizes = {f.name: f.stat().st_size for f in out.glob("*.json") if f.name != "version.json"}
     # Huella del meta y los avisos: la segunda vuelta del día puede traer meta nuevo con el mismo "day".
-    live = hashlib.sha1(b"".join((out / f).read_bytes() for f in ("meta.json", "events.json"))).hexdigest()[:12]
+    live = hashlib.sha1(b"".join((out / f).read_bytes() for f in ("meta.json", "events.json", "staples.json"))).hexdigest()[:12]
     dump(out / "version.json", {"day": day, "cards_version": cards_version, "live_version": live, "sizes": sizes,
                                 "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "format": 1})
     print(f"Paquete {day} en {out}: " + ", ".join(f"{k} {v / 1e6:.1f} MB" for k, v in sizes.items()))

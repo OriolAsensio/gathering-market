@@ -17,6 +17,12 @@ META = 145          # periodo de MTGTop8: últimos 2 meses (más arquetipos que 
 DELAY = 5           # segundos entre peticiones
 # Otros formatos: código de MTGTop8, nombre y cuántos arquetipos (los más jugados, en su periodo por defecto).
 OTHER = [("ST", "Estándar", 20), ("MO", "Modern", 20), ("PI", "Pioneer", 15), ("LE", "Legacy", 15), ("VI", "Vintage", 10)]
+# Listas extra por arquetipo (las más recientes) para calcular los staples, y tope de listas nuevas por ejecución
+# (cada una son 5 s; lo que no quepa hoy se baja en las siguientes vueltas: las ya guardadas no se repiten).
+EXTRA = {"PAU": 4}
+EXTRA_DEFAULT = 3
+NEW_LISTS_PER_RUN = 150
+_new_lists = 0
 
 _last = 0.0
 
@@ -30,7 +36,10 @@ def get(path: str) -> str:
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = resp.read()
     _last = time.time()
-    return data.decode("cp1252", errors="replace")
+    try:
+        return data.decode("utf-8")  # las listas (mtgo?d=) vienen en UTF-8
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="replace")  # las páginas, en cp1252
 
 
 def arch_re(f):
@@ -72,8 +81,26 @@ def parse_list(text: str):
     return cards
 
 
+def save_deck(conn, deck_id, a, m, force=False):
+    """Baja y guarda una lista si aún no la tenemos. Devuelve False si hoy ya no caben más descargas."""
+    global _new_lists
+    if conn.execute("SELECT 1 FROM decks WHERE id = ?", (deck_id,)).fetchone():
+        return True
+    if _new_lists >= NEW_LISTS_PER_RUN and not force:  # la lista principal se baja siempre
+        return False
+    cards = parse_list(get(f"mtgo?d={deck_id}"))
+    _new_lists += 1
+    with conn:
+        conn.execute("INSERT INTO decks VALUES (?,?,?,?,?,?,?,?)",
+                     (deck_id, a["id"], a["name"], m.group(2).strip(), m.group(3).strip(),
+                      m.group(4).strip(), m.group(5).strip(), m.group(6).strip()))
+        conn.executemany("INSERT OR REPLACE INTO deck_cards VALUES (?,?,?,?)",
+                         [(deck_id, n, q, s) for n, q, s in cards])
+    return True
+
+
 def scrape(conn, today, f, archetypes):
-    """Guarda la foto del día de un formato: cuota de cada arquetipo y su mejor lista."""
+    """Guarda la foto del día de un formato: cuota de cada arquetipo, su mejor lista y unas cuantas más (staples)."""
     saved = 0
     for a in archetypes:
         html = get(f"archetype?a={a['id']}&meta={a['meta']}&f={f}")
@@ -85,16 +112,20 @@ def scrape(conn, today, f, archetypes):
             print(f"  sin listas: {a['name']}")
             continue
         deck_id = int(m.group(1))
+        save_deck(conn, deck_id, a, m, force=True)
+        lists = [deck_id]
+        for r in rows:  # las más recientes primero
+            if len(lists) > EXTRA.get(f, EXTRA_DEFAULT):
+                break
+            rid = int(r.group(1))
+            if rid not in lists and save_deck(conn, rid, a, r):
+                lists.append(rid)
         with conn:
-            if not conn.execute("SELECT 1 FROM decks WHERE id = ?", (deck_id,)).fetchone():
-                cards = parse_list(get(f"mtgo?d={deck_id}"))
-                conn.execute("INSERT INTO decks VALUES (?,?,?,?,?,?,?,?)",
-                             (deck_id, a["id"], a["name"], m.group(2).strip(), m.group(3).strip(),
-                              m.group(4).strip(), m.group(5).strip(), m.group(6).strip()))
-                conn.executemany("INSERT OR REPLACE INTO deck_cards VALUES (?,?,?,?)",
-                                 [(deck_id, n, q, s) for n, q, s in cards])
             conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?,?,?,?,?,?)",
                          (today, f, a["id"], a["name"], a["category"], a["share"], deck_id))
+            conn.executemany("INSERT OR REPLACE INTO meta_lists VALUES (?,?,?,?)",
+                             [(today, f, a["id"], d) for d in lists
+                              if conn.execute("SELECT 1 FROM decks WHERE id = ?", (d,)).fetchone()])
         saved += 1
         print(f"  {f} {a['share']:4.0f}%  {a['name']}")
     return saved
