@@ -414,3 +414,12 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 #share-btn { margin-left: auto; }
 #share-btn + #profile-btn { margin-left: 6px; }
 #share-btn[hidden] + #profile-btn { margin-left: auto; }
+
+/* Quitar una carta del mazo del constructor */
+.gcard { position: relative; }
+.x-card { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(0,0,0,.7); color: #fff;
+  font-size: 13px; line-height: 26px; padding: 0; cursor: pointer; }
+/* Proxies */
+.proxy-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.proxy-row .mini { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); padding: 0; cursor: pointer; }
+.proxy-row .mini:disabled { opacity: .35; }
