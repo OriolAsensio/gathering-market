@@ -2,7 +2,8 @@
 
 Solo combos de exactamente 2 cartas cuyo resultado es infinito (no sinergias). De cada uno se guardan
 las dos cartas, qué produce, los requisitos, los pasos y en qué formatos es legal. La app busca cuáles
-puedes montar con tu colección y te explica cómo funcionan. Se descarga una vez por semana.
+puedes montar con tu colección y te explica cómo funcionan. Es la misma base de combos que usa EDHREC
+(edhrec.com/combos). Se descarga en cada vuelta de la tarea diaria, así los combos nuevos llegan enseguida.
 
 Uso:  python pipeline/combos.py
 """

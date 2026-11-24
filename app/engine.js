@@ -1609,8 +1609,9 @@ const Engine = (() => {
   // Black Lotus siempre, el Mox de cada color del mazo, y las azules (Ancestral Recall, Time Walk, Timetwister) si es azul.
   const POWER9 = { "Black Lotus": "", "Mox Pearl": "W", "Mox Sapphire": "U", "Mox Jet": "B", "Mox Ruby": "R", "Mox Emerald": "G",
     "Ancestral Recall": "U", "Time Walk": "U", "Timetwister": "U" };
-  async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "", p9 = "" }) {
+  async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "", p9 = "", combo = "" }) {
     const withP9 = String(p9) === "1";
+    const withCombo = String(combo) === "1";  // "Combo": se suma al estilo (control + combo, agresivo + combo…)
     if (withP9 && format !== "casual") format = "casual";  // solo son legales en Vintage (y prohibidas en Commander): el mazo va a Casual
     const power = POWER[+pw] ? +pw : 3, PW = POWER[power];
     const excluded = new Set(String(exclude || "").split("|").map((n) => norm(n.trim())).filter(Boolean));  // cartas que has quitado
@@ -1858,8 +1859,8 @@ const Engine = (() => {
           if (x.payoff.has(th) && pay * 2 > en + 4) balance -= 2;       // demasiadas recompensas para lo que hay
         }
         // Combo infinito con una carta que ya está en el mazo (en Commander, solo desde el bracket 4: en los bajos se pactan sin combos)
-        const comboMate = (bracket >= 4 || size !== 100) && power >= 2 ? (partners.get(norm(x.name)) || []).find(([p]) => chosen.some(([y]) => norm(y.name) === p)) : null;
-        const comboBonus = comboMate ? 8 : 0;
+        const comboMate = withCombo || ((bracket >= 4 || size !== 100) && power >= 2) ? (partners.get(norm(x.name)) || []).find(([p]) => chosen.some(([y]) => norm(y.name) === p)) : null;
+        const comboBonus = comboMate ? (withCombo ? 14 : 8) : 0;
         const score = s + need + co + onColor + power_ * PW.rank + cheapBody + balance + comboBonus + (x.is_creature ? st.creature : 0)
           - (x.cmc >= st.heavyAt ? st.heavy : 0) - (x.cmc >= 5 ? PW.heavy : 0) - autopilot + (x.gc ? PW.gc : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)),
@@ -2081,6 +2082,31 @@ const Engine = (() => {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
       colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(), meta_recs: metaRecs(), swaps,
       focus: FO ? focus : "", excluded: [...excluded], p9: withP9,
+      combo: withCombo,
+      // Con "Combo" activado: combos infinitos para elegir (los que ya tienen una carta en el mazo, luego los que tienes enteros…)
+      combo_options: withCombo ? (() => {
+        const inDeck = new Set(chosen.map(([x]) => norm(x.name)));
+        const has = (k) => (pool.get(k)?.owned || 0) > 0;
+        const out = [], seen = new Set();
+        for (const [a, list] of partners) for (const [b, k] of list) {
+          const key = [a, b].sort().join("|");
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const ois = k.cards.map((n) => oByNorm.get(norm(n)));
+          if (ois.some((oi) => oi == null) || k.cards.some((n) => excluded.has(norm(n)))) continue;
+          const ci = new Set(ois.flatMap((oi) => [...(O[oi][4] || "")]));
+          // Que quepa en los colores del mazo; fuera de Commander se admite un color más (se avisa y, al elegirlo, el mazo lo suma)
+          const extra = [...ci].filter((col) => !deckColors.has(col));
+          if (extra.length > (commander || size === 100 ? 0 : 1)) continue;
+          const deck = k.cards.map((n) => inDeck.has(norm(n))), own = k.cards.map((n) => has(norm(n)) || inDeck.has(norm(n)));
+          if (deck[0] && deck[1]) continue;  // ya está en el mazo (sale abajo)
+          const score = (deck[0] || deck[1] ? 100 : 0) + own.filter(Boolean).length * 40 + Math.min(20, (k.pop || 0) / 500) - extra.length * 15;  // lo que ya tienes, primero
+          if (!own[0] && !own[1] && !deck[0] && !deck[1]) continue;  // al menos una carta tuya
+          out.push({ cards: k.cards, makes: k.makes, steps: k.steps, pre: k.pre, needs: k.needs, mana: k.mana, in_deck: deck, owned: own,
+            images: ois.map(oImage), eur: ois.map((oi) => eur(cheap[oi])), extra_color: extra[0] || "", score });
+        }
+        return out.sort((x, y) => y.score - x.score).slice(0, 12);
+      })() : [],
       combos: (() => {  // combos infinitos que lleva el mazo final, con sus pasos
         const inDeck = new Set(chosen.map(([x]) => norm(x.name)));
         const seen = new Set(), out = [];

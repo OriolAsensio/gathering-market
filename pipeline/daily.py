@@ -41,8 +41,7 @@ def main():
     steps = [("precios", ingest_prices.main), ("historial MTGJSON", backfill_prices.main), ("colecciones", sets.main)]
     if weekly or "precons" not in tables:
         steps.append(("mazos preconstruidos", precons.main))
-    if weekly or "combos" not in tables:
-        steps.append(("combos", combos.main))
+    steps.append(("combos", combos.main))  # en cada vuelta (~1 min): los combos nuevos llegan enseguida
     if weekly or "foreign_names" not in tables:
         steps.append(("nombres en otros idiomas", foreign_names.main))
     steps += [

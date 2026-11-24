@@ -487,3 +487,7 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 .combo-big figcaption { font-size: 12px; opacity: .8; margin-top: 4px; }
 .combo-steps, .combo-pre { margin: 6px 0; padding-left: 22px; line-height: 1.45; }
 .combo-steps li, .combo-pre li { margin: 4px 0; }
+
+.combo-toggle { padding: 8px 10px; border: 1px solid var(--gold); border-radius: 10px; background: var(--surface-2); }
+.combo-toggle .ico { color: var(--gold); }
+.combo-pick { margin: 6px 0 10px; }
