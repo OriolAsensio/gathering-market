@@ -66,7 +66,7 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: .85em; }
   max-width: 720px; margin: 0 auto;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.crest { width: 34px; height: 38px; flex: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.crest { width: 36px; height: 36px; flex: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
 .brand span {
   font: 800 19px/1 var(--display); letter-spacing: .06em;
   background: linear-gradient(180deg, var(--gold-2), var(--gold) 70%);
@@ -349,7 +349,7 @@ body:has(#col-bar:not([hidden])) .fab { display: none; }
   border-top: 2px solid var(--gold); border-radius: 16px 16px 0 0; padding: 12px 16px calc(18px + var(--safe-b)); }
 
 .splash { text-align: center; padding: 60px 20px; }
-.splash .crest { width: 84px; height: 94px; }
+.splash .crest { width: 90px; height: 90px; }
 .splash-msg { font: 600 15px var(--display); letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
 .splash .progress { max-width: 260px; margin: 10px auto; }
 
