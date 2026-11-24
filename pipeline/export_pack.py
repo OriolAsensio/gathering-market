@@ -159,7 +159,7 @@ def main(out=None):
     tours = []
     if "tournaments" in {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}:
         for eid, fmt, name, place, tday, featured, players in conn.execute(
-                "SELECT * FROM tournaments WHERE featured = 1 OR id IN (SELECT id FROM tournaments ORDER BY date DESC, id DESC LIMIT 12) "
+                "SELECT * FROM tournaments WHERE featured > 0 OR id IN (SELECT id FROM tournaments ORDER BY date DESC, id DESC LIMIT 12) "
                 "ORDER BY date DESC, id DESC"):
             top = []
             for rank, deck_id, arch, player in conn.execute(

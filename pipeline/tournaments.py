@@ -1,5 +1,5 @@
-"""Mazos ganadores de los últimos torneos de Pauper (MTGTop8) y el torneo destacado: el Super Pauper
-de inGenio BCN Games (Barcelona), con su top 8 completo (jugador y lista).
+"""Mazos ganadores de los últimos torneos de Pauper (MTGTop8) y los torneos destacados, con su top 8 completo
+(jugador y lista): el Super Pauper de inGenio BCN Games (Barcelona) y el Paupergeddon (Lucca, Italia).
 
 De cada torneo nuevo se guardan los puestos y nombres; las listas se bajan solo de lo que se enseña
 (el ganador de cada torneo y el top 8 del destacado). MTGTop8 pide 5 s entre peticiones: se reutiliza
@@ -11,10 +11,14 @@ import urllib.parse
 from db import connect
 from pauper_meta import get, parse_list
 
-FEATURED = re.compile(r"super", re.I), re.compile(r"ingenio|bcn", re.I)  # nombre y tienda del destacado
+# Torneos destacados: número que se guarda en "featured", cómo se reconocen (nombre @ tienda) y qué buscar en MTGTop8
+# (el buscador devuelve pocos resultados por búsqueda: "Paupergeddon" solo da los clasificatorios, "Main Event" da el principal).
+FEATURED = [
+    (1, lambda name, place: bool(re.search(r"super", name, re.I) and re.search(r"ingenio|bcn", name + " " + place, re.I)), ["Edición Super"]),
+    (2, lambda name, place: bool(re.search(r"paupergeddon", name, re.I) and re.search(r"main event", name, re.I)), ["Main Event", "Paupergeddon"]),
+]
 RECENT = 12          # torneos recientes que se miran
-FEATURED_TOP = 8     # listas que se bajan del destacado
-FEATURED_SEARCH = "Edición Super"  # en el buscador de MTGTop8 salen también las ediciones antiguas
+FEATURED_TOP = 8     # listas que se bajan de cada destacado
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY, format TEXT, name TEXT, place TEXT, date TEXT, featured INTEGER, players INTEGER);
 CREATE TABLE IF NOT EXISTS tournament_decks (event_id INTEGER, rank TEXT, deck_id INTEGER, archetype TEXT, player TEXT, PRIMARY KEY (event_id, deck_id));
@@ -26,7 +30,8 @@ PLAYERS_RE = re.compile(r"(\d+) players")
 
 
 def is_featured(name, place):
-    return bool(FEATURED[0].search(name) and FEATURED[1].search(name + " " + place))
+    """0 si no es destacado; si lo es, su número (1 Super Pauper, 2 Paupergeddon)."""
+    return next((n for n, match, _ in FEATURED if match(name, place)), 0)
 
 
 def save_list(conn, deck_id, archetype, player, event, rank, day):
@@ -49,9 +54,12 @@ def main(fmt="PAU"):
             seen.add(eid)
             events.append((eid, m.group(3).strip(), m.group(4).strip(), f"20{m.group(7)}-{m.group(6)}-{m.group(5)}"))
     # Ediciones del destacado (también las que ya no salen en la portada)
-    found = re.findall(r"<a href=event\?e=(\d+)[^>]*>([^<]*@[^<]*)</a>",
-                       get(f"search?format={fmt}&event_titre=" + urllib.parse.quote(FEATURED_SEARCH.encode("cp1252"))))
-    for eid, title in sorted(set(found)):
+    found = set()
+    for _, _, searches in FEATURED:
+        for q in searches:
+            found |= set(re.findall(r"<a href=event\?e=(\d+)[^>]*>([^<]*@[^<]*)</a>",
+                                    get(f"search?format={fmt}&event_titre=" + urllib.parse.quote(q.encode("cp1252")))))
+    for eid, title in sorted(found):
         name, _, place = title.partition(" @ ")
         if int(eid) not in seen and is_featured(name, place):
             seen.add(int(eid))
@@ -69,7 +77,7 @@ def main(fmt="PAU"):
                 day = f"20{d.group(3)}-{d.group(2)}-{d.group(1)}" if d else None
             with conn:
                 conn.execute("INSERT INTO tournaments VALUES (?,?,?,?,?,?,?)",
-                             (eid, fmt, name, place, day, int(featured), int(players.group(1)) if players else None))
+                             (eid, fmt, name, place, day, featured, int(players.group(1)) if players else None))
                 conn.executemany("INSERT OR IGNORE INTO tournament_decks VALUES (?,?,?,?,?)", [(eid, *r) for r in rows])
             new += 1
         day = day or conn.execute("SELECT date FROM tournaments WHERE id = ?", (eid,)).fetchone()[0]

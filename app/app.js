@@ -640,6 +640,7 @@ views.decks = async () => {
       </div>
       ${list.length ? `<div class="list">${[...list].sort(sorters[state.deckSort]).map(deckCard).join("")}</div>`
         : `<div class="empty"><strong>Aún no hay datos del meta</strong>Se descargan cada día.</div>`}`;
+    bindView();
     body.querySelectorAll("#deck-sort button").forEach((b) => {
       b.classList.toggle("on", b.dataset.s === state.deckSort);
       b.onclick = () => { state.deckSort = b.dataset.s; store("deckSort", b.dataset.s); draw(); };
@@ -660,11 +661,15 @@ async function winnersView(box) {
       <span class="tour-rank ${d.rank === "1" ? "win" : ""}">${place(d.rank)}</span>
       <div class="item-main"><div class="item-title">${esc(d.archetype)}</div><div class="item-meta">${esc(d.player)}${d.has_list ? ` · Tienes el ${d.owned_pct}%` : ""}</div></div>
       ${d.has_list ? `<div class="item-side"><div class="price">${euro(d.price)}</div></div>` : ""}</button>`;
-  const featured = tours.filter((t) => t.featured), recent = tours.filter((t) => !t.featured);
-  box.innerHTML = `${featured.length ? `<h2>${ico("trophy")}Torneo destacado: Super Pauper</h2>
-      <div class="hint">El Super Pauper de inGenio BCN Games (Barcelona), de MTGTop8. Toca un mazo para ver la lista y qué cartas tienes.</div>
-      ${featured.map((t) => `<div class="tour-card featured"><div class="tour-head"><b>${esc(t.name)}</b><span class="sub">${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</span></div>
-        <div class="list">${t.top.slice(0, 8).map(deckRow).join("")}</div></div>`).join("")}` : ""}
+  const recent = tours.filter((t) => !t.featured);
+  const SERIES = [[1, "Torneo destacado: Super Pauper", "El Super Pauper de inGenio BCN Games (Barcelona), de MTGTop8. Toca un mazo para ver la lista y qué cartas tienes."],
+    [2, "Torneo destacado: Paupergeddon", "El Paupergeddon de Lucca (Italia), el torneo de Pauper más grande del mundo. Toca un mazo para ver la lista."]];
+  const tourCard = (t) => `<div class="tour-card featured"><div class="tour-head"><b>${esc(t.name)}</b><span class="sub">${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</span></div>
+        <div class="list">${t.top.slice(0, 8).map(deckRow).join("")}</div></div>`;
+  box.innerHTML = `${SERIES.map(([n, title, hint]) => {
+      const ts = tours.filter((t) => t.featured === n);
+      return ts.length ? `<h2>${ico("trophy")}${title}</h2><div class="hint">${hint}</div>${ts.map(tourCard).join("")}` : "";
+    }).join("")}
     <h2>Últimos torneos</h2><div class="hint">El mazo ganador de los últimos torneos de Pauper en MTGTop8. Toca un torneo para ver su top.</div>
     <div class="list">${recent.map((t) => {
       const w = t.top[0];
