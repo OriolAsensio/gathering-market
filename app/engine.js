@@ -882,7 +882,8 @@ const Engine = (() => {
       const oi = oByNorm.get(k);
       return { name, qty, side: !!side, have, owned: basic ? qty : owned.get(k) || 0, basic, eur: basic || oi == null ? null : eur(cheap[oi]), image: oi != null ? oImage(oi) : null };
     });
-    return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, ...deckInfo(d, owned) };
+    return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, ...deckInfo(d, owned),
+      test: mine && !!d.test, results: mine ? d.results || [] : [], built: mine ? d.built || null : null };
   }
 
   // ---------------------------------------------------------------- staples de cada formato
@@ -1197,10 +1198,25 @@ const Engine = (() => {
     }
     return { cards, unknown };
   }
+  /** Por carta: partidas y victorias en tus "Mazos para probar" (cada carta cuenta los resultados de los mazos que la llevan). */
+  function testedCardStats() {
+    const m = new Map();
+    for (const d of user.decks || []) {
+      if (!d.test || !d.results?.length) continue;
+      const games = d.results.reduce((n, r) => n + (r.games || 3), 0), wins = d.results.reduce((n, r) => n + (r.wins || 0), 0);
+      for (const k of new Set(d.cards.filter(([, , side]) => !side).map(([n]) => norm(n)))) {
+        const s = m.get(k) || { games: 0, wins: 0 }; s.games += games; s.wins += wins; m.set(k, s);
+      }
+    }
+    return m;
+  }
   function myDecks({ c }) {
     const owned = ownedByName(binderOf(c) || 1);
-    return (user.decks || []).map((d) => ({ id: d.id, archetype: d.name, category: d.format || "Mi mazo", share: null,
-      thumbs: thumbsOf(d), mine: true, ...deckInfo(d, owned) }));
+    return (user.decks || []).map((d) => {
+      const games = (d.results || []).reduce((n, r) => n + (r.games || 3), 0), wins = (d.results || []).reduce((n, r) => n + (r.wins || 0), 0);
+      return { id: d.id, archetype: d.name, category: d.format || "Mi mazo", share: null, test: !!d.test, games, wins,
+        thumbs: thumbsOf(d), mine: true, ...deckInfo(d, owned) };
+    });
   }
   function myDecksPost(body) {
     user.decks ||= [];
@@ -1210,7 +1226,7 @@ const Engine = (() => {
       const { cards, unknown } = body.import ? parseDeck(src.text) : { cards: src.cards, unknown: [] };
       if (!cards.length) throw new Error("No he reconocido ninguna carta en la lista");
       const id = `u${user.nextDeck++}`;
-      user.decks.unshift({ id, name: (src.name || "Mi mazo").slice(0, 60), format: src.format || "", cards });
+      user.decks.unshift({ id, name: (src.name || "Mi mazo").slice(0, 60), format: src.format || "", cards, ...(src.test ? { test: true, results: [], built: src.built || null } : {}) });
       saveUser();
       return { id, cards: cards.length, unknown };
     }
@@ -1223,6 +1239,15 @@ const Engine = (() => {
       if (body.update.name) d.name = String(body.update.name).slice(0, 60);
       saveUser();
       return { id: d.id, cards: cards.length, unknown };
+    }
+    if (body.result) {  // "Mazos para probar": resultado de una tanda (p. ej. 2 de 3 ganadas) y tu opinión
+      const d = user.decks.find((x) => x.id === body.result.id);
+      if (!d) throw new Error("Ese mazo ya no existe");
+      const games = Math.max(3, Math.min(50, +body.result.games || 3)), wins = Math.max(0, Math.min(games, +body.result.wins || 0));
+      (d.results ||= []).unshift({ day: today(), games, wins, where: String(body.result.where || "").slice(0, 60), note: String(body.result.note || "").slice(0, 500) });
+      d.test = true;
+      saveUser();
+      return { ok: true };
     }
     if (body.delete) {
       user.decks = user.decks.filter((d) => d.id !== body.delete);
@@ -1609,7 +1634,9 @@ const Engine = (() => {
   // Black Lotus siempre, el Mox de cada color del mazo, y las azules (Ancestral Recall, Time Walk, Timetwister) si es azul.
   const POWER9 = { "Black Lotus": "", "Mox Pearl": "W", "Mox Sapphire": "U", "Mox Jet": "B", "Mox Ruby": "R", "Mox Emerald": "G",
     "Ancestral Recall": "U", "Time Walk": "U", "Timetwister": "U" };
-  async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "", p9 = "", combo = "" }) {
+  async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "", p9 = "", combo = "", buy = "", sbbuy = "", spoilers = "" }) {
+    const withSpoilers = String(spoilers) === "1";  // cartas anunciadas que aún no han salido
+    const withBuy = String(buy) === "1", sbBuy = String(sbbuy) === "1";  // usar cartas que no tienes (para comprar) en el main / banquillo
     const withP9 = String(p9) === "1";
     const withCombo = String(combo) === "1";  // "Combo": se suma al estilo (control + combo, agresivo + combo…)
     if (withP9 && format !== "casual") format = "casual";  // solo son legales en Vintage (y prohibidas en Commander): el mazo va a Casual
@@ -1702,6 +1729,16 @@ const Engine = (() => {
     }
     // Estilo: si las cartas base salen en listas del meta, el que tienen esos mazos (Aggro/Control/Combo); si no, lo que piden.
     const metaCode = FORMAT_META[fmt] || null;
+    /* Copias de cada carta: si se juega en el meta, las que llevan de media las listas de torneo; si no, 4 solo las clave,
+     * 2-3 las de apoyo y 2 las caras o legendarias (antes ponía tantas como tuvieras y faltaban cartas distintas). */
+    const avgCopies = new Map((STAPLES[metaCode]?.cards || []).map(([n, , avg]) => [norm(n), avg]));
+    const idealCopies = (x, sc) => {
+      if (size === 100) return 1;
+      const a = avgCopies.get(norm(x.name));
+      if (a) return Math.max(1, Math.min(4, Math.round(a)));
+      if (/legendary/i.test(O[x.oi][1]) || x.cmc >= 5) return 2;
+      return sc >= 8 ? 4 : sc >= 5 ? 3 : 2;
+    };
     const metaStyle = (() => {
       if (!metaCode) return null;
       const keys = new Set(base.map((x) => norm(x.name)));
@@ -1725,6 +1762,35 @@ const Engine = (() => {
 
     const baseKeys = new Set(base.map((x) => norm(x.name)));
     const candidates = [...pool.entries()].filter(([k, x]) => !x.is_land && !baseKeys.has(k) && !excluded.has(k) && legal(x) && subset(x.colors, deckColors)).map(([, x]) => x);
+    if (withBuy) {  // también cartas que no tienes: las que juega el meta del formato o, si no hay meta, las que mejor encajan
+      const have = new Set([...candidates, ...base].map((x) => x.oi));
+      const mcode = FORMAT_META[fmt];
+      const extraOis = mcode ? [...metaPlay(mcode).entries()].filter(([, v]) => v >= 0.04).map(([k]) => oByNorm.get(k))
+        : (indexAll(), synergyCandidates(makePlan(base), have).slice(0, 150).map(([oi]) => oi));
+      for (const oi of extraOis) {
+        if (oi == null || have.has(oi)) continue;
+        const x = mk(oi, size === 100 ? 1 : 4);
+        x.buy = true;
+        if (!x.is_land && legal(x) && subset(x.colors, deckColors) && !excluded.has(norm(x.name)) && cheap[oi] && cheap[oi] <= (fmt === "pauper" ? 500 : 3000)) { candidates.push(x); have.add(oi); }
+      }
+    }
+    // Spoilers: cartas cuya primera impresión aún no ha salido. Aún no tienen legalidad: en Pauper valen si son comunes.
+    const spoilerPool = [];
+    if (withSpoilers) {
+      const td = today(), first = new Map();
+      for (let pi = 0; pi < P.length; pi++) { const r = SETS.get(P[pi][2])?.released || "9999", oi = P[pi][1]; if (!first.has(oi) || r < first.get(oi)) first.set(oi, r); }
+      const have = new Set([...candidates, ...base].map((x) => x.oi));
+      for (const [oi, r] of first) {
+        if (r <= td || r === "9999" || have.has(oi)) continue;
+        const x = mk(oi, size === 100 ? 1 : 4);
+        x.buy = true; x.spoiler = r;
+        const ok = fmt !== "pauper" || printsOf[oi].some((pi) => P[pi][4] === "c");
+        if (!x.is_land && ok && !(size === 60 && x.cmdr_only) && subset(x.colors, deckColors) && !excluded.has(norm(x.name))) { candidates.push(x); spoilerPool.push(x); have.add(oi); }
+      }
+    }
+    // Lo aprendido de tus "Mazos para probar": las cartas de mazos que ganan suben un poco; las de mazos que pierden, bajan.
+    const learned = testedCardStats();
+    const learnBonus = (x) => { const s = learned.get(norm(x.name)); return s && s.games >= 3 ? Math.max(-2, Math.min(2, (s.wins / s.games - 0.5) * 6)) : 0; };
 
     // 1) Cartas base.
     const chosen = [];   // [carta, copias, motivos]
@@ -1861,7 +1927,7 @@ const Engine = (() => {
         // Combo infinito con una carta que ya está en el mazo (en Commander, solo desde el bracket 4: en los bajos se pactan sin combos)
         const comboMate = withCombo || ((bracket >= 4 || size !== 100) && power >= 2) ? (partners.get(norm(x.name)) || []).find(([p]) => chosen.some(([y]) => norm(y.name) === p)) : null;
         const comboBonus = comboMate ? (withCombo ? 14 : 8) : 0;
-        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + balance + comboBonus + (x.is_creature ? st.creature : 0)
+        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + balance + comboBonus + learnBonus(x) - (x.buy && !x.spoiler ? 0.5 : 0) + (x.is_creature ? st.creature : 0)
           - (x.cmc >= st.heavyAt ? st.heavy : 0) - (x.cmc >= 5 ? PW.heavy : 0) - autopilot + (x.gc ? PW.gc : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)),
           ...(comboMate ? [`combo infinito con ${comboMate[1].cards.find((n) => norm(n) !== norm(x.name))}`] : []),
@@ -1873,7 +1939,7 @@ const Engine = (() => {
       const fillsRole = [...best.roles].some((r) => roles[r] < target[r]);
       const reservable = [...left].some((x) => x !== best && fits(x) && [...x.roles].some((r) => roles[r] < target[r]));
       const free = spellSlots() - used - (fillsRole || !reservable ? 0 : deficit);  // no comerse los huecos reservados
-      take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room)), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
+      take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room, idealCopies(best, bestScore))), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
       if (best.gc) gcCount++;
       if (best.extra_turn) turnsCount++;
     }
@@ -1905,6 +1971,39 @@ const Engine = (() => {
       take(bx, Math.min(wn, bx.owned, maxCopies), [...fit(plan, bx)[1].map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)).slice(0, 2), `mejor que ${wx.name}`], valueOf(bx));
       if (bx.gc) gcCount++;
       swaps.push([wx.name, bx.name]);
+    }
+    // Mazos que roban mucho (o con motor de robo tipo Rhystic Study): 1-2 cartas que devuelven el cementerio a la biblioteca
+    // (Campfire, Ghostly Flicker no; Kozilek's Return no…) para no perder por quedarte sin cartas. Sustituyen a las más flojas.
+    if (size === 60) {
+      const RECUR = /shuffle[^.]{0,80}graveyard[^.]{0,40}into (its owner's|their owners'?|your) librar|from your graveyard (on top of|on the bottom of|into) your library|your graveyard into your library/i;
+      const drawN = chosen.reduce((n, [x, k]) => n + (x.roles.has("draw") ? k : 0), 0);
+      const engine = chosen.some(([x]) => /whenever an opponent casts .{0,60}draw|draw an additional card|at the beginning of your upkeep, draw/i.test(O[x.oi][5] || ""));
+      let need = (drawN >= 14 || engine ? 2 : drawN >= 10 ? 1 : 0) - chosen.reduce((n, [x, k]) => n + (RECUR.test(O[x.oi][5] || "") ? k : 0), 0);
+      if (need > 0) {
+        const own = [...left].filter((x) => !x.is_land && legal(x) && subset(x.colors, deckColors) && RECUR.test(O[x.oi][5] || ""));
+        const pick = own.sort((a, b) => valueOf(b) - valueOf(a))[0]
+          || (() => {  // la mejor que no tienes: primero las que barajan TODO el cementerio (Campfire…), luego las más jugadas
+            const WHOLE = /shuffle[^.]{0,80}graveyard[^.]{0,40}into/i, found = [];
+            for (let oi = 0; oi < O.length; oi++) {
+              if (!RECUR.test(O[oi][5] || "")) continue;
+              const x = mk(oi, 0);
+              if (!x.is_land && legal(x) && subset(x.colors, deckColors) && cheap[oi] && cheap[oi] <= 300 && !excluded.has(norm(x.name)))
+                found.push([x, (WHOLE.test(O[oi][5]) ? 100 : 0) + metaScore(x) * 50 + rankScore(x)]);
+            }
+            return found.sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+          })();
+        if (pick) {
+          const n = Math.min(need, pick.owned || need);
+          for (let i = 0; i < n; i++) {  // quitar una copia de la carta más floja (nunca las base)
+            const weakest = chosen.filter(([x, , w]) => !w[0]?.startsWith("carta base") && !w[0]?.startsWith("Power 9")).map((e) => [e, valueOf(e[0])]).sort((a, b) => a[1] - b[1])[0]?.[0];
+            if (!weakest) break;
+            weakest[1]--; curve[Math.min(Math.floor(weakest[0].cmc), 6)]--; for (const r of weakest[0].roles) roles[r]--;
+            if (!weakest[1]) { chosen.splice(chosen.indexOf(weakest), 1); left.add(weakest[0]); }
+          }
+          left.delete(pick);
+          take(pick, n, [pick.owned ? "robas mucho: devuelve el cementerio a la biblioteca para no quedarte sin cartas" : "robas mucho: devuelve el cementerio a la biblioteca (no la tienes)"]);
+        }
+      }
     }
     // Si la carpeta no llega: primero lo que quede de tu carpeta (incoloras incluidas), luego cartas para comprar o usar como
     // proxy que encajan con el plan, y al final tierras básicas. Así el mazo siempre tiene sus 60 (o 100) cartas.
@@ -2062,8 +2161,8 @@ const Engine = (() => {
       return [...scored.entries()].sort((a, b) => b[1][0] - a[1][0]).slice(0, 10)
         .map(([oi, [, why]]) => ({ name: front(O[oi][0]), image: oImage(oi), eur: eur(cheap[oi]), reasons: why.slice(0, 2) }));
     }
-    const out = (x, n, role, why) => ({ name: x.name, qty: n, cmc: x.cmc, type: x.type_line, role, reasons: why || [],
-      image: oImage(x.oi), eur: cheap[x.oi] ? eur(cheap[x.oi]) : null, owned: x.owned });
+    const out = (x, n, role, why) => ({ name: x.name, qty: n, cmc: x.cmc, type: x.type_line, role, reasons: x.spoiler ? [`spoiler: sale el ${x.spoiler}`, ...(why || [])] : why || [], spoiler: x.spoiler || null,
+      image: oImage(x.oi), eur: cheap[x.oi] ? eur(cheap[x.oi]) : null, owned: x.buy ? 0 : x.owned, buy: !!x.buy });
     const cardsOut = chosen.slice().sort((a, b) => a[0].cmc - b[0].cmc || a[0].name.localeCompare(b[0].name))
       .map(([x, n, why]) => out(x, n, x.is_creature ? "criatura" : "hechizo", why));
     const landRows = lands.map(([x, n, why]) => out(x, n, "tierra", why));
@@ -2082,7 +2181,34 @@ const Engine = (() => {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
       colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(), meta_recs: metaRecs(), swaps,
       focus: FO ? focus : "", excluded: [...excluded], p9: withP9,
-      combo: withCombo,
+      combo: withCombo, buy: withBuy, sbbuy: sbBuy, with_spoilers: withSpoilers,
+      // Spoilers que encajan con el plan del mazo (estén o no dentro), con el porqué
+      spoilers: spoilerPool.map((x) => [x, fit(plan, x)]).filter(([, [sc]]) => sc > 0).sort((a, b) => b[1][0] - a[1][0]).slice(0, 12)
+        .map(([x, [, why]]) => ({ name: x.name, image: oImage(x.oi), released: x.spoiler, in_deck: chosen.some(([y]) => y === x), reasons: why.slice(0, 2).map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)) })),
+      // Banquillo contra el meta (Pauper, Estándar): lo que más llevan los banquillos de las listas del meta, en tus colores
+      sideboard: FORMAT_META[fmt] && size === 60 ? (() => {
+        const inMain = new Set(chosen.map(([x]) => norm(x.name)));
+        const sc = new Map();
+        for (const d of META.filter((d) => d.format === FORMAT_META[fmt])) for (const [n, q, side] of d.cards) {
+          if (!side) continue;
+          const k = norm(n), r = sc.get(k) || [0, 0, 0, []];
+          r[0] += d.share || 1; r[1] += q; r[2]++; if (r[3].length < 3 && !r[3].includes(d.archetype)) r[3].push(d.archetype);
+          sc.set(k, r);
+        }
+        const out = []; let total = 0;
+        for (const [k, [, copies, n, archs]] of [...sc].sort((a, b) => b[1][0] - a[1][0])) {
+          if (total >= 15) break;
+          const oi = oByNorm.get(k);
+          if (oi == null || inMain.has(k) || excluded.has(k)) continue;
+          const x = pool.get(k) || mk(oi, 0), owned = pool.get(k)?.owned || 0;
+          if (x.is_land || !legal(x) || !subset(x.colors, deckColors) || (!sbBuy && !owned)) continue;
+          let q = Math.max(1, Math.min(4, Math.round(copies / n), 15 - total));
+          if (!sbBuy) q = Math.min(q, owned);
+          out.push({ name: x.name, qty: q, image: oImage(oi), eur: cheap[oi] ? eur(cheap[oi]) : null, owned: Math.min(owned, q), reasons: [`en el banquillo de ${archs.join(", ")}`] });
+          total += q;
+        }
+        return out;
+      })() : [],
       // Con "Combo" activado: combos infinitos para elegir (los que ya tienen una carta en el mazo, luego los que tienes enteros…)
       combo_options: withCombo ? (() => {
         const inDeck = new Set(chosen.map(([x]) => norm(x.name)));
@@ -2239,7 +2365,7 @@ const Engine = (() => {
       }
     }
     const rows = [...best.entries()].sort((a, b) => b[1][0] - a[1][0]).slice(0, 40)
-      .map(([old, [score, by, why]]) => card(old, { score: Math.round(score), with: front(O[by][0]),
+      .map(([old, [score, by, why]]) => card(old, { score: Math.round(score), with: front(O[by][0]), with_image: oImage(by),
         reason: `Combina con ${front(O[by][0])} (nueva): ${why.slice(0, 2).join(", ")}.` }));
     return { set: { code, name: s.name, released: s.released, icon: s.icon }, fresh: fresh.length, cards: rows };
   }

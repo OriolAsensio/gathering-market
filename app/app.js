@@ -579,7 +579,7 @@ async function addSheet(candidates, opts = {}) {
 // ---------- Mazos: los míos y el meta de Pauper ----------
 const deckCard = (d) => `
   <button class="item deck" data-id="${esc(d.id)}">
-    <div class="deck-head"><span class="deck-name">${esc(d.archetype)}</span>${d.share != null ? `<span class="share">${d.share}%</span>` : ""}</div>
+    <div class="deck-head"><span class="deck-name">${esc(d.archetype)}</span>${d.share != null ? `<span class="share">${d.share}%</span>` : ""}${d.test ? `<span class="share">${d.games ? `${d.wins}/${d.games} ganadas` : "sin jugar"}</span>` : ""}</div>
     <div class="item-meta"><span class="chip">${esc(d.category)}</span>${euro(d.price)} el mazo
       ${d.result ? `· ${d.result === "1" ? `${ico("trophy")}Ganadora` : `${esc(d.result)}º`}${d.event ? ` en ${esc(d.event)}` : ""}` : ""}</div>
     <div class="thumbs">${d.thumbs.filter(Boolean).map((src) => `<img loading="lazy" src="${esc(src)}" alt="">`).join("")}</div>
@@ -604,18 +604,25 @@ views.decks = async () => {
     <div id="deck-body">${skeleton(5)}</div>`;
   $("#deck-build").onclick = () => builderSheet();
   $("#deck-import").onclick = importDeckSheet;
-  const [mine, decks] = await Promise.all([api("/api/mydecks"), api("/api/decks")]);
+  let [mine, decks] = await Promise.all([api("/api/mydecks"), api("/api/decks")]);
   const formats = Object.keys(META_FORMATS);
   let tab = store("deckTab") || "PAU";
-  if (tab !== "mine" && !formats.includes(tab)) tab = "PAU";
+  if (tab !== "mine" && tab !== "test" && !formats.includes(tab)) tab = "PAU";
+  const tests = mine.filter((d) => d.test);
+  mine = mine.filter((d) => !d.test);
   const count = (f) => decks.filter((d) => d.format === f).length;
-  $("#deck-tab").innerHTML = `<option value="mine">Mis mazos (${mine.length})</option>
+  $("#deck-tab").innerHTML = `<option value="mine">Mis mazos (${mine.length})</option><option value="test">Mazos para probar (${tests.length})</option>
     ${formats.map((f) => `<option value="${f}">Meta de ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
   const sorters = { meta: (a, b) => b.share - a.share, owned: (a, b) => b.owned_pct - a.owned_pct, cheap: (a, b) => a.price - b.price, missing: (a, b) => a.missing_cost - b.missing_cost };
   const bind = (root) => root.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
   const draw = () => {
     $("#deck-tab").value = tab;
-    $("#deck-tab-ico").innerHTML = ico(tab === "mine" ? "folder" : "meta");
+    $("#deck-tab-ico").innerHTML = ico(tab === "mine" ? "folder" : tab === "test" ? "trophy" : "meta");
+    if (tab === "test") {
+      $("#deck-body").innerHTML = `<div class="hint">Mazos hechos con el constructor para Pauper, Estándar o Commander (sin proxies). Juégalos (p. ej. en Endstep) y apunta cuántas partidas ganas: el constructor aprende de los resultados y de tus opiniones.</div>
+        ${tests.length ? `<div class="list">${tests.map(deckCard).join("")}</div>` : `<div class="empty"><strong>Aún no hay mazos para probar</strong>Crea uno con el constructor (formato Pauper, Estándar o Commander) y pulsa Guardar.</div>`}`;
+      return bind($("#deck-body"));
+    }
     const body = $("#deck-body");
     if (tab === "mine") {
       body.innerHTML = `<div class="hint">Tus mazos importados, guardados del meta o creados con el constructor. Ábrelo y toca las cartas que ya tienes.</div>
@@ -739,6 +746,17 @@ async function deckSheet(id, keep = null) {
       <button class="btn" id="copy-all">Copiar lista</button>
       <button class="btn primary" id="share-missing" ${missing.length ? "" : "disabled"}>Compartir lo que falta</button>
     </div>
+    ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
+      ${d.built?.level ? `<div class="item-meta">Creado con: <span class="chip gold">${esc(d.built.level)}</span><span class="chip">${esc(d.built.archetype || "")}</span>${d.built.combo ? '<span class="chip">combo</span>' : ""}</div>` : ""}
+      <div class="hint">Juégalo 3 partidas como mínimo (las que quieras) y apunta cuántas has jugado, cuántas has ganado y una frase sobre cómo ha ido el gameplay. El creador de mazos aprende de estas reseñas.</div>
+      <div class="field" style="flex-direction:row;gap:8px;align-items:center;flex-wrap:wrap"><span>Jugadas</span>
+        <input class="search" type="number" id="tr-games" min="3" max="50" value="3" style="width:70px"><span>Ganadas</span>
+        <input class="search" type="number" id="tr-wins" min="0" max="50" value="0" style="width:70px">
+        <input class="search" id="tr-where" placeholder="Dónde (Endstep, tienda…)" style="flex:1;min-width:140px"></div>
+      <textarea class="search" id="tr-note" rows="3" maxlength="500" placeholder="Cómo has visto el gameplay: qué funcionó, qué faltó (p. ej. pocas tierras, le falta robo…)"></textarea>
+      <button class="btn block primary" id="tr-save" style="margin-top:6px">Guardar resultado</button>
+      ${d.results.length ? `<div class="list" style="margin-top:8px">${d.results.map((r) => `<div class="item"><div class="item-main"><div class="item-title">${r.wins}/${r.games} ganadas${r.where ? ` · ${esc(r.where)}` : ""}</div>
+        <div class="item-meta">${esc(r.day)}${r.note ? ` · ${esc(r.note)}` : ""}</div></div></div>`).join("")}</div>` : ""}` : ""}
     ${d.mine ? `<button class="btn block" id="deck-edit" style="margin-top:8px">✏️ Editar la lista</button>` : ""}
     <button class="btn block" id="deck-keep" style="margin-top:8px">${d.mine ? "🗑 Borrar de Mis mazos" : "⭐ Guardar en Mis mazos"}</button>`;
   const tileD = (c) => {
@@ -780,6 +798,15 @@ async function deckSheet(id, keep = null) {
     celebrate(r);
     redraw();
   };
+  $("#tr-save", body)?.addEventListener("click", async () => {
+    const games = +$("#tr-games", body).value, wins = +$("#tr-wins", body).value, note = $("#tr-note", body).value.trim();
+    if (games < 3) return toast("Juega 3 partidas como mínimo");
+    if (wins > games) return toast("No puedes ganar más partidas de las jugadas");
+    if (note.length < 5) return toast("Escribe una frase sobre cómo ha ido el gameplay");
+    await api("/api/mydecks", { result: { id, wins, games, where: $("#tr-where", body).value, note } });
+    toast("Resultado guardado");
+    redraw();
+  });
   $("#deck-edit", body)?.addEventListener("click", () => {
     const listOf = (cs) => cs.map((c) => `${c.qty} ${c.name}`).join("\n");
     const b2 = openSheet(`<h3>Editar ${esc(d.archetype)}</h3>
@@ -1059,14 +1086,15 @@ async function builderSheet(seeds, startFormat) {
   seeds = [].concat(seeds);
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
   let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
-  let power = store("buildPower") || "3", bracket = store("buildBracket") || "3", focus = "", p9 = false, combo = store("buildCombo") === "1";
+  let power = store("buildPower") || "3", bracket = store("buildBracket") || "3", focus = "", p9 = false, combo = store("buildCombo") === "1",
+    buy = store("buildBuy") === "1", sbbuy = store("buildSbBuy") === "1", spoil = store("buildSpoil") === "1";
   const excluded = [];  // cartas que has quitado del mazo
   const run = async () => {
     $("h3", body).textContent = `Mazo con ${seeds.join(", ")}`;
     $("#b-body", body).innerHTML = `<div class="hint">Buscando cartas que encajen con el plan…</div>${skeleton(4)}`;
     let d;
     try {
-      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}&focus=${encodeURIComponent(focus)}&exclude=${encodeURIComponent(excluded.join("|"))}${p9 ? "&p9=1" : ""}${combo ? "&combo=1" : ""}${colors ? `&colors=${colors}` : ""}`);
+      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}&focus=${encodeURIComponent(focus)}&exclude=${encodeURIComponent(excluded.join("|"))}${p9 ? "&p9=1" : ""}${combo ? "&combo=1" : ""}${buy ? "&buy=1" : ""}${spoil ? "&spoilers=1" : ""}${sbbuy ? "&sbbuy=1" : ""}${colors ? `&colors=${colors}` : ""}`);
     } catch (err) {
       $("#b-body", body).innerHTML = `<div class="empty"><strong>No he podido montarlo</strong>${esc(err.message)}</div>`;
       return;
@@ -1083,7 +1111,7 @@ async function builderSheet(seeds, startFormat) {
       <div class="grid">${cards.map(t).join("")}</div>` : "";
     const creatures = d.cards.filter((c) => c.role === "criatura"), spells = d.cards.filter((c) => c.role === "hechizo");
     const rows = [...(d.commander ? [d.commander] : []), ...d.cards, ...d.lands];
-    const listText = rows.map((c) => `${c.qty} ${c.name}`).join("\n");
+    const listText = rows.map((c) => `${c.qty} ${c.name}`).join("\n") + (d.sideboard?.length ? `\n\nSideboard\n${d.sideboard.map((c) => `${c.qty} ${c.name}`).join("\n")}` : "");
     $("#b-body", body).innerHTML = `
       <div class="seg" id="b-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
       <div class="seg" id="b-style">${Object.entries(STYLE_NAMES).map(([k, n]) => `<button data-s="${k}" class="${style === k ? "on" : ""}">${k === "auto" && style === "auto" ? `Auto (${STYLE_NAMES[d.style].toLowerCase()})` : n}</button>`).join("")}</div>
@@ -1102,6 +1130,11 @@ async function builderSheet(seeds, startFormat) {
             <div class="item-meta">${k.makes.slice(0, 2).map((m) => `<span class="chip gold">${esc(m)}</span>`).join("")}${k.extra_color ? `<span class="chip">+ ${esc(Object.fromEntries(COLORS)[k.extra_color] || k.extra_color)}</span>` : ""}</div>
             <div class="item-meta">${k.cards.map((n, j) => (k.in_deck[j] ? `${esc(n)}: ya en el mazo` : k.owned[j] ? `${esc(n)}: la tienes` : `${esc(n)}: no la tienes${k.eur[j] != null ? ` (${euro(k.eur[j])})` : ""}`)).join(" · ")}</div></div></button>`).join("")}</div>`
         : `<div class="hint">No encuentro combos infinitos de dos cartas en estos colores y formato con tus cartas. Prueba otro formato (Casual o Commander tienen muchos más) u otros colores.</div>`}</div>` : ""}
+      <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-buy" ${buy ? "checked" : ""}> Usar también cartas que no tengo (para comprar): las del meta o las que mejor encajan</label>
+      <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-spoil" ${spoil ? "checked" : ""}> Spoilers: usar cartas anunciadas que aún no han salido y ver con cuáles hace sinergia el mazo</label>
+      ${spoil ? `<h2>Spoilers que encajan con este mazo</h2>${d.spoilers.length ? `<div class="hint">Cartas anunciadas que aún no se pueden comprar. En dorado, las que ya he metido en el mazo.</div>
+        <div class="grid">${d.spoilers.map((c) => `<div class="gcard ${c.in_deck ? "" : "missing"}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></div>`).join("")}</div>`
+        : `<div class="hint">Ningún spoiler de los que hay ahora encaja con este mazo en estos colores.</div>`}` : ""}
       <label class="toggle" style="margin:4px 0 10px"><input type="checkbox" id="b-p9" ${p9 ? "checked" : ""}> ⚡ Power 9 (Black Lotus, los Mox de tus colores y, si es azul, Ancestral Recall, Time Walk y Timetwister; aunque no los tengas. Solo Casual)</label>
       <div class="field"><label>Meter una carta concreta</label><input class="search" id="b-addq" placeholder="Escribe el nombre de una carta…"><div class="list" id="b-addres"></div></div>
       ${excluded.length ? `<div class="item-meta">Quitadas: ${excluded.map((n) => `<button class="chip" data-back="${esc(n)}">↩ ${esc(n)}</button>`).join("")}</div>` : ""}
@@ -1128,6 +1161,10 @@ async function builderSheet(seeds, startFormat) {
       <div class="curve">${Object.entries(s.curve).map(([k, n]) => `<div><i style="height:${(n / maxCurve) * 100}%"></i><b>${n || ""}</b><span>${k === "6" ? "6+" : k}</span></div>`).join("")}</div>
       <div class="hint">${s.creatures} criaturas y ${s.spells - s.creatures} hechizos. Debajo de cada carta, por qué está.</div>
       ${group("Criaturas", creatures)}${group("Hechizos", spells)}${group("Tierras", d.lands)}
+      ${d.sideboard ? `<h2>Banquillo contra el meta (${d.sideboard.reduce((n, c) => n + c.qty, 0)})</h2>
+        <div class="hint">Lo que más llevan los banquillos de las listas del meta de ${esc(FORMAT_NAMES[format])}, en tus colores. Debajo, qué mazos lo usan.</div>
+        <label class="toggle" style="margin:4px 0 8px"><input type="checkbox" id="b-sbbuy" ${sbbuy ? "checked" : ""}> Banquillo con cartas que no tengo (para comprar)</label>
+        ${d.sideboard.length ? `<div class="grid">${d.sideboard.map(t).join("")}</div>` : `<div class="hint">Con tus cartas no sale banquillo en estos colores: marca la opción para incluir cartas que no tienes.</div>`}` : ""}
       ${d.combos?.length ? `<h2>${ico("synergy")}Combos infinitos en este mazo</h2>${d.combos.map((k) => `<details class="guide"><summary>${k.cards.map(esc).join(" + ")} · ${esc(k.makes[0] || "")}</summary>
         ${k.pre || k.needs.length ? `<div class="hint">Necesitas: ${[...k.needs, k.pre].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
         <ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>`).join("")}` : ""}
@@ -1165,6 +1202,9 @@ async function builderSheet(seeds, startFormat) {
     body.querySelectorAll("#b-style button").forEach((b) => (b.onclick = () => { style = b.dataset.s; store("buildStyle", style); run(); }));
     body.querySelectorAll("#b-power button").forEach((b) => (b.onclick = () => { power = b.dataset.p; store("buildPower", power); run(); }));
     $("#b-p9", body).onchange = (e) => { p9 = e.target.checked; run(); };
+    $("#b-spoil", body).onchange = (e) => { spoil = e.target.checked; store("buildSpoil", spoil ? "1" : "0"); run(); };
+    $("#b-buy", body).onchange = (e) => { buy = e.target.checked; store("buildBuy", buy ? "1" : "0"); run(); };
+    $("#b-sbbuy", body)?.addEventListener("change", (e) => { sbbuy = e.target.checked; store("buildSbBuy", sbbuy ? "1" : "0"); run(); });
     $("#b-combo", body).onchange = (e) => { combo = e.target.checked; store("buildCombo", combo ? "1" : "0"); run(); };
     // Elegir un combo: se explica y, si quieres, sus dos cartas pasan a ser cartas base del mazo
     body.querySelectorAll("[data-co]").forEach((b) => (b.onclick = () => {
@@ -1205,10 +1245,22 @@ async function builderSheet(seeds, startFormat) {
     };
     body.querySelectorAll("#b-bracket button").forEach((b) => (b.onclick = () => { bracket = b.dataset.b; store("buildBracket", bracket); run(); }));
     $("#b-save", body).onclick = async () => {
-      const r = await api("/api/mydecks", { save: { name: `${d.commander ? d.commander.name : d.seed} (${FORMAT_NAMES[format]})`, format: FORMAT_NAMES[format],
-        cards: rows.map((c) => [c.name, c.qty, 0]) } });
-      toast("Guardado en Mis mazos");
-      deckSheet(r.id);
+      // ¿Lo vas a probar? Sí → "Mazos para probar" con reseña (mín. 3 partidas y una frase). Se guarda cómo se creó (nivel, arquetipo…)
+      const save = async (test) => {
+        const r = await api("/api/mydecks", { save: { name: `${d.commander ? d.commander.name : d.seed} (${FORMAT_NAMES[format]})`, format: FORMAT_NAMES[format],
+          cards: [...rows.map((c) => [c.name, c.qty, 0]), ...(d.sideboard || []).map((c) => [c.name, c.qty, 1])], test,
+          built: { format, power: d.power, level: POWER_LABELS[d.power], archetype: d.style, style_auto: d.style_auto, focus: d.focus || "", combo: !!d.combo,
+            bracket: d.bracket, colors: d.colors, lands: d.stats.lands, seeds: d.seeds } } });
+        toast(test ? "Guardado en Mazos para probar" : "Guardado en Mis mazos");
+        store("deckTab", test ? "test" : "mine");
+        deckSheet(r.id);
+      };
+      const ask = openSheet(`<h3>Guardar el mazo</h3>
+        <div class="warn">Si vas a probar este mazo en torneos, en Endstep o en físico, ¿quieres ayudar a mejorar el creador de mazos?</div>
+        <div class="hint">Si dices que sí, se guarda en "Mazos para probar". Cuando lo juegues (3 partidas como mínimo, las que quieras), abre el mazo y apunta cuántas has jugado, cuántas has ganado y una frase sobre cómo ha ido el gameplay. El creador de mazos aprende de esas reseñas: qué nivel (${esc(POWER_LABELS[d.power] || "")}) y qué arquetipo funcionan, qué cartas ganan y qué le falta.</div>
+        <div class="row-btns"><button class="btn" id="sv-no">No, solo guardarlo</button><button class="btn primary" id="sv-yes">Sí, quiero ayudar</button></div>`);
+      $("#sv-yes", ask).onclick = () => save(true);
+      $("#sv-no", ask).onclick = () => save(false);
     };
   };
   run();
@@ -1340,13 +1392,13 @@ async function pickSeed(already = [], keepFormat = null) {
 
 
 // Mercado: movimientos de precio, predicciones y sinergias (colecciones nuevas o cualquier carta)
-const predRow = (c) => `<div class="item pred" data-name="${esc(c.name)}">
-    <img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
+const predRow = (c) => `<div class="item pred" data-name="${esc(c.name)}" ${c.with ? `data-with="${esc(c.with)}" data-wimg="${esc(c.with_image || "")}"` : ""}>
+    ${c.with_image ? `<span class="pair-thumbs"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt=""><img class="thumb" loading="lazy" src="${esc(c.with_image)}" alt="${esc(c.with)}"></span>` : `<img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">`}
     <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ' <span class="chip gold">La tienes</span>' : ""}</div>
       <div class="item-meta">${esc(c.reason)}</div></div>
     <div class="item-side"><div class="price">${euro(c.eur)}</div>${c.pct != null ? `<div class="sub ${c.pct > 0 ? "up" : "down"}">${pct(c.pct)}</div>` : ""}</div>
   </div>`;
-const bindPred = (root) => root.querySelectorAll(".pred[data-name]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.name)));
+const bindPred = (root) => root.querySelectorAll(".pred[data-name]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.name, null, el.dataset.with ? { name: el.dataset.with, image: el.dataset.wimg } : null)));
 
 views.market = async () => {
   const v = $("#view");
@@ -1516,11 +1568,14 @@ async function priceChart(box, q) {
     </table></div>`;
 }
 
-async function synergySheet(name, id) {
+async function synergySheet(name, id, partner) {
   const body = openSheet(`<h3>Combinan con ${esc(name)}</h3>${skeleton(4)}`);
   try {
     const d = await api(`/api/cardsynergy?name=${encodeURIComponent(name)}`);
-    body.innerHTML = `<h3>Combinan con ${esc(d.name)}</h3><img class="card-big" src="${esc(d.image)}" alt="${esc(d.name)}">
+    // Si viene de las sinergias de una colección nueva: las dos cartas juntas, para ver por qué combinan
+    body.innerHTML = `<h3>Combinan con ${esc(d.name)}</h3>${partner ? `<div class="combo-big"><figure><img src="${esc(d.image)}" alt="${esc(d.name)}"><figcaption>${esc(d.name)}</figcaption></figure>
+        <figure><img src="${esc(partner.image)}" alt="${esc(partner.name)}"><figcaption>Hace sinergia con ${esc(partner.name)} (nueva)</figcaption></figure></div>`
+      : `<img class="card-big" src="${esc(d.image)}" alt="${esc(d.name)}">`}
       <div id="price-chart"></div>
       <button class="btn block" id="follow" style="margin:8px 0">${ico("follow")}Seguir su precio en Mercado</button>
       <h2>${ico("synergy")}Cartas que combinan</h2><div class="hint">Las cartas de todo Magic que mejor encajan con ella. "La tienes" = está en tu carpeta.</div>
@@ -1539,10 +1594,15 @@ views.alerts = async () => {
   const events = await api("/api/events");
   if (events[0]) store("lastSeenEvent", events[0].id);
   $("#alert-dot").hidden = true;
+  // Dos pestañas: precios de cartas, y baneos y eventos (anuncios de baneos, torneos grandes, colecciones, meta)
+  const tab = store("alertTab") || "price";
+  const shown = events.filter((e) => (tab === "price") === (e.kind === "price"));
   v.innerHTML = `<h2>Avisos</h2>
-    <div class="hint">Baneos de todos los formatos y la fecha del próximo anuncio, colecciones nuevas, cambios en el meta y movimientos de precio de tus cartas. Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
-    ${events.length ? `<div class="list">${events.map((e) => `<div class="event"><div class="t">${evTitle(e.title)}</div>${e.body ? `<div class="b">${esc(e.body).replace(/\n/g, "<br>")}</div>` : ""}<div class="d">${esc(e.day)}</div></div>`).join("")}</div>`
+    <div class="seg" id="al-tab"><button data-t="price" class="${tab === "price" ? "on" : ""}">${ico("up")}Precios de cartas</button><button data-t="events" class="${tab === "events" ? "on" : ""}">${ico("trophy")}Baneos y eventos</button></div>
+    <div class="hint">${tab === "price" ? "Cartas tuyas que suben o bajan un 10 % o más, y cartas de los mazos top de Pauper que se mueven." : "Baneos de todos los formatos y la fecha del próximo anuncio, ganadores de torneos grandes (Paupergeddon, Super Pauper, RCQ, Mundial), colecciones nuevas y cambios en el meta."} Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
+    ${shown.length ? `<div class="list">${shown.map((e) => `<div class="event"><div class="t">${evTitle(e.title)}</div>${e.body ? `<div class="b">${esc(e.body).replace(/\n/g, "<br>")}</div>` : ""}<div class="d">${esc(e.day)}</div></div>`).join("")}</div>`
       : `<div class="empty"><strong>Sin avisos todavía</strong>Cuando haya un baneo, una colección nueva o una carta tuya se mueva más de un 10%, aparecerá aquí y en el móvil.</div>`}`;
+  v.querySelectorAll("#al-tab button").forEach((b) => (b.onclick = () => { store("alertTab", b.dataset.t); views.alerts(); }));
 };
 
 // Título de un aviso con icono en vez de emoji (📈 sube, 📉 baja, 📊 meta, 🏆 ganador)

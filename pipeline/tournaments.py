@@ -8,7 +8,7 @@ pauper_meta.get. Los torneos ya guardados no se vuelven a pedir.
 import re
 import urllib.parse
 
-from db import connect
+from db import add_event, connect
 from pauper_meta import get, parse_list
 
 # Torneos destacados: número que se guarda en "featured", cómo se reconocen (nombre @ tienda) y qué buscar en MTGTop8
@@ -27,6 +27,8 @@ EVENT_RE = re.compile(r"<a href=event\?e=(\d+)&f=(\w+)>([^<]+)</a> @ <a class=un
 ROW_RE = re.compile(r"<div[^>]*>\s*<div[^>]*class=S\d+[^>]*>([^<]{1,8})</div>.{0,400}?href=\?e=(\d+)&d=(\d+)&f=\w+>([^<]+)</a>"
                     r".{0,400}?player[^>]*>([^<]+)</a>", re.S)
 PLAYERS_RE = re.compile(r"(\d+) players")
+# Torneos grandes de los que se avisa en "Baneos y eventos" (además de los destacados)
+BIG_RE = re.compile(r"\bRCQ\b|Regional Championship|World Championship|Pro Tour|Paupergeddon.*Main Event|Showcase|Grand Prix", re.I)
 
 
 def is_featured(name, place):
@@ -80,6 +82,11 @@ def main(fmt="PAU"):
                              (eid, fmt, name, place, day, featured, int(players.group(1)) if players else None))
                 conn.executemany("INSERT OR IGNORE INTO tournament_decks VALUES (?,?,?,?,?)", [(eid, *r) for r in rows])
             new += 1
+            if (featured or BIG_RE.search(name)) and rows:
+                rank1 = next((r for r in rows if r[0] == "1"), rows[0])
+                with conn:
+                    add_event(conn, day, "event", f"🏆 {name}: gana {rank1[2]}",
+                              f"{rank1[3]} gana {name} ({place}){f' con {players.group(1)} jugadores' if players else ''}. Mira el top 8 en Mazos → Ganadores de torneos.")
         day = day or conn.execute("SELECT date FROM tournaments WHERE id = ?", (eid,)).fetchone()[0]
         rows = conn.execute("SELECT rank, deck_id, archetype, player FROM tournament_decks WHERE event_id = ? ORDER BY rowid",
                             (eid,)).fetchall()
