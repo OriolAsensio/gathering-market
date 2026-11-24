@@ -1963,19 +1963,15 @@ async function profileSheet() {
   body.innerHTML = `
     <div class="profile-head"><div class="avatar">${esc((p.name || "?").slice(0, 1).toUpperCase())}</div>
       <div><h3>${esc(p.name || "Tu perfil")}</h3><div class="sub">${plural(m.cards, "carta", "cartas")} · ${euro(m.value)} · ${esc(m.binder)}</div></div></div>
-    <div class="field"><label>Nombre</label><input class="search" id="pf-name" maxlength="40" placeholder="Cómo te llamas" value="${esc(p.name)}"></div>
-    <div class="field"><label>Contraseña ${p.hash ? "(puesta)" : ""}</label>
-      <input class="search" id="pf-pass" type="password" autocomplete="new-password" placeholder="${p.hash ? "Nueva contraseña" : "Opcional: pide la contraseña al abrir la app"}"></div>
-    <div class="hint">Todo se guarda solo en este móvil: sin correo ni cuentas. La contraseña bloquea la app en este móvil; no la podrás recuperar.</div>
-    <div class="row-btns"><button class="btn primary" id="pf-save">Guardar</button>${p.hash ? `<button class="btn" id="pf-nopass">Quitar contraseña</button>` : ""}</div>
-    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="pf-sound" ${store("sounds") === "0" ? "" : "checked"}> 🔔 Sonidos al añadir cartas</label>
-    ${Cloud.ready ? `<h2>☁️ Cuenta en la nube</h2>${Cloud.user
-      ? `<div class="hint">Conectado como: <b>${esc(Cloud.user)}</b></div><div class="hint">Tus cartas, carpetas y mazos se guardan solos y los ves entrando con tu usuario en otro móvil o en la web.</div>
+    <h2>Tu cuenta</h2>
+    ${Cloud.user
+      ? `<div class="hint">Conectado como ${esc(Cloud.user)}. Tus cartas, carpetas y mazos se guardan solos en la nube: entra con tu nombre y contraseña en otro móvil o en la web.</div>
+         <label class="toggle" style="margin:6px 0"><input type="checkbox" id="pf-lock" ${p.lock ? "checked" : ""}> Pedir la contraseña al abrir la app</label>
+         <div id="pf-lockpass" hidden><input class="search" id="pf-lockpw" type="password" autocomplete="current-password" placeholder="Tu contraseña, para activarlo">
+           <button class="btn primary block" id="pf-lockok" style="margin-top:6px">Activar</button></div>
          <div class="row-btns"><button class="btn" id="cl-out">Cerrar sesión</button><button class="btn primary" id="cl-push">☁️ Guardar ahora</button></div>`
-      : `<div class="hint">Crea una cuenta (solo nombre y contraseña) para guardar tus datos en internet y usarlos en cualquier móvil, también en iPhone desde la web.</div>
-         <input class="search" id="cl-user" autocomplete="username" autocapitalize="none" placeholder="Nombre de usuario">
-         <input class="search" id="cl-pass" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 6)" style="margin-top:8px">
-         <div class="row-btns"><button class="btn" id="cl-new">Crear cuenta</button><button class="btn primary" id="cl-in">Entrar</button></div>`}` : ""}
+      : accountForm()}
+    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="pf-sound" ${store("sounds") === "0" ? "" : "checked"}> 🔔 Sonidos al añadir cartas</label>
 
     <h2>${ico("trophy")}Medallas (${m.sets.length + m.precons.length + got.length})</h2>
     <div class="medals">${got.map((x) => medal(`<i>${ico("trophy")}</i>`, x.label)).join("")}</div>
@@ -1996,45 +1992,25 @@ async function profileSheet() {
     <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>
     <button class="btn block" id="pf-credits" style="margin-top:14px">Créditos</button>`;
   body.querySelectorAll("[data-set]").forEach((b) => (b.onclick = () => setSheet(b.dataset.set)));
-  const enter = async (create) => {
-    try {
-      const row = await Cloud.login($("#cl-user", body).value, $("#cl-pass", body).value, create);
-      const local = (await api("/api/collections")).reduce((n, b) => n + b.cards, 0);
-      if (row.data && (!local || confirm(t("Tu cuenta ya tiene datos guardados. ¿Cargarlos en este móvil? (Cancelar = subir a tu cuenta lo de este móvil)")))) {
-        await Cloud.apply(row.data);
-        cid = 1; store("cid", "1");
-        toast("Datos de tu cuenta cargados");
-      } else {
-        if (!(await api("/api/profile")).name) await api("/api/profile", { name: Cloud.user });
-        await Cloud.push();
-        toast(create ? "Cuenta creada: tus datos ya están en la nube" : "Datos de este móvil subidos a tu cuenta");
-      }
-      loadSummary(); render(); profileSheet();
-    } catch (err) { toast(err.message); }
-  };
-  $("#cl-in", body)?.addEventListener("click", () => enter(false));
-  $("#cl-new", body)?.addEventListener("click", () => enter(true));
+  bindAccountForm(body, profileSheet);
+  $("#pf-lock", body)?.addEventListener("change", async (e) => {
+    if (!e.target.checked) { await api("/api/profile", { lock: false }); toast("La app se abrirá sin pedir la contraseña"); return; }
+    if (p.hash) { await api("/api/profile", { lock: true }); toast("La app pedirá la contraseña al abrirla"); return; }
+    $("#pf-lockpass", body).hidden = false; $("#pf-lockpw", body).focus();  // perfil sin contraseña guardada: se comprueba con la de la cuenta
+  });
+  $("#pf-lockok", body)?.addEventListener("click", async () => {
+    const pw = $("#pf-lockpw", body).value;
+    if (!(await Cloud.check(pw))) return toast("Contraseña incorrecta");
+    const salt = newSalt();
+    await api("/api/profile", { salt, hash: await hashPassword(pw, salt), lock: true });
+    toast("La app pedirá la contraseña al abrirla"); profileSheet();
+  });
   $("#cl-out", body)?.addEventListener("click", () => {
     if (!confirm(t("¿Cerrar sesión? Lo de este móvil se queda aquí; tu cuenta sigue guardada en la nube."))) return;
     Cloud.logout(); toast("Sesión cerrada"); profileSheet();
   });
   $("#cl-push", body)?.addEventListener("click", () => Cloud.push().then(() => toast("Guardado en la nube")).catch((e) => toast(e.message)));
   $("#pf-sound", body).onchange = (e) => { store("sounds", e.target.checked ? "1" : "0"); if (e.target.checked) Sfx.card(5); };
-  $("#pf-save", body).onclick = async () => {
-    const pass = $("#pf-pass", body).value;
-    if (pass && pass.length < 4) return toast("La contraseña necesita al menos 4 caracteres");
-    const upd = { name: $("#pf-name", body).value };
-    if (pass) { upd.salt = newSalt(); upd.hash = await hashPassword(pass, upd.salt); }
-    await api("/api/profile", upd);
-    toast(pass ? "Perfil guardado · la app pedirá la contraseña al abrirla" : "Perfil guardado");
-    profileSheet();
-  };
-  $("#pf-nopass", body)?.addEventListener("click", async () => {
-    if (!confirm(t("¿Quitar la contraseña? La app se abrirá sin pedirla."))) return;
-    await api("/api/profile", { clearPassword: true });
-    toast("Contraseña quitada");
-    profileSheet();
-  });
   const day = new Date().toISOString().slice(0, 10);
   $("#pf-import", body).onclick = importSheet;
   $("#pf-credits", body).onclick = creditsSheet;
@@ -2050,6 +2026,46 @@ async function profileSheet() {
     try { await Engine.importUser(await f.text()); toast("Copia restaurada"); closeSheet(); loadSummary(); render(); }
     catch (err) { toast(err.message); }
   };
+}
+
+// ---------- tu cuenta: nombre y contraseña; se crea directamente en la nube ----------
+function accountForm() {
+  return `<div class="hint">Con un nombre y una contraseña tus cartas, carpetas y mazos se guardan en la nube y los ves en cualquier móvil, también en iPhone desde la web. Sin correo.</div>
+    <form id="acc-form" autocomplete="on">
+      <input class="search" id="cl-user" name="username" autocomplete="username" autocapitalize="none" placeholder="Nombre de usuario">
+      <input class="search" id="cl-pass" name="password" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 6)" style="margin-top:8px">
+      <label class="toggle" style="margin:8px 0"><input type="checkbox" id="cl-lock"> Pedir la contraseña al abrir la app</label>
+      <div class="row-btns"><button type="button" class="btn" id="cl-new">Crear cuenta</button><button type="submit" class="btn primary" id="cl-in">Entrar</button></div>
+    </form>`;
+}
+function bindAccountForm(root, after) {
+  const enter = async (create) => {
+    try {
+      const user = $("#cl-user", root).value, pass = $("#cl-pass", root).value;
+      const row = await Cloud.login(user, pass, create);
+      const local = (await api("/api/collections")).reduce((n, b) => n + b.cards, 0);
+      if (row.data && (!local || confirm(t("Tu cuenta ya tiene datos guardados. ¿Cargarlos en este móvil? (Cancelar = subir a tu cuenta lo de este móvil)")))) {
+        await Cloud.apply(row.data);
+        cid = 1; store("cid", "1");
+        toast("Datos de tu cuenta cargados");
+      } else toast(create ? "Cuenta creada: tus datos ya están en la nube" : "Datos de este móvil subidos a tu cuenta");
+      // La misma contraseña abre la app (si lo pides): se guarda una huella en este móvil
+      const salt = newSalt();
+      await api("/api/profile", { name: Cloud.user, salt, hash: await hashPassword(pass, salt), lock: $("#cl-lock", root).checked });
+      await Cloud.push();
+      store("accountAsked", "1");
+      loadSummary(); render(); after?.();
+    } catch (err) { toast(err.message); }
+  };
+  $("#acc-form", root)?.addEventListener("submit", (e) => { e.preventDefault(); enter(false); });
+  $("#cl-new", root)?.addEventListener("click", () => enter(true));
+}
+// La primera vez (sin cuenta): crear cuenta o entrar, o "Ahora no"
+function accountWelcome() {
+  if (!Cloud.ready || Cloud.user || store("accountAsked")) return;
+  const body = openSheet(`<h3>Tu cuenta</h3>${accountForm()}<button class="btn block" id="acc-later" style="margin-top:10px">Ahora no</button>`);
+  bindAccountForm(body, closeSheet);
+  $("#acc-later", body).onclick = () => { store("accountAsked", "1"); closeSheet(); };
 }
 
 // ---------- cuenta en la nube (Supabase): nombre + contraseña, tus datos en cualquier móvil o en la web ----------
@@ -2109,6 +2125,7 @@ const Cloud = (() => {
       return row;
     },
     logout() { clearTimeout(timer); session = null; persist(); },
+    async check(pass) { return !!session && (await hashPassword(pass, `gathering-market:${session.user}`)) === session.key; },
     /** Al abrir la app: baja lo guardado desde otro móvil o sube lo que cambió aquí sin conexión. */
     async sync() {
       if (!ready || !session) { armed = true; return null; }
@@ -2133,7 +2150,7 @@ const Cloud = (() => {
 // Pantalla de bloqueo si el perfil tiene contraseña.
 async function unlock() {
   const p = await api("/api/profile");
-  if (!p.hash) return;
+  if (!p.lock) return;
   await new Promise((done) => {
     // Un <form>: Intro envía, y el navegador (y los gestores de contraseñas) lo tratan como un inicio de sesión normal.
     document.body.insertAdjacentHTML("beforeend", `<div class="lock-screen" id="lock">
@@ -2202,7 +2219,7 @@ async function boot() {
   loadSummary();
   render();
   checkAlertDot();
-  dailyReport();
+  if (!store("accountAsked") && !Cloud.user) accountWelcome(); else dailyReport();
   syncRunner();
   Cloud.sync().then((r) => { if (r === "pulled") { cid = 1; store("cid", "1"); loadSummary(); render(); toast("☁️ Datos actualizados desde tu cuenta"); } })
     .catch(() => toast("☁️ Sin conexión con la nube: se guardará cuando vuelva"));

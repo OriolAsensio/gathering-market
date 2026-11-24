@@ -536,13 +536,15 @@ const Engine = (() => {
   // ---------------------------------------------------------------- perfil, medallas y copia en CSV
   function profile() {
     const p = user.profile || {};
-    return { name: p.name || "", salt: p.salt || null, hash: p.hash || null, since: p.since || null };
+    // lock: pedir la contraseña al abrir (los perfiles antiguos con contraseña la siguen pidiendo)
+    return { name: p.name || "", salt: p.salt || null, hash: p.hash || null, since: p.since || null, lock: !!p.hash && p.lock !== false };
   }
   function profilePost(body) {
     const p = (user.profile ||= { since: new Date().toISOString().slice(0, 10) });
     if (body.name != null) p.name = String(body.name).trim().slice(0, 40);
     if (body.hash) { p.salt = body.salt; p.hash = body.hash; }
     if (body.clearPassword) { delete p.salt; delete p.hash; }
+    if (body.lock != null) p.lock = !!body.lock;
     saveUser();
     return profile();
   }
