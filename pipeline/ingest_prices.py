@@ -60,9 +60,15 @@ def is_variant(c: dict) -> bool:
         or not str(c.get("collector_number", "")).isdigit())
 
 
-def pauper_status(conn):
-    return dict(conn.execute(
-        "SELECT name, pauper FROM cards WHERE pauper IN ('legal','banned') GROUP BY oracle_id"))
+# Formatos de los que se avisa si banean (o restringen) una carta. Nombre como se ve en la app.
+BAN_FORMATS = {"standard": "Estándar", "pioneer": "Pioneer", "modern": "Modern", "legacy": "Legacy",
+               "vintage": "Vintage", "pauper": "Pauper", "commander": "Commander"}
+
+
+def legal_status(conn):
+    """{(carta, formato): legal/banned/restricted} guardado de la última vez."""
+    conn.execute("CREATE TABLE IF NOT EXISTS legal_status (name TEXT, format TEXT, status TEXT, PRIMARY KEY (name, format)) WITHOUT ROWID")
+    return {(n, f): s for n, f, s in conn.execute("SELECT name, format, status FROM legal_status")}
 
 
 def main(force: bool = False):
@@ -75,7 +81,8 @@ def main(force: bool = False):
         print(f"El día {day} ya está guardado. Usa --force para repetirlo.")
         return
 
-    before = pauper_status(conn)
+    before = legal_status(conn)
+    now_status = {}
     print(f"Descargando {url} ({bulk['compressed_size'] // 1_000_000} MB comprimido)...")
     cards = priced = 0
     card_batch, price_batch = [], []
@@ -99,6 +106,11 @@ def main(force: bool = False):
                 continue  # cartas solo de Arena/MTGO sin precio en papel
             cards += 1
             card_batch.append(card_row(c))
+            if not c.get("digital"):
+                for fmt in BAN_FORMATS:
+                    st = (c.get("legalities") or {}).get(fmt)
+                    if st in ("legal", "banned", "restricted"):
+                        now_status[(c["name"], fmt)] = st
             p = c.get("prices", {})
             row = (c["id"], day, cents(p.get("eur")), cents(p.get("eur_foil")),
                    cents(p.get("usd")), cents(p.get("usd_foil")))
@@ -109,14 +121,21 @@ def main(force: bool = False):
                 flush()
         flush()
 
-        # Baneos / desbaneos en Pauper (solo si ya teníamos el estado anterior).
+        # Baneos, restricciones y desbaneos en cada formato (solo si ya teníamos el estado anterior).
         if before:
-            for name, status in pauper_status(conn).items():
-                old = before.get(name)
-                if old == "legal" and status == "banned":
-                    add_event(conn, day, "ban", f"🚫 Baneada en Pauper: {name}")
-                elif old == "banned" and status == "legal":
-                    add_event(conn, day, "unban", f"✅ Desbaneada en Pauper: {name}")
+            for (name, fmt), status in now_status.items():
+                old, label = before.get((name, fmt)), BAN_FORMATS[fmt]
+                if not old or old == status:
+                    continue
+                if status == "banned":
+                    add_event(conn, day, "ban", f"🚫 Baneada en {label}: {name}")
+                elif status == "restricted":
+                    add_event(conn, day, "ban", f"⚠️ Restringida en {label}: {name}")
+                elif status == "legal":
+                    add_event(conn, day, "unban", f"✅ Desbaneada en {label}: {name}")
+        if now_status:
+            conn.execute("DELETE FROM legal_status")
+            conn.executemany("INSERT INTO legal_status VALUES (?,?,?)", ((n, f, s) for (n, f), s in now_status.items()))
 
         conn.execute(
             "INSERT OR REPLACE INTO ingests VALUES (?,?,?,?,?)",

@@ -24,6 +24,14 @@ await sharp(svg(1024, "", {})).png().toFile(join(out, "icon-background.png"));
 for (const name of ["splash.png", "splash-dark.png"]) {
   await sharp(svg(2732, shield, { scale: 0.28 })).png().toFile(join(out, name));
 }
+// Icono pequeño de las notificaciones de Android (silueta blanca: Android la pinta del color del sistema)
+const res = join(dirname(fileURLToPath(import.meta.url)), "..", "android", "app", "src", "main", "res");
+const white = shield.replaceAll(GOLD, "#ffffff").replaceAll(FILL, "none");
+for (const [dpi, px] of [["mdpi", 24], ["hdpi", 36], ["xhdpi", 48], ["xxhdpi", 72], ["xxxhdpi", 96]]) {
+  mkdirSync(join(res, `drawable-${dpi}`), { recursive: true });
+  await sharp(svg(px, white, { bg: null, scale: 1.08 })).png().toFile(join(res, `drawable-${dpi}`, "ic_stat_gm.png"));
+}
+
 // Iconos de la web (PWA y pantalla de inicio de iPhone, que redondea las esquinas sola)
 const web = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app");
 await sharp(svg(512, shield, { scale: 0.92 })).png().toFile(join(web, "icon-512.png"));

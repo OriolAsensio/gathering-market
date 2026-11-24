@@ -33,18 +33,20 @@ def main():
         sys.stdout = sys.stderr = open(LOG, "a", encoding="utf-8", buffering=1)
     print(f"\n=== {datetime.now():%Y-%m-%d %H:%M} ===")
 
-    import alerts, export_pack, foreign_names, ingest_prices, notify, pauper_meta, precons, sets
+    import alerts, backfill_prices, ban_dates, combos, tournaments, export_pack, foreign_names, ingest_prices, notify, pauper_meta, precons, sets
     out = sys.argv[sys.argv.index("--pack") + 1] if "--pack" in sys.argv else None
     conn = connect()
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     weekly = datetime.now().weekday() == 0  # lunes: lo que cambia poco (y pesa mucho)
-    steps = [("precios", ingest_prices.main), ("colecciones", sets.main)]
+    steps = [("precios", ingest_prices.main), ("historial MTGJSON", backfill_prices.main), ("colecciones", sets.main)]
     if weekly or "precons" not in tables:
         steps.append(("mazos preconstruidos", precons.main))
+    if weekly or "combos" not in tables:
+        steps.append(("combos", combos.main))
     if weekly or "foreign_names" not in tables:
         steps.append(("nombres en otros idiomas", foreign_names.main))
     steps += [
-             ("meta pauper", pauper_meta.main), ("avisos", alerts.main),
+             ("meta pauper", pauper_meta.main), ("torneos", tournaments.main), ("anuncios de baneos", ban_dates.main), ("avisos", alerts.main),
              ("notificaciones", notify.main), ("historial", prune_prices),
              ("paquete", lambda: export_pack.main(out))]
     failed = False

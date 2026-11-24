@@ -7,6 +7,7 @@
 #   4. Vuelve a guardar la base de datos en la release.
 #   5. Publica en GitHub Pages el paquete de datos (lo que descarga la app) y la versión web de la app.
 # Al subir cambios de la app: solo rehace el paquete con la base de datos guardada y publica la web (un par de minutos).
+# Si el mensaje del commit lleva "[datos]", hace la tarea diaria completa (para cambios en pipeline/ que deben verse ya).
 name: Datos diarios
 
 on:
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:        # botón "Run workflow" para lanzarla a mano
   push:
     branches: [main]
-    paths: ["app/**", "pipeline/export_pack.py", ".github/workflows/daily.yml"]
+    paths: ["app/**", "pipeline/**", ".github/workflows/daily.yml"]
 
 permissions:
   contents: write   # guardar la base de datos en la release
@@ -54,17 +55,17 @@ jobs:
           fi
 
       - name: Tarea diaria
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[datos]')
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python pipeline/daily.py --stdout --pack site
 
       - name: Solo el paquete (cambios en la app)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[datos]')
         run: python pipeline/export_pack.py site
 
       - name: Guardar la base de datos
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[datos]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -10,6 +10,9 @@ estos ficheros, que se publican cada día en internet (GitHub Pages):
   meta.json     meta de Pauper y otros formatos: arquetipos, cuota y una lista de cada uno
   staples.json  staples de cada formato: % del meta que juega cada carta y copias de media
   events.json   avisos (baneos, colecciones nuevas, cambios de meta)
+  tournaments.json  últimos torneos de Pauper (ganador) y el destacado (Super Pauper de inGenio BCN, top 8), con listas
+  changes.json  impresiones que se han movido >= 10 % y >= 0,50 € desde el día anterior (para las notificaciones)
+  history/XX.json  historial de precio de cada impresión (por las 2 primeras letras de su id), para la gráfica
 
 Uso:  python pipeline/export_pack.py [carpeta_salida]   (por defecto: pack/)
 """
@@ -82,6 +85,30 @@ def main(out=None):
     dump(out / "prices.json", {"day": day, "cards_version": cards_version, "days": days,
                                "eur": cols[0], "eur_foil": cols[1], "d1": cols[2], "d7": cols[3], "d30": cols[4]})
 
+    # --- Historial para la gráfica de cada carta: 256 ficheros pequeños (la app baja solo el de la carta que abres).
+    #     Precio normal en céntimos alineado con "days"; solo impresiones que alguna vez valieron 0,10 € o más.
+    hist = out / "history"
+    hist.mkdir(exist_ok=True)
+    all_days = [r[0] for r in conn.execute("SELECT DISTINCT day FROM prices ORDER BY day")]
+    pos = {d: i for i, d in enumerate(all_days)}
+    for a in "0123456789abcdef":
+        for b in "0123456789abcdef":
+            series = {}
+            for cid, d, e in conn.execute("SELECT card_id, day, eur FROM prices WHERE card_id >= ? AND card_id < ? AND eur IS NOT NULL",
+                                          (a + b, a + b + "~")):
+                series.setdefault(cid, [None] * len(all_days))[pos[d]] = e
+            dump(hist / f"{a}{b}.json", {"days": all_days, "c": {k: v for k, v in series.items() if max(x or 0 for x in v) >= 10}})
+
+    # --- Cambios desde el día anterior (la tarea en segundo plano del móvil solo baja esto). Clave: id (normal) o id+"f" (foil).
+    changes = {}
+    for p in printings:
+        n, o = now.get(p[0], (None, None)), back[1].get(p[0], (None, None))
+        for i, suffix in ((0, ""), (1, "f")):
+            a, b = o[i], n[i]
+            if a and b and abs(b - a) >= 50 and abs(b - a) / a >= 0.10:
+                changes[p[0] + suffix] = [a, b]
+    dump(out / "changes.json", {"day": day, "base": days[1], "c": changes})
+
     # --- Ediciones.
     sets = conn.execute("""SELECT code, name, set_type, released_at, icon_svg FROM sets
                            WHERE coalesce(digital, 0) = 0
@@ -106,13 +133,13 @@ def main(out=None):
     # qué parte del meta juega cada carta (cuota del arquetipo × proporción de sus listas que la llevan) y cuántas copias.
     staples = {}
     for (fmt,) in conn.execute("SELECT DISTINCT format FROM meta"):
-        day = conn.execute("SELECT max(day) FROM meta WHERE format = ?", (fmt,)).fetchone()[0]
-        archs = conn.execute("SELECT archetype_id, share, deck_id FROM meta WHERE format = ? AND day = ?", (fmt, day)).fetchall()
+        mday = conn.execute("SELECT max(day) FROM meta WHERE format = ?", (fmt,)).fetchone()[0]  # no pisar "day" (el de precios)
+        archs = conn.execute("SELECT archetype_id, share, deck_id FROM meta WHERE format = ? AND day = ?", (fmt, mday)).fetchall()
         total = sum(s or 0 for _, s, _ in archs) or 1
         score, copies, lists_with, n_lists = {}, {}, {}, 0
         for arch_id, share, main_deck in archs:
             ids = [d for (d,) in conn.execute(
-                "SELECT deck_id FROM meta_lists WHERE format = ? AND day = ? AND archetype_id = ?", (fmt, day, arch_id))] or [main_deck]
+                "SELECT deck_id FROM meta_lists WHERE format = ? AND day = ? AND archetype_id = ?", (fmt, mday, arch_id))] or [main_deck]
             n_lists += len(ids)
             per = {}
             for d in ids:
@@ -128,6 +155,20 @@ def main(out=None):
         staples[fmt] = {"lists": n_lists, "cards": [list(r) for r in rows]}
     dump(out / "staples.json", staples)
 
+    # --- Torneos: los 12 más recientes y todas las ediciones del destacado.
+    tours = []
+    if "tournaments" in {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}:
+        for eid, fmt, name, place, tday, featured, players in conn.execute(
+                "SELECT * FROM tournaments WHERE featured = 1 OR id IN (SELECT id FROM tournaments ORDER BY date DESC, id DESC LIMIT 12) "
+                "ORDER BY date DESC, id DESC"):
+            top = []
+            for rank, deck_id, arch, player in conn.execute(
+                    "SELECT rank, deck_id, archetype, player FROM tournament_decks WHERE event_id = ? ORDER BY rowid LIMIT 16", (eid,)):
+                cards = conn.execute("SELECT name, qty, sideboard FROM deck_cards WHERE deck_id = ? ORDER BY sideboard, name", (deck_id,)).fetchall()
+                top.append(dict(rank=rank, id=deck_id, archetype=arch, player=player, cards=[list(c) for c in cards]))
+            tours.append(dict(id=eid, format=fmt, name=name, place=place, date=tday, featured=featured, players=players, top=top))
+    dump(out / "tournaments.json", tours)
+
     # --- Avisos generales (los de tus cartas los calcula el móvil).
     events = conn.execute("SELECT id, day, kind, title, body FROM events WHERE kind != 'price' OR title LIKE '%mazos top%' "
                           "ORDER BY id DESC LIMIT 100").fetchall()
@@ -142,6 +183,8 @@ def main(out=None):
                                      [p_index[i] for i in json.loads(cmd) if i in p_index]]
                                     for pid, name, kind, released, set_code, cards, cmd in conn.execute(
                                         "SELECT * FROM precons ORDER BY released DESC")])
+    if "combos" in tables:  # combos infinitos de 2 cartas (Commander Spellbook); la app lo baja al abrir los combos
+        dump(out / "combos.json", [json.loads(d) for (d,) in conn.execute("SELECT data FROM combos ORDER BY id")])
     if "foreign_names" in tables:
         names = {}
         for lang, printed, name in conn.execute("SELECT lang, printed, name FROM foreign_names"):
@@ -150,8 +193,9 @@ def main(out=None):
         dump(out / "names.json", names)
 
     sizes = {f.name: f.stat().st_size for f in out.glob("*.json") if f.name != "version.json"}
+    sizes["history"] = sum(f.stat().st_size for f in hist.glob("*.json"))
     # Huella del meta y los avisos: la segunda vuelta del día puede traer meta nuevo con el mismo "day".
-    live = hashlib.sha1(b"".join((out / f).read_bytes() for f in ("meta.json", "events.json", "staples.json"))).hexdigest()[:12]
+    live = hashlib.sha1(b"".join((out / f).read_bytes() for f in ("meta.json", "events.json", "staples.json", "tournaments.json"))).hexdigest()[:12]
     dump(out / "version.json", {"day": day, "cards_version": cards_version, "live_version": live, "sizes": sizes,
                                 "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "format": 1})
     print(f"Paquete {day} en {out}: " + ", ".join(f"{k} {v / 1e6:.1f} MB" for k, v in sizes.items()))

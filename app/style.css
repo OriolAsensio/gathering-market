@@ -84,7 +84,7 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: .85em; }
   border: 0; background: none; padding: 0; cursor: pointer; color: var(--muted);
   font: 600 12px var(--display); letter-spacing: .14em; text-transform: uppercase;
 }
-.eyebrow::after { content: " ▾"; color: var(--gold); }
+.eyebrow.multi::after { content: " ▾"; color: var(--gold); }  /* solo si quedan carpetas antiguas */
 .big { font: 700 36px/1.1 var(--display); letter-spacing: .01em; margin-top: 2px; }
 .sub { color: var(--muted); font-size: 14.5px; }
 
@@ -408,6 +408,7 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
   -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; flex: none; }
 .ico-import { --m: url(icons/import.png); } .ico-plus { --m: url(icons/plus.png); } .ico-star { --m: url(icons/star.png); }
 .ico-share { --m: url(icons/share.png); } .ico-user { --m: url(icons/user.png); } .ico-precons { --m: url(icons/precons.png); } .ico-reserved { --m: url(icons/reserved.png); }
+.ico-predict { --m: url(icons/predict.png); } .ico-follow { --m: url(icons/follow.png); } .ico-synergy { --m: url(icons/synergy.png); } .ico-pin { --m: url(icons/pin.png); } .ico-picture { --m: url(icons/picture.png); } .ico-alter { --m: url(icons/alter.png); } .ico-trophy { --m: url(icons/trophy.png); } .ico-down { --m: url(icons/down.png); } .ico-up { --m: url(icons/up.png); } .ico-meta { --m: url(icons/meta.png); } .ico-folder { --m: url(icons/folder.png); }
 .set-emoji .ico, .cta-icon .ico { width: 26px; height: 26px; margin: 0; color: var(--gold); vertical-align: middle; }
 .icon-btn { display: inline-grid; place-items: center; padding: 6px 10px; }
 .icon-btn .ico { width: 20px; height: 20px; margin: 0; }
@@ -434,3 +435,55 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 .lock-row { display: flex; gap: 6px; }
 .lock-row .search { flex: 1; }
 .lock-row .btn { padding: 0 12px; }
+
+/* Desplegable de mazos con su icono al lado (las <option> no admiten imágenes) */
+.deck-pick { display: flex; align-items: center; gap: 8px; }
+.deck-pick > span .ico { width: 24px; height: 24px; margin: 0; color: var(--gold); }
+.medal > i .ico { margin: 0; }
+
+/* Gráfica de precio de una carta */
+.pchart { margin: 10px 0; padding: 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid rgba(214,168,78,.3); }
+.pchart-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pchart-head b { font-size: 20px; color: var(--gold); }
+.pchart-head .sub { margin-left: auto; }
+.pchart svg { width: 100%; height: 130px; display: block; margin: 6px 0; color: var(--text); }
+.ptable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ptable th { text-align: left; font-weight: 600; opacity: .7; padding: 3px 4px; }
+.ptable td { padding: 4px; border-top: 1px solid rgba(214,168,78,.15); }
+.ptable td:nth-child(3), .ptable td:nth-child(4), .ptable th:nth-child(3), .ptable th:nth-child(4) { text-align: right; }
+.ptable .up, .pchart-head .up { color: #6bbf59; } .ptable .down, .pchart-head .down { color: #e0675f; }
+
+/* Resumen del día al abrir */
+.day-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.day-card { display: flex; flex-direction: column; gap: 3px; padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; text-align: center; }
+.day-card img { width: 100%; border-radius: 6px; aspect-ratio: 63 / 88; object-fit: cover; background: var(--surface-2); }
+.day-pct { font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.day-pct.up { color: #6bbf59; } .day-pct.down { color: #e0675f; }
+.day-pct .ico { margin-right: 3px; }
+.day-eur { font-size: 11px; opacity: .8; }
+
+/* Ganadores de torneos */
+.tour-card { margin: 8px 0 14px; padding: 10px; border-radius: 12px; border: 1px solid var(--gold); background: var(--surface-2); }
+.tour-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.tour-head b { color: var(--gold); }
+.tour-row { align-items: center; }
+.tour-row[disabled] { opacity: .75; cursor: default; }
+.tour-rank { width: 46px; flex: none; font-weight: 700; display: inline-flex; align-items: center; }
+.tour-rank.win { color: var(--gold); }
+.tour-rank .ico { margin-right: 3px; }
+
+.lang-sel { background: var(--surface); color: var(--text); border: 1px solid rgba(214,168,78,.35); border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 13px; margin-left: 6px; }
+.num-tag .ico { margin: 0; width: 12px; height: 12px; vertical-align: -1px; }
+
+/* Combos infinitos */
+.combo-row { align-items: center; }
+.combo-imgs { display: flex; flex: none; }
+.combo-imgs img { width: 44px; border-radius: 4px; }
+.combo-imgs img + img { margin-left: -14px; }
+.combo-imgs img.missing, .combo-big img.missing { filter: grayscale(1) opacity(.55); }
+.combo-big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+.combo-big figure { margin: 0; text-align: center; }
+.combo-big img { width: 100%; border-radius: 8px; }
+.combo-big figcaption { font-size: 12px; opacity: .8; margin-top: 4px; }
+.combo-steps, .combo-pre { margin: 6px 0; padding-left: 22px; line-height: 1.45; }
+.combo-steps li, .combo-pre li { margin: 4px 0; }

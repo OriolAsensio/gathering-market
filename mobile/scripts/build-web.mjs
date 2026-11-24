@@ -16,7 +16,8 @@ const nm = join(mobile, "node_modules");
 
 rmSync(www, { recursive: true, force: true });
 mkdirSync(www, { recursive: true });
-cpSync(app, www, { recursive: true, filter: (src) => !src.endsWith("config.js") });
+// el historial (gráficas) se baja de internet solo cuando hace falta: no va en el APK
+cpSync(app, www, { recursive: true, filter: (src) => !src.endsWith("config.js") && !/[\\/]pack[\\/]history/.test(src) });
 if (!existsSync(join(www, "pack", "cards.json"))) {
   throw new Error("Falta app/pack: ejecuta antes  python pipeline/export_pack.py app/pack");
 }
@@ -42,4 +43,8 @@ window.GM_CONFIG = {
   tesseractBase: "vendor/tesseract/",       // lector del escáner, sin internet
 };
 `);
+// Tarea en segundo plano (notificaciones sin abrir la app), con la dirección del paquete diario.
+mkdirSync(join(www, "runners"), { recursive: true });
+writeFileSync(join(www, "runners", "background.js"),
+  readFileSync(join(mobile, "runners", "background.js"), "utf8").replace("__PACK_URL__", packUrl ? packUrl.replace(/\/?$/, "/") : ""));
 console.log(`www listo. Paquete en internet: ${packUrl || "(ninguno todavía)"}`);

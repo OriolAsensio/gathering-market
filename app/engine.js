@@ -58,7 +58,7 @@ const Engine = (() => {
   const today = () => new Date().toISOString().slice(0, 10);
 
   // ---------------------------------------------------------------- datos del paquete
-  let O = [], P = [], PR = null, SETS = new Map(), META = [], PACK_EVENTS = [], STAPLES = {};
+  let O = [], P = [], PR = null, SETS = new Map(), META = [], PACK_EVENTS = [], STAPLES = {}, TOURS = [];
   let byId, oByNorm, printsOf, bySetNum, bySet, cheapCache = new Map(), decksByCardCache = null;
   let user = null;
   let loaded = false;
@@ -132,6 +132,8 @@ const Engine = (() => {
     const eventsText = await fresh("events", "events.json", newLive);
     let staplesText = null;
     try { staplesText = await fresh("staples", "staples.json", newLive); } catch { /* paquete antiguo sin staples */ }
+    let toursText = null;
+    try { toursText = await fresh("tournaments", "tournaments.json", newLive); } catch { /* paquete antiguo sin torneos */ }
     if (version) await kvSet("version", version);
     VERSION = version || saved;
 
@@ -142,6 +144,7 @@ const Engine = (() => {
     SETS = new Map(JSON.parse(setsText || "[]").map(([code, name, type, released, icon]) => [code, { code, name, type, released, icon }]));
     META = JSON.parse(metaText || "[]");
     try { STAPLES = JSON.parse(staplesText || "{}"); } catch { STAPLES = {}; }
+    try { TOURS = JSON.parse(toursText || "[]"); } catch { TOURS = []; }
     for (const d of META) d.format ||= "PAU";  // paquetes antiguos: solo Pauper
     PACK_EVENTS = JSON.parse(eventsText || "[]");
     byId = new Map();
@@ -318,8 +321,8 @@ const Engine = (() => {
     for (const [pi, foil, qty] of entries(id)) {
       const key = `${P[pi][0]}|${foil ? 1 : 0}`, px = proxyOf(id, key, qty);
       const real = qty - px;  // los proxies no suman valor
-      value += real * (priceOf(pi, foil) || 0);
-      prev += real * ((foil ? PR.eur_foil[pi] : PR.d1[pi] ?? PR.eur[pi]) || 0);
+      value += real * (langPrice(id, key, priceOf(pi, foil)) || 0);  // según el idioma de cada carta
+      prev += real * (langPrice(id, key, foil ? PR.eur_foil[pi] : PR.d1[pi] ?? PR.eur[pi]) || 0);
       cards += user.proxyNoSet?.[id]?.[key] ? real : qty;  // ni cuentan como cartas si has dicho que no
       unique++;
     }
@@ -411,7 +414,9 @@ const Engine = (() => {
       return { row_id: `${r.id}|${foil ? 1 : 0}`, id: r.id, name: r.name, set: r.set, set_name: r.set_name, number: r.number,
         rarity: r.rarity, image: r.image, qty, foil, eur: eur(priceOf(pi, foil)), pauper: r.pauper, type: o[1],
         decks: used.get(norm(o[0])) || [], alter: alterOf(id, `${r.id}|${foil ? 1 : 0}`, eur(priceOf(pi, foil)), qty),
-        proxy: proxyOf(id, `${r.id}|${foil ? 1 : 0}`, qty), proxy_collect: !user.proxyNoSet?.[id]?.[`${r.id}|${foil ? 1 : 0}`] };
+        proxy: proxyOf(id, `${r.id}|${foil ? 1 : 0}`, qty), proxy_collect: !user.proxyNoSet?.[id]?.[`${r.id}|${foil ? 1 : 0}`],
+        lang: langOf(id, `${r.id}|${foil ? 1 : 0}`), lang_name: CARD_LANGS[langOf(id, `${r.id}|${foil ? 1 : 0}`)],
+        eur_lang: eur(langPrice(id, `${r.id}|${foil ? 1 : 0}`, priceOf(pi, foil))) };
     });
     rows.sort((a, b) => (b.eur || 0) - (a.eur || 0) || a.name.localeCompare(b.name));
     return rows;
@@ -431,6 +436,30 @@ const Engine = (() => {
     fn();
     return codes.filter((code) => setComplete(id, code)).map((code) => SETS.get(code)?.name || code.toUpperCase());
   }
+  // ---------------------------------------------------------------- idioma de cada versión
+  /* Cardmarket (vía Scryfall) da un precio para todos los idiomas, pero no valen lo mismo: en inglés se pagan más
+   * y las de otros idiomas europeos suelen ir algo por debajo; las japonesas, a menudo por encima.
+   * Factor orientativo sobre el precio de Cardmarket (precios de venta habituales, sin garantía). */
+  const CARD_LANGS = { en: "Inglés", es: "Español", fr: "Francés", de: "Alemán", it: "Italiano", pt: "Portugués",
+    ja: "Japonés", ko: "Coreano", ru: "Ruso", zhs: "Chino simplificado", zht: "Chino tradicional" };
+  const LANG_FACTOR = { en: 1, es: 0.85, fr: 0.85, de: 0.9, it: 0.85, pt: 0.8, ja: 1.1, ko: 0.9, ru: 0.85, zhs: 0.8, zht: 0.8 };
+  const langOf = (id, key) => user.langs?.[id]?.[key] || "en";
+  const langPrice = (id, key, cents) => (cents == null ? cents : cents * (LANG_FACTOR[langOf(id, key)] || 1));
+  const LANG_ALIASES = { english: "en", inglés: "en", spanish: "es", español: "es", french: "fr", francés: "fr", german: "de", alemán: "de",
+    italian: "it", italiano: "it", portuguese: "pt", portugués: "pt", japanese: "ja", japonés: "ja", korean: "ko", coreano: "ko",
+    russian: "ru", ruso: "ru", "chinese simplified": "zhs", "simplified chinese": "zhs", "chinese traditional": "zht", "traditional chinese": "zht" };
+  const toLang = (v) => { const s = String(v || "").trim().toLowerCase(); return CARD_LANGS[s] ? s : LANG_ALIASES[s] || (s === "jp" ? "ja" : s === "sp" ? "es" : ""); };
+  function langPost(body) {
+    const id = binderOf(body.c);
+    if (!id) throw new Error("Esa carpeta ya no existe");
+    if (!byId.has(body.card_id)) throw new Error("No conozco esa carta");
+    const key = `${body.card_id}|${body.foil ? 1 : 0}`, lang = toLang(body.lang) || "en";
+    const map = ((user.langs ||= {})[id] ||= {});
+    if (lang === "en") delete map[key]; else map[key] = lang;
+    saveUser();
+    return { ok: true, lang };
+  }
+
   // ---------------------------------------------------------------- cartas alteradas (firma del artista, arte propio)
   /* Estimación orientativa del mercado de segunda mano: una firma suele sumar entre un 25 y un 75 % (mínimo unos 3-10 €);
    * un "alter" pintado a mano añade sobre todo el trabajo del artista (unos 20-100 €) más una parte del valor de la carta. */
@@ -539,13 +568,13 @@ const Engine = (() => {
   /** Todas las carpetas en CSV (columnas como ManaBox: se puede volver a importar aquí o en otras apps). */
   function exportCsv() {
     const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
-    const rows = [["Binder Name", "Name", "Set code", "Set name", "Collector number", "Foil", "Quantity", "Scryfall ID", "Price EUR", "Altered", "Proxy"]];
+    const rows = [["Binder Name", "Name", "Set code", "Set name", "Collector number", "Foil", "Quantity", "Scryfall ID", "Price EUR", "Altered", "Proxy", "Language"]];
     for (const b of user.binders) {
       for (const [pi, foil, qty] of entries(b.id)) {
         const [cid, oi, set, number] = P[pi];
         const a = alterOf(b.id, `${cid}|${foil ? 1 : 0}`, eur(priceOf(pi, foil)), qty);
         rows.push([b.name, front(O[oi][0]), set, SETS.get(set)?.name || "", number, foil ? "foil" : "normal", qty, cid, eur(priceOf(pi, foil)) ?? "",
-          a ? `${a.name} x${a.qty}${a.note ? ` (${a.note})` : ""}` : "", proxyOf(b.id, `${cid}|${foil ? 1 : 0}`, qty) || ""]);
+          a ? `${a.name} x${a.qty}${a.note ? ` (${a.note})` : ""}` : "", proxyOf(b.id, `${cid}|${foil ? 1 : 0}`, qty) || "", langOf(b.id, `${cid}|${foil ? 1 : 0}`)]);
       }
     }
     return { csv: rows.map((r) => r.map(q).join(",")).join("\n"), rows: rows.length - 1 };
@@ -560,6 +589,7 @@ const Engine = (() => {
     number: ["collector number", "card number", "collector_number", "number", "cn", "collector #"],
     qty: ["quantity", "count", "qty", "amount", "cantidad", "copies"],
     foil: ["foil", "printing", "finish", "foil/variant"],
+    lang: ["language", "lang", "idioma", "card language"],
   };
   const TEXT_LINE = /^\s*(\d+)\s*x?\s+(.+?)(?:\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w\-★]+))?)?(?:\s+\*[FE]\*)?\s*$/;
   const SKIP_LINES = new Set(["deck", "sideboard", "commander", "companion", "maybeboard"]);
@@ -605,7 +635,7 @@ const Engine = (() => {
         const get = (k) => (col[k] != null && col[k] < r.length ? r[col[k]].trim() : "");
         const qty = get("qty");
         return { name: get("name"), set: get("set"), set_name: get("set_name"), number: get("number"), scryfall: get("scryfall"),
-          qty: /^\d+$/.test(qty) ? +qty : 1, foil: isFoil(get("foil")), raw: r.join(",").slice(0, 120) };
+          qty: /^\d+$/.test(qty) ? +qty : 1, foil: isFoil(get("foil")), lang: toLang(get("lang")), raw: r.join(",").slice(0, 120) };
       });
     }
     const out = [];
@@ -647,7 +677,10 @@ const Engine = (() => {
     const missing = [];
     for (const row of rows) {
       const cid = resolveRow(row);
-      if (cid) { const k = `${cid}|${row.foil ? 1 : 0}`; found.set(k, (found.get(k) || 0) + Math.max(row.qty, 0)); }
+      if (cid) {
+        const k = `${cid}|${row.foil ? 1 : 0}`; found.set(k, (found.get(k) || 0) + Math.max(row.qty, 0));
+        if (row.lang && row.lang !== "en") ((user.langs ||= {})[id] ||= {})[k] = row.lang;
+      }
       else missing.push(row.raw);
     }
     if (body.mode === "replace") user.cards[id] = {};
@@ -818,9 +851,24 @@ const Engine = (() => {
     return META.map((d) => ({ id: d.id, format: d.format, archetype: d.archetype, category: d.category, share: d.share, player: d.player, event: d.event,
       result: d.result, date: d.date, thumbs: thumbsOf(d), ...deckInfo(d, owned) }));
   }
+  /** Torneos: el destacado (Super Pauper de inGenio BCN) y los últimos de Pauper, con el top y las listas que hay. */
+  function tournaments({ c }) {
+    const owned = ownedByName(binderOf(c) || 1);
+    return TOURS.map((t) => ({ ...t, top: t.top.map((d) => {
+      if (!d.cards.length) return { ...d, cards: undefined };
+      const full = { ...d, format: t.format, event: t.name };
+      return { ...d, cards: undefined, has_list: true, thumbs: thumbsOf(full), ...deckInfo(full, owned) };
+    }) }));
+  }
+  function tourDeck(id) {
+    for (const t of TOURS) for (const d of t.top) if (d.id === +id && d.cards.length) {
+      return { id: d.id, format: t.format, archetype: d.archetype, category: "", player: d.player, event: `${t.name} @ ${t.place}`, result: d.rank, date: t.date, cards: d.cards };
+    }
+    return null;
+  }
   function deck({ c, id }) {
     const mine = String(id).startsWith("u");
-    let d = mine ? (user.decks || []).find((x) => x.id === id) : META.find((x) => x.id === +id);
+    let d = mine ? (user.decks || []).find((x) => x.id === id) : META.find((x) => x.id === +id) || tourDeck(id);
     if (!d) throw new Error(mine ? "Ese mazo ya no existe" : "Ese mazo ya no está en el meta");
     if (mine) d = { ...d, archetype: d.name, player: "", event: d.format || "Mi mazo", result: "", date: "" };
     const owned = ownedByName(binderOf(c) || 1);
@@ -916,7 +964,7 @@ const Engine = (() => {
     if (scope === "collection") {
       for (const [pi] of entries(binderOf(c) || 1)) {
         const o = PR[col][pi], n = PR.eur[pi];
-        if (o && n) items.push({ name: O[P[pi][1]][0], set: P[pi][2], image: img(P[pi][0]), old: eur(o), new: eur(n) });
+        if (o && n) items.push({ id: P[pi][0], name: O[P[pi][1]][0], set: P[pi][2], image: img(P[pi][0]), old: eur(o), new: eur(n) });
       }
     } else {
       const now = cheapest().price, old = cheapest(col).price;
@@ -929,6 +977,61 @@ const Engine = (() => {
     items.forEach((i) => { i.pct = Math.round(((i.new - i.old) * 1000) / i.old) / 10; });
     items.sort((a, b) => a.pct - b.pct);
     return { base, latest: PR.day, up: items.filter((i) => i.pct > 0).reverse().slice(0, 25), down: items.filter((i) => i.pct < 0).slice(0, 25) };
+  }
+
+  /** Historial de precio de una impresión (id) o de la impresión normal más barata de una carta (name), para la gráfica.
+   *  El paquete trae history/XX.json (XX = 2 primeras letras del id); se baja solo el que hace falta. */
+  const historyShards = new Map();
+  async function history({ id, name }) {
+    let pi = id ? byId.get(id) : null;
+    if (pi == null && name) { const oi = oByNorm.get(norm(name)); if (oi != null) pi = cheapest().pick[oi]; }
+    if (pi == null || pi < 0) return { days: [], eur: [] };
+    const sid = P[pi][0], shard = sid.slice(0, 2);
+    if (!historyShards.has(shard)) historyShards.set(shard, fetchText(`history/${shard}.json?d=${PR.day}`).then(JSON.parse).catch(() => null));
+    const h = await historyShards.get(shard);
+    let days = [], vals = [];
+    if (h?.c?.[sid]) { days = h.days; vals = h.c[sid]; }
+    else {  // sin fichero (paquete antiguo o sin internet): los 4 puntos que trae prices.json
+      for (const [k, col] of [["30", "d30"], ["7", "d7"], ["1", "d1"]]) if (PR.days?.[k]) { days.push(PR.days[k]); vals.push(PR[col][pi]); }
+      days.push(PR.day); vals.push(PR.eur[pi]);
+    }
+    const pts = days.map((d, i) => [d, vals[i]]).filter(([, v]) => v != null);
+    if (pts.length && pts[pts.length - 1][0] !== PR.day && PR.eur[pi] != null) pts.push([PR.day, PR.eur[pi]]);
+    return { name: front(O[P[pi][1]][0]), set: P[pi][2].toUpperCase(), days: pts.map((x) => x[0]), eur: pts.map((x) => eur(x[1])) };
+  }
+
+  /** Para la tarea en segundo plano de Android: tus cartas (id o id+"f" si es foil) con su nombre. */
+  function watchIds() {
+    const ids = [], names = {};
+    for (const [pi, foil] of entries(1)) {
+      const k = P[pi][0] + (foil ? "f" : "");
+      if (names[k]) continue;
+      ids.push(k); names[k] = `${front(O[P[pi][1]][0])} (${P[pi][2].toUpperCase()}${foil ? " foil" : ""})`;
+    }
+    return { ids, names, day: PR.day, lastEvent: Math.max(0, ...PACK_EVENTS.map((e) => +e.id || 0)) };
+  }
+
+  /** Combos infinitos de 2 cartas (Commander Spellbook) que puedes montar con tu colección, o a los que te falta una.
+   *  format: pauper / commander / standard filtran por legalidad; casual (o vacío), todos. */
+  const COMBO_FMT = { pauper: "pauper", commander: "commander", standard: "standard" };
+  async function combosFor({ c, format = "" }) {
+    const list = await extra("combos.json");
+    const owned = ownedByName(binderOf(c) || 1);
+    const cheap = cheapest().price;
+    const fmt = COMBO_FMT[format] || "";
+    const have = [], one = [];
+    for (const k of list) {
+      if (fmt && !k.legal.includes(fmt)) continue;
+      const ois = k.cards.map((n) => oByNorm.get(norm(n)));
+      if (ois.some((oi) => oi == null)) continue;  // cartas que aún no están en el paquete
+      const got = ois.map((oi) => (owned.get(norm(O[oi][0])) || 0) > 0);
+      const n = got.filter(Boolean).length;
+      if (!n) continue;
+      const item = { ...k, owned: got, images: ois.map(oImage), eur: ois.map((oi) => eur(cheap[oi])) };
+      (n === 2 ? have : one).push(item);
+    }
+    const byPop = (a, b) => b.pop - a.pop;
+    return { have: have.sort(byPop).slice(0, 150), one: one.sort(byPop).slice(0, 150), total: list.length };
   }
 
   function events() {
@@ -1514,6 +1617,17 @@ const Engine = (() => {
     // Mazos oficiales (preconstruidos) con tus cartas base: las cartas que van con ellas son sinergia probada.
     let precons = [];
     try { precons = await extra("precons.json"); } catch { /* sin conexión: sin esta pista */ }
+    // Combos infinitos de 2 cartas (Commander Spellbook): si una carta completa un combo con otra del mazo, entra antes.
+    let comboList = [];
+    try { comboList = await extra("combos.json"); } catch { /* sin conexión: sin combos */ }
+    const comboFmt = COMBO_FMT[String(p9) === "1" ? "casual" : format] || "";
+    const partners = new Map();  // carta → [[pareja, combo]]
+    for (const k of comboList) {
+      if (comboFmt && !k.legal.includes(comboFmt)) continue;
+      const [a, b] = k.cards.map(norm);
+      if (!partners.has(a)) partners.set(a, []); if (!partners.has(b)) partners.set(b, []);
+      partners.get(a).push([b, k]); partners.get(b).push([a, k]);
+    }
     const bracket = BRACKETS[+br] ? +br : 3;
     const id = binderOf(c) || 1;
     let fmt = format;
@@ -1743,9 +1857,13 @@ const Engine = (() => {
           if (x.enabler.has(th) && en < 2 * pay + 4) balance += 2;      // faltan cartas que hagan la cosa
           if (x.payoff.has(th) && pay * 2 > en + 4) balance -= 2;       // demasiadas recompensas para lo que hay
         }
-        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + balance + (x.is_creature ? st.creature : 0)
+        // Combo infinito con una carta que ya está en el mazo (en Commander, solo desde el bracket 4: en los bajos se pactan sin combos)
+        const comboMate = (bracket >= 4 || size !== 100) && power >= 2 ? (partners.get(norm(x.name)) || []).find(([p]) => chosen.some(([y]) => norm(y.name) === p)) : null;
+        const comboBonus = comboMate ? 8 : 0;
+        const score = s + need + co + onColor + power_ * PW.rank + cheapBody + balance + comboBonus + (x.is_creature ? st.creature : 0)
           - (x.cmc >= st.heavyAt ? st.heavy : 0) - (x.cmc >= 5 ? PW.heavy : 0) - autopilot + (x.gc ? PW.gc : 0);
         if (score > bestScore) { bestScore = score; best = x; bestWhy = [...why.map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)),
+          ...(comboMate ? [`combo infinito con ${comboMate[1].cards.find((n) => norm(n) !== norm(x.name))}`] : []),
           ...(coPlay.has(norm(x.name)) ? ["se juegan juntas en torneos"] : preco.has(x.oi) ? ["van juntas en mazos oficiales"] : []), ...roleWhy]; }
       }
       if (!best || (bestScore <= 0.5 && used >= spellSlots() * 0.6)) break;  // sin nada que encaje: mejor menos cartas que relleno
@@ -1963,6 +2081,15 @@ const Engine = (() => {
       seed: base.map((x) => x.name).join(" + "), seeds: base.map((x) => x.name),
       colors: colorlessOnly ? "C" : cols.join("") + (wantC ? "C" : ""), format: fmt, buy: buyList(), meta_recs: metaRecs(), swaps,
       focus: FO ? focus : "", excluded: [...excluded], p9: withP9,
+      combos: (() => {  // combos infinitos que lleva el mazo final, con sus pasos
+        const inDeck = new Set(chosen.map(([x]) => norm(x.name)));
+        const seen = new Set(), out = [];
+        for (const n of inDeck) for (const [p, k] of partners.get(n) || []) {
+          const key = [n, p].sort().join("|");
+          if (inDeck.has(p) && !seen.has(key)) { seen.add(key); out.push({ cards: k.cards, makes: k.makes, steps: k.steps, pre: k.pre, needs: k.needs, mana: k.mana }); }
+        }
+        return out;
+      })(),
       focus_options: Object.entries(FOCUS).map(([key, f]) => {
         const ts = Object.keys(f.themes), rs = Object.keys(f.roles || {});
         const count = [...pool.values()].filter((x) => !x.is_land && legal(x) && subset(x.colors, deckColors)
@@ -2123,12 +2250,12 @@ const Engine = (() => {
 
   // ---------------------------------------------------------------- rutas
   const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection,
-    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/events": events, "/api/collections": collectionsList,
+    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/watch": watchPost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/lang": langPost, "/api/watch": watchPost };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

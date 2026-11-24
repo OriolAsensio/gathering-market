@@ -8,7 +8,16 @@
   },
   "plugins": {
     "LocalNotifications": {
-      "iconColor": "#d6a84e"
+      "iconColor": "#d6a84e",
+      "smallIcon": "ic_stat_gm"
+    },
+    "BackgroundRunner": {
+      "label": "app.gatheringmarket.prices",
+      "src": "runners/background.js",
+      "event": "checkPrices",
+      "repeat": true,
+      "interval": 30,
+      "autoStart": true
     }
   }
 }

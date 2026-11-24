@@ -58,7 +58,9 @@ $("#sheet-backdrop").onclick = closeSheet;
 async function loadSummary() {
   const s = await api("/api/summary");
   if (s.collection_id !== cid) { cid = 1; store("cid", "1"); render(); return loadSummary(); }  // colección borrada
-  $("#top-label").textContent = s.collection;
+  // Una sola carpeta: tu colección. Las carpetas antiguas (si las había) se pueden seguir abriendo o borrar.
+  $("#top-label").textContent = s.collection_id === 1 ? "Valor de mis cartas" : s.collection;
+  api("/api/collections").then((l) => $("#top-label").classList.toggle("multi", l.length > 1));
   $("#top-value").textContent = euro(s.value);
   let sub = `${plural(s.cards, "carta", "cartas")} · Cardmarket, ${new Date(s.day).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}`;
   if (s.prev_value != null && s.value != null && s.cards) {
@@ -73,16 +75,14 @@ async function loadSummary() {
 async function collectionsSheet() {
   const list = await api("/api/collections");
   const body = openSheet(`
-    <h3>Carpetas</h3>
-    <div class="hint">Cada carpeta es un montón de cartas: las tuyas y, por ejemplo, las de un amigo para montarle mazos. Solo "Mis cartas" envía avisos de precio.</div>
+    <h3>Carpetas antiguas</h3>
+    <div class="hint">Ahora solo hay una carpeta: tu colección. Estas son de antes; puedes abrirlas o borrarlas.</div>
     <div class="list">${list.map((c) => `
       <div class="item ${c.id === cid ? "on" : ""}" data-cid="${c.id}">
         <div class="item-main"><div class="item-title">${c.id === cid ? "✓ " : ""}${esc(c.name)}</div>
           <div class="item-meta">${plural(c.cards, "carta", "cartas")}</div></div>
         ${c.id !== 1 ? `<button class="btn" data-del="${c.id}" aria-label="Borrar ${esc(c.name)}">🗑</button>` : ""}
-      </div>`).join("")}</div>
-    <div class="field"><label>Nueva carpeta</label>
-      <div style="display:flex;gap:8px"><input class="search" id="new-col" placeholder="Ej.: Cartas de Marc"><button class="btn primary" id="new-col-ok">Crear</button></div></div>`);
+      </div>`).join("")}</div>`);
   const use = (id) => { cid = id; store("cid", String(id)); closeSheet(); refresh(); };
   body.querySelectorAll("[data-cid]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del]")) use(+el.dataset.cid); }));
   body.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
@@ -91,14 +91,8 @@ async function collectionsSheet() {
     await api("/api/collections", { delete: c.id });
     if (cid === c.id) use(1); else collectionsSheet();
   }));
-  $("#new-col-ok", body).onclick = async () => {
-    const name = $("#new-col", body).value.trim();
-    if (!name) return;
-    try { const r = await api("/api/collections", { create: name }); use(r.id); toast(`Carpeta "${name}" creada`); }
-    catch (err) { toast(err.message.includes("UNIQUE") ? "Ya existe una con ese nombre" : err.message); }
-  };
 }
-$("#top-label").onclick = collectionsSheet;
+$("#top-label").onclick = async () => { if ((await api("/api/collections")).length > 1) collectionsSheet(); };
 
 // Idioma de la app (ver i18n.js): al cambiarlo se recarga para traducir todo de nuevo.
 $("#lang-btn").textContent = LANG.toUpperCase();
@@ -320,8 +314,8 @@ views.collection = async () => {
   v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
-    <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">✍️ Alteradas</button></div>
-    <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">🖼 Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
+    <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">${ico("alter")}Alteradas</button></div>
+    <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">${ico("picture")}Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
     <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">🗑 Quitar</button><button class="btn primary" id="col-go">🔨 Crear mazo</button></div>`);
@@ -349,7 +343,7 @@ views.collection = async () => {
     const kindOk = (c) => kind === "all" || (kind === "proxy" ? c.proxy > 0 : kind === "real" ? c.proxy < c.qty : !!c.alter);
     const shown = items.filter((c) => kindOk(c) && (!f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f))));
     const page = shown.slice(0, limit);
-    const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, (c.foil || c.alter ? `<span class="num-tag">${[c.foil ? "Foil" : "", c.alter ? "✍️" : ""].filter(Boolean).join(" ")}</span>` : "")
+    const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, (c.foil || c.alter || c.lang !== "en" ? `<span class="num-tag">${[c.lang !== "en" ? esc(c.lang.toUpperCase()) : "", c.foil ? "Foil" : "", c.alter ? ico("alter") : ""].filter(Boolean).join(" ")}</span>` : "")
       + (c.proxy ? `<span class="proxy-tag">PROXY${c.proxy < c.qty ? ` ×${c.proxy}` : ""}</span>` : ""))).join("")}</div>`
       : `<div class="list">${page.map((c) => `
       <button class="item" data-row="${esc(c.key)}">
@@ -357,7 +351,7 @@ views.collection = async () => {
         <div class="item-main">
           <div class="item-title">${esc(c.name)}</div>
           <div class="item-meta"><i class="r r-${esc(c.rarity)}"></i>${esc(c.set.toUpperCase())} #${esc(c.number)}
-            ${c.foil ? '<span class="chip foil">Foil</span>' : ""}${c.alter ? `<span class="chip gold">✍️ ${esc(c.alter.name)}</span>` : ""}${c.proxy ? `<span class="chip">Proxy ×${c.proxy}</span>` : ""}
+            ${c.foil ? '<span class="chip foil">Foil</span>' : ""}${c.alter ? `<span class="chip gold">${ico("alter")}${esc(c.alter.name)}</span>` : ""}${c.proxy ? `<span class="chip">Proxy ×${c.proxy}</span>` : ""}
             ${c.pauper === "banned" ? '<span class="chip ban">Baneada</span>' : ""}</div>
           ${c.decks.length ? `<div class="item-meta">${c.decks.slice(0, 3).map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}${c.decks.length > 3 ? `<span class="chip">+${c.decks.length - 3}</span>` : ""}</div>` : ""}
         </div>
@@ -422,6 +416,9 @@ async function searchInto(box, text) {
 }
 
 // Ficha de una carta de la carpeta
+// Idiomas en los que puede estar una carta (el precio se ajusta un poco según el idioma)
+const CARD_LANG_NAMES = { en: "Inglés", es: "Español", fr: "Francés", de: "Alemán", it: "Italiano", pt: "Portugués", ja: "Japonés", ko: "Coreano", ru: "Ruso", zhs: "Chino simplificado", zht: "Chino tradicional" };
+
 function cardSheet(c) {
   const body = openSheet(`
     <h3>${esc(c.name)}</h3>
@@ -432,17 +429,19 @@ function cardSheet(c) {
       <div class="stat"><b>${c.qty}</b><span>Copias</span></div>
       <div class="stat"><b>${euro((c.eur || 0) * c.qty)}</b><span>Total</span></div>
     </div>
+    <div id="price-chart"></div>
     ${c.decks.length ? `<h2>La juegan en Pauper</h2><div class="item-meta">${c.decks.map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}</div>` : ""}
     ${/land/i.test(c.type || "") ? "" : `<button class="btn block" id="build-from" style="margin-top:12px">${ico("plus")}Crear un mazo con esta carta${/legendary.*creature/i.test(c.type || "") ? " (o de Commander)" : ""}</button>`}
     <button class="btn block" id="open-set" style="margin-top:8px">📜 Ver la colección ${esc(c.set_name)}</button>
-    <button class="btn block" id="follow" style="margin-top:8px">☆ Seguir su precio en Mercado</button>
-    <button class="btn block" id="open-syn" style="margin-top:8px">🔮 Cartas que combinan con esta</button>
+    <button class="btn block" id="follow" style="margin-top:8px">${ico("follow")}Seguir su precio en Mercado</button>
+    <button class="btn block" id="open-syn" style="margin-top:8px">${ico("synergy")}Cartas que combinan con esta</button>
     <a class="btn block" style="margin-top:8px;text-decoration:none" target="_blank" rel="noopener"
        href="${cardmarketUrl(c.name)}">🛒 Ver en Cardmarket</a>
     <h2>Tus versiones</h2><div class="list" id="versions">${skeleton(1)}</div>
     <button class="btn block primary" id="add-version" style="margin-top:10px">➕ Añadir otro arte o foil</button>`);
   $("#build-from", body)?.addEventListener("click", () => pickSeed([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
   $("#open-set", body).onclick = () => setSheet(c.set);
+  priceChart($("#price-chart", body), { id: c.id });
   $("#open-syn", body).onclick = () => synergySheet(c.name);
   followButton(body, c.name);
   $("#add-version", body).onclick = () => addSheet([{ name: c.name }]);
@@ -451,10 +450,12 @@ function cardSheet(c) {
     $("#versions", body).innerHTML = mine.map((x) => `<div class="item version">
         <img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(x.set_name)} #${esc(x.number)}</div>
-          <div class="item-meta">${x.foil ? '<span class="chip foil">Foil</span>' : ""}${euro(x.eur)}</div>
+          <div class="item-meta">${x.foil ? '<span class="chip foil">Foil</span>' : ""}${euro(x.eur)}${x.lang !== "en" ? ` · ≈ ${euro(x.eur_lang)} en ${esc(x.lang_name.toLowerCase())}` : ""}</div>
+          <div class="item-meta"><label class="sub" for="lang-${esc(x.id)}-${x.foil ? 1 : 0}">Idioma</label>
+            <select class="lang-sel" id="lang-${esc(x.id)}-${x.foil ? 1 : 0}" data-lid="${esc(x.id)}" data-f="${x.foil ? 1 : 0}">${Object.entries(CARD_LANG_NAMES).map(([k, n]) => `<option value="${k}" ${k === x.lang ? "selected" : ""}>${n}</option>`).join("")}</select></div>
           <div class="item-meta proxy-row"><span class="sub">Proxies</span><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" ${x.proxy ? "" : "disabled"}>−</button><b>${x.proxy || 0}</b><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" ${x.proxy < x.qty ? "" : "disabled"}>+</button>${x.proxy ? `<span class="sub">(no suman valor; solo para Casual${x.proxy_collect ? "" : "; no cuentan para la colección"})</span>` : ""}</div>
-          ${x.alter ? `<div class="item-meta"><span class="chip gold">✍️ ${esc(x.alter.name)} ×${x.alter.qty}</span> ~${euro(x.alter.estimate[0])}–${euro(x.alter.estimate[1])}${x.alter.note ? ` · ${esc(x.alter.note)}` : ""}</div>` : ""}
-          <button class="btn alter-btn" data-alter="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-q="${x.qty}">✍️ ${x.alter ? "Cambiar alteración" : "¿Firmada o con arte propio?"}</button></div>
+          ${x.alter ? `<div class="item-meta"><span class="chip gold">${ico("alter")}${esc(x.alter.name)} ×${x.alter.qty}</span> ~${euro(x.alter.estimate[0])}–${euro(x.alter.estimate[1])}${x.alter.note ? ` · ${esc(x.alter.note)}` : ""}</div>` : ""}
+          <button class="btn alter-btn" data-alter="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-q="${x.qty}">${ico("alter")}${x.alter ? "Cambiar alteración" : "¿Firmada o con arte propio?"}</button></div>
         <div class="stepper"><button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" aria-label="Quitar una">−</button><b class="num">${x.qty}</b>
           <button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" aria-label="Añadir otra">+</button></div>
       </div>`).join("") || `<div class="hint">Ya no tienes ninguna.</div>`;
@@ -462,6 +463,11 @@ function cardSheet(c) {
       const row = mine.find((x) => x.id === b.dataset.px && x.foil === (b.dataset.f === "1"));
       const first = +b.dataset.d > 0 && !row?.proxy;  // al marcar el primer proxy, se pregunta si cuenta para la colección
       await api("/api/proxy", { card_id: b.dataset.px, foil: b.dataset.f === "1", delta: +b.dataset.d, ...(first ? { collect: confirm(t("¿Quieres que este proxy cuente para la colección? (completar colecciones y número de cartas). Aceptar = sí, Cancelar = no")) } : {}) });
+      closeSheet.dirty = true; drawVersions(); loadSummary();
+    }));
+    body.querySelectorAll("#versions [data-lid]").forEach((s) => (s.onchange = async () => {
+      await api("/api/lang", { card_id: s.dataset.lid, foil: s.dataset.f === "1", lang: s.value });
+      toast("Idioma guardado");
       closeSheet.dirty = true; drawVersions(); loadSummary();
     }));
     body.querySelectorAll("#versions [data-alter]").forEach((b) => (b.onclick = () => alterBox(b, mine.find((x) => x.id === b.dataset.alter && x.foil === (b.dataset.f === "1")))));
@@ -484,7 +490,7 @@ function alterBox(btn, x) {
   let kind = x.alter?.kind || "firma", qty = x.alter?.qty || 1;
   const draw = async () => {
     const est = await api(`/api/alterestimate?card_id=${encodeURIComponent(x.id)}&foil=${x.foil ? 1 : 0}&kind=${kind}`);
-    box.innerHTML = `<div class="seg" id="al-kind"><button data-k="firma">✍️ Firmada</button><button data-k="arte">🎨 Arte propio</button><button data-k="ambas">Las dos</button></div>
+    box.innerHTML = `<div class="seg" id="al-kind"><button data-k="firma">${ico("alter")}Firmada</button><button data-k="arte">🎨 Arte propio</button><button data-k="ambas">Las dos</button></div>
       <div class="hint">Precio normal ${euro(x.eur)}. ${kind === "firma" ? "Con firma del artista" : kind === "arte" ? "Con arte pintado a mano (alter)" : "Firmada y con arte propio"} podría venderse por unos
         <b>${euro(est[0])}–${euro(est[1])}</b></div><div class="hint">Es orientativo: depende del artista, de la calidad y de quién la compre.</div>
       <div class="field" style="flex-direction:row;justify-content:space-between;align-items:center"><span class="sub">Copias alteradas</span>
@@ -590,7 +596,7 @@ views.decks = async () => {
       <div class="item-main"><div class="item-title">Importar mi mazo</div>
         <div class="item-meta">Pega la lista (o un .txt) y marca qué cartas ya tienes.</div></div>
     </button>
-    <div class="field"><label for="deck-tab">Ver mazos</label><select class="search deck-select" id="deck-tab"></select></div>
+    <div class="field"><label for="deck-tab">Ver mazos</label><div class="deck-pick"><span id="deck-tab-ico"></span><select class="search deck-select" id="deck-tab"></select></div></div>
     <div id="deck-body">${skeleton(5)}</div>`;
   $("#deck-build").onclick = () => builderSheet();
   $("#deck-import").onclick = importDeckSheet;
@@ -599,20 +605,30 @@ views.decks = async () => {
   let tab = store("deckTab") || "PAU";
   if (tab !== "mine" && !formats.includes(tab)) tab = "PAU";
   const count = (f) => decks.filter((d) => d.format === f).length;
-  $("#deck-tab").innerHTML = `<option value="mine">📂 Mis mazos (${mine.length})</option>
-    ${formats.map((f) => `<option value="${f}">⚔️ Meta de ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
+  $("#deck-tab").innerHTML = `<option value="mine">Mis mazos (${mine.length})</option>
+    ${formats.map((f) => `<option value="${f}">Meta de ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
   const sorters = { meta: (a, b) => b.share - a.share, owned: (a, b) => b.owned_pct - a.owned_pct, cheap: (a, b) => a.price - b.price, missing: (a, b) => a.missing_cost - b.missing_cost };
   const bind = (root) => root.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
   const draw = () => {
     $("#deck-tab").value = tab;
+    $("#deck-tab-ico").innerHTML = ico(tab === "mine" ? "folder" : "meta");
     const body = $("#deck-body");
     if (tab === "mine") {
       body.innerHTML = `<div class="hint">Tus mazos importados, guardados del meta o creados con el constructor. Ábrelo y toca las cartas que ya tienes.</div>
         ${mine.length ? `<div class="list">${mine.map(deckCard).join("")}</div>` : `<div class="empty"><strong>Aún no tienes mazos</strong>Importa tu lista arriba, crea uno con el constructor o guarda uno del meta.</div>`}`;
       return bind(body);
     }
+    // Pauper: el meta o los ganadores de torneos (con el destacado, el Super Pauper de inGenio BCN)
+    const metaView = tab === "PAU" ? store("pauView") || "meta" : "meta";
+    const viewSeg = tab === "PAU" ? `<div class="seg" id="pau-view"><button data-v="meta" class="${metaView === "meta" ? "on" : ""}">${ico("meta")}Meta</button><button data-v="wins" class="${metaView === "wins" ? "on" : ""}">${ico("trophy")}Ganadores de torneos</button></div>` : "";
+    const bindView = () => body.querySelectorAll("#pau-view button").forEach((b) => (b.onclick = () => { store("pauView", b.dataset.v); draw(); }));
+    if (metaView === "wins") {
+      body.innerHTML = `${viewSeg}<div id="wins">${skeleton(4)}</div>`;
+      bindView();
+      return winnersView($("#wins", body));
+    }
     const list = decks.filter((d) => d.format === tab);
-    body.innerHTML = `<div class="hint">${tab === "PAU"
+    body.innerHTML = `${viewSeg}<div class="hint">${tab === "PAU"
       ? `De cada arquetipo, la lista mejor clasificada (🏆 la ganadora si la hay) de los últimos 2 meses en MTGTop8. "Weenie White" es el mono blanco (Convoke, Kor Skyfisher…).`
       : `Los arquetipos más jugados de ${META_FORMATS[tab]} en MTGTop8 y, de cada uno, la lista mejor clasificada (🏆 la ganadora si la hay).`}</div>
       <div class="seg" id="deck-sort">
@@ -629,6 +645,38 @@ views.decks = async () => {
   $("#deck-tab").onchange = (e) => { tab = e.target.value; store("deckTab", tab); draw(); };
   draw();
 };
+
+/* Ganadores de torneos: primero el destacado (Super Pauper de inGenio BCN, top 8 con jugador y lista) y luego los últimos torneos. */
+async function winnersView(box) {
+  const tours = await api("/api/tournaments");
+  if (!tours.length) { box.innerHTML = `<div class="empty"><strong>Aún no hay torneos</strong>Se descargan con el meta, dos veces al día.</div>`; return; }
+  const fdate = (d) => (d ? new Date(d).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "");
+  const place = (r) => (r === "1" ? `${ico("trophy")}1º` : `${esc(r)}º`);
+  const deckRow = (d) => `<button class="item tour-row" ${d.has_list ? `data-id="${esc(d.id)}"` : "disabled"}>
+      <span class="tour-rank ${d.rank === "1" ? "win" : ""}">${place(d.rank)}</span>
+      <div class="item-main"><div class="item-title">${esc(d.archetype)}</div><div class="item-meta">${esc(d.player)}${d.has_list ? ` · Tienes el ${d.owned_pct}%` : ""}</div></div>
+      ${d.has_list ? `<div class="item-side"><div class="price">${euro(d.price)}</div></div>` : ""}</button>`;
+  const featured = tours.filter((t) => t.featured), recent = tours.filter((t) => !t.featured);
+  box.innerHTML = `${featured.length ? `<h2>${ico("trophy")}Torneo destacado: Super Pauper</h2>
+      <div class="hint">El Super Pauper de inGenio BCN Games (Barcelona), de MTGTop8. Toca un mazo para ver la lista y qué cartas tienes.</div>
+      ${featured.map((t) => `<div class="tour-card featured"><div class="tour-head"><b>${esc(t.name)}</b><span class="sub">${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</span></div>
+        <div class="list">${t.top.slice(0, 8).map(deckRow).join("")}</div></div>`).join("")}` : ""}
+    <h2>Últimos torneos</h2><div class="hint">El mazo ganador de los últimos torneos de Pauper en MTGTop8. Toca un torneo para ver su top.</div>
+    <div class="list">${recent.map((t) => {
+      const w = t.top[0];
+      return `<button class="item tour-open" data-t="${t.id}"><div class="item-main"><div class="item-title">${esc(t.name)}</div>
+        <div class="item-meta">${esc(t.place)} · ${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</div>
+        ${w ? `<div class="item-meta"><span class="chip gold">${ico("trophy")}${esc(w.archetype)}</span>${esc(w.player)}</div>` : ""}</div></button>`;
+    }).join("")}</div>`;
+  box.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
+  box.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => {
+    const t = tours.find((x) => x.id === +b.dataset.t);
+    const body = openSheet(`<h3>${esc(t.name)}</h3><div class="sub">${esc(t.place)} · ${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</div>
+      <div class="hint">Del ganador está la lista completa; del resto, el arquetipo y el jugador.</div>
+      <div class="list">${t.top.map(deckRow).join("")}</div>`);
+    body.querySelectorAll("[data-id]").forEach((x) => (x.onclick = () => deckSheet(x.dataset.id)));
+  }));
+}
 
 function importDeckSheet() {
   const body = openSheet(`<h3>Importar una lista</h3>
@@ -767,7 +815,7 @@ function setRow(s, withProgress = true) {
     <div class="item-main">
       <div class="item-title">${esc(s.name)}</div>
       ${s.via ? `<div class="item-meta"><span class="chip gold">🃏 ${esc(s.via)}</span></div>` : ""}
-      <div class="item-meta">${s.pinned ? '<span class="pin">📌 Siguiendo</span>' : ""}<span>${s.code.startsWith("deck:") ? esc(s.type) : s.code === "reserved" ? "" : esc(s.code.toUpperCase())}${s.released ? ` · ${year(s.released)}` : ""} · ${s.total} cartas</span></div>
+      <div class="item-meta">${s.pinned ? '<span class="pin">${ico("pin")}Siguiendo</span>' : ""}<span>${s.code.startsWith("deck:") ? esc(s.type) : s.code === "reserved" ? "" : esc(s.code.toUpperCase())}${s.released ? ` · ${year(s.released)}` : ""} · ${s.total} cartas</span></div>
       ${withProgress ? `<div class="bar"><i style="width:${s.pct}%"></i></div>
         <div class="deck-foot"><span>Tienes ${s.owned} de ${s.total}</span><span>${s.pct}%</span></div>` : ""}
     </div></button>`;
@@ -897,7 +945,7 @@ async function setSheet(code, opts = {}) {
     body.innerHTML = `
       <div class="set-head">${setIcon(d)}<div>
         <h3>${esc(d.name)}</h3><div class="sub">${d.special ? esc(d.type === "reserved" ? "No se reimprimen" : d.type) : esc(d.code.toUpperCase())}${d.released ? ` · ${esc(d.released)}` : ""}</div></div></div>
-      <button class="btn block ${d.pinned ? "" : "primary"}" id="set-pin">${d.pinned ? "Dejar de seguir" : "📌 Seguir esta colección"}</button>
+      <button class="btn block ${d.pinned ? "" : "primary"}" id="set-pin">${d.pinned ? "Dejar de seguir" : `${ico("pin")}Seguir esta colección`}</button>
       <div class="stats">
         <div class="stat"><b>${d.owned}/${d.total}</b><span>Tienes (${pct}%)</span></div>
         <div class="stat"><b>${euro(d.value_owned)}</b><span>Lo que tienes vale</span></div>
@@ -1062,6 +1110,9 @@ async function builderSheet(seeds, startFormat) {
       <div class="curve">${Object.entries(s.curve).map(([k, n]) => `<div><i style="height:${(n / maxCurve) * 100}%"></i><b>${n || ""}</b><span>${k === "6" ? "6+" : k}</span></div>`).join("")}</div>
       <div class="hint">${s.creatures} criaturas y ${s.spells - s.creatures} hechizos. Debajo de cada carta, por qué está.</div>
       ${group("Criaturas", creatures)}${group("Hechizos", spells)}${group("Tierras", d.lands)}
+      ${d.combos?.length ? `<h2>${ico("synergy")}Combos infinitos en este mazo</h2>${d.combos.map((k) => `<details class="guide"><summary>${k.cards.map(esc).join(" + ")} · ${esc(k.makes[0] || "")}</summary>
+        ${k.pre || k.needs.length ? `<div class="hint">Necesitas: ${[...k.needs, k.pre].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
+        <ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>`).join("")}` : ""}
       ${d.bench.length ? `<h2>➕ Te recomiendo añadir (ya las tienes)</h2><div class="hint">Toca una para meterla en el mazo como carta base.</div>
         <div class="grid">${d.bench.map((c) => `<button class="gcard rec" data-add="${esc(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
           ${c.eur != null ? `<span class="badge full">${euro(c.eur)}</span>` : ""}<div class="why">${esc(c.reasons.join(" · "))}</div></button>`).join("")}</div>` : ""}
@@ -1131,12 +1182,52 @@ async function builderSheet(seeds, startFormat) {
 
 // Elegir el formato y una o varias cartas base de la carpeta (con sugerencias de cartas que combinan).
 // `already` = las que ya tiene el mazo (salen marcadas).
+/* Combos infinitos de 2 cartas (no sinergias) que puedes hacer con tu colección, y los que te falta una carta para hacer.
+   Al tocar uno: qué hace, qué necesita, los pasos y un botón para crear un mazo con el combo. */
+async function combosSheet(format = "casual") {
+  const body = openSheet(`<h3>${ico("synergy")}Combos infinitos</h3>${skeleton(3)}`);
+  let fmt = format;
+  const draw = async () => {
+    body.innerHTML = `<h3>${ico("synergy")}Combos infinitos</h3>
+      <div class="hint">Combos de dos cartas que crean algo infinito (vida, daño, maná, fichas…), de Commander Spellbook. No son sinergias: con las dos cartas en juego el combo se repite sin fin.</div>
+      <div class="seg" id="cb-fmt">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}" class="${k === fmt ? "on" : ""}">${n}</button>`).join("")}</div>
+      <div id="cb-list">${skeleton(4)}</div>`;
+    body.querySelectorAll("#cb-fmt button").forEach((b) => (b.onclick = () => { fmt = b.dataset.f; draw(); }));
+    let r;
+    try { r = await api(`/api/combos?format=${fmt}`); } catch (err) { $("#cb-list", body).innerHTML = `<div class="empty">${esc(err.message)}</div>`; return; }
+    const row = (k, i, group) => `<button class="item combo-row" data-g="${group}" data-i="${i}">
+        <div class="combo-imgs">${k.images.map((src, j) => `<img loading="lazy" src="${esc(src)}" alt="" class="${k.owned[j] ? "" : "missing"}">`).join("")}</div>
+        <div class="item-main"><div class="item-title">${k.cards.map(esc).join(" + ")}</div>
+          <div class="item-meta">${k.makes.slice(0, 2).map((m) => `<span class="chip gold">${esc(m)}</span>`).join("")}</div>
+          ${group === "one" ? `<div class="item-meta">Te falta: ${k.cards.map((n, j) => (k.owned[j] ? "" : `${esc(n)}${k.eur[j] != null ? ` (${euro(k.eur[j])})` : ""}`)).join("")}</div>` : ""}</div></button>`;
+    $("#cb-list", body).innerHTML = `<h2>Puedes montarlos (${r.have.length})</h2>
+      ${r.have.length ? `<div class="list">${r.have.map((k, i) => row(k, i, "have")).join("")}</div>` : `<div class="hint">Con tus cartas no hay ningún combo de dos cartas en este formato.</div>`}
+      <h2>Te falta una carta (${r.one.length})</h2>
+      ${r.one.length ? `<div class="list">${r.one.map((k, i) => row(k, i, "one")).join("")}</div>` : `<div class="hint">Ninguno.</div>`}`;
+    body.querySelectorAll("[data-g]").forEach((b) => (b.onclick = () => comboSheet(r[b.dataset.g][+b.dataset.i], fmt)));
+  };
+  draw();
+}
+
+function comboSheet(k, fmt) {
+  const FMT = { pauper: "Pauper", standard: "Estándar", pioneer: "Pioneer", modern: "Modern", legacy: "Legacy", vintage: "Vintage", commander: "Commander" };
+  const body = openSheet(`<h3>${k.cards.map(esc).join(" + ")}</h3>
+    <div class="combo-big">${k.images.map((src, j) => `<figure><img src="${esc(src)}" alt="${esc(k.cards[j])}" class="${k.owned[j] ? "" : "missing"}"><figcaption>${k.owned[j] ? "La tienes" : `No la tienes${k.eur[j] != null ? ` · ${euro(k.eur[j])}` : ""}`}</figcaption></figure>`).join("")}</div>
+    <h2>Qué consigues</h2><div class="item-meta">${k.makes.map((m) => `<span class="chip gold">${esc(m)}</span>`).join("")}</div>
+    ${k.pre || k.needs.length || k.mana ? `<h2>Qué necesitas</h2><ul class="combo-pre">${k.needs.map((n) => `<li>${esc(n)}</li>`).join("")}${k.pre ? `<li>${esc(k.pre)}</li>` : ""}${k.mana ? `<li>Maná: ${esc(k.mana)}</li>` : ""}</ul>` : ""}
+    <h2>Cómo funciona, paso a paso</h2><ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    <div class="hint">Los pasos vienen de Commander Spellbook (en inglés). Legal en: ${k.legal.map((f) => FMT[f] || f).join(", ") || "ningún formato principal"}.</div>
+    <button class="btn block primary" id="cb-build" style="margin-top:10px">${ico("plus")}Crear un mazo con este combo</button>`);
+  $("#cb-build", body).onclick = () => builderSheet(k.cards, fmt);
+}
+
 async function pickSeed(already = [], keepFormat = null) {
   let format = keepFormat || store("buildFormat") || "pauper";
   const body = openSheet(`<h3>Crear un mazo</h3>
     <div class="field"><label>1. ¿Para qué formato?</label>
       <div class="seg" id="seed-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
       <div class="hint" id="seed-fhint"></div></div>
+    <button class="btn block" id="seed-combos" style="margin-bottom:10px">${ico("synergy")}Combos infinitos con tus cartas</button>
     <div class="field"><label>2. Elige una o varias cartas</label>
       <div class="hint">Cuantas más cartas elijas que vayan juntas, más sólido sale el mazo. Al elegir una, te sugiero otras de tu carpeta que combinan con ella.</div></div>
     <div id="seed-sugg"></div>
@@ -1144,6 +1235,7 @@ async function pickSeed(already = [], keepFormat = null) {
     <div class="seg" style="margin-top:8px"><button id="seed-legend">👑 Solo comandantes</button></div>
     <div id="seed-list">${skeleton(3)}</div>
     <div class="sel-bar" id="seed-bar"><span class="sub" id="seed-n">Ninguna elegida</span><button class="btn primary" id="seed-go" disabled>Crear mazo</button></div>`);
+  $("#seed-combos", body).onclick = () => combosSheet(format);
   const items = await api("/api/collection");
   const seen = new Set();
   const cards = items.filter((c) => !/land/i.test(c.type || "") && !seen.has(c.name) && seen.add(c.name));
@@ -1168,7 +1260,7 @@ async function pickSeed(already = [], keepFormat = null) {
       const box = $("#seed-sugg", body);
       if (!picked.size) { box.innerHTML = ""; return; }
       const r = await api(`/api/seedhelp?format=${format}&seeds=${encodeURIComponent([...picked].join("|"))}`);
-      box.innerHTML = r.suggest.length ? `<h2>✨ Combinan con lo que has elegido</h2><div class="arts">${r.suggest.map((c) => `
+      box.innerHTML = r.suggest.length ? `<h2>${ico("synergy")}Combinan con lo que has elegido</h2><div class="arts">${r.suggest.map((c) => `
         <button class="art sugg" data-name="${esc(c.name)}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span>Sinergia: ${esc(c.why)}.</span></button>`).join("")}</div>` : "";
       box.querySelectorAll(".sugg").forEach((b) => (b.onclick = () => {
         toggle(b.dataset.name);
@@ -1226,7 +1318,7 @@ views.market = async () => {
   const v = $("#view");
   const section = store("marketTab") || "moves";
   v.innerHTML = `<h2>Mercado</h2>
-    <div class="seg" id="m-tab"><button data-t="watch">⭐ Sigo</button><button data-t="moves">📈 Movimientos</button><button data-t="pred">🔮 Predicciones</button><button data-t="syn">🧩 Sinergias</button></div>
+    <div class="seg" id="m-tab"><button data-t="watch">${ico("follow")}Sigo</button><button data-t="moves">${ico("up")}Movimientos</button><button data-t="pred">${ico("predict")}Predicciones</button><button data-t="syn">${ico("synergy")}Sinergias</button></div>
     <div id="m-section"></div>`;
   v.querySelectorAll("#m-tab button").forEach((b) => {
     b.classList.toggle("on", b.dataset.t === section);
@@ -1245,15 +1337,15 @@ views.market = async () => {
     box.querySelectorAll("#m-days button").forEach((b) => b.classList.toggle("on", +b.dataset.d === state.marketDays));
     $("#m-body").innerHTML = skeleton(5);
     const m = await api(`/api/movers?scope=${state.marketScope}&days=${state.marketDays}&min=${state.marketScope === "collection" ? 0 : 0.5}`);
-    const row = (i) => `<div class="mover" data-follow="${esc(i.name)}"><span class="pct ${i.pct > 0 ? "up" : "down"}">${pct(i.pct)}</span><span class="n">${esc(i.name)}${i.set ? ` <span class="chip">${esc(i.set.toUpperCase())}</span>` : ""}</span><span class="from">${euro(i.old)} → <b>${euro(i.new)}</b></span></div>`;
+    const row = (i) => `<div class="mover" data-follow="${esc(i.name)}" data-pid="${esc(i.id || "")}"><span class="pct ${i.pct > 0 ? "up" : "down"}">${pct(i.pct)}</span><span class="n">${esc(i.name)}${i.set ? ` <span class="chip">${esc(i.set.toUpperCase())}</span>` : ""}</span><span class="from">${euro(i.old)} → <b>${euro(i.new)}</b></span></div>`;
     if (m.base === m.latest) {
       $("#m-body").innerHTML = `<div class="empty"><strong>Acumulando historial</strong>Hay precios del ${esc(m.latest)}. Las subidas y bajadas aparecerán a partir de mañana, y la vista semanal en 7 días.</div>`;
       return;
     }
     $("#m-body").innerHTML = `<div class="hint">Del ${esc(m.base)} al ${esc(m.latest)} · solo cartas de 0,50 € o más</div>
-      <h2>📈 Suben</h2><div class="list">${m.up.map(row).join("") || '<div class="hint">Nada.</div>'}</div>
-      <h2>📉 Bajan</h2><div class="list">${m.down.map(row).join("") || '<div class="hint">Nada.</div>'}</div>`;
-    $("#m-body").querySelectorAll("[data-follow]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.follow)));
+      <h2>${ico("up")}Suben</h2><div class="list">${m.up.map(row).join("") || '<div class="hint">Nada.</div>'}</div>
+      <h2>${ico("down")}Bajan</h2><div class="list">${m.down.map(row).join("") || '<div class="hint">Nada.</div>'}</div>`;
+    $("#m-body").querySelectorAll("[data-follow]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.follow, el.dataset.pid)));
   };
   box.querySelectorAll("#m-scope button").forEach((b) => (b.onclick = () => { state.marketScope = b.dataset.s; store("marketScope", b.dataset.s); draw(); }));
   box.querySelectorAll("#m-days button").forEach((b) => (b.onclick = () => { state.marketDays = +b.dataset.d; store("marketDays", b.dataset.d); draw(); }));
@@ -1305,7 +1397,7 @@ async function watchView(box) {
 async function followButton(root, name) {
   const btn = $("#follow", root);
   if (!btn) return;
-  const paint = (on) => { btn.textContent = on ? "⭐ Siguiendo su precio (toca para dejarlo)" : "☆ Seguir su precio en Mercado"; btn.classList.toggle("primary", !on); };
+  const paint = (on) => { btn.innerHTML = ico("follow") + (on ? "Siguiendo su precio (toca para dejarlo)" : "Seguir su precio en Mercado"); btn.classList.toggle("primary", !on); };
   let on = (await api("/api/watch")).some((c) => c.name === name);
   paint(on);
   btn.onclick = async () => { await api("/api/watch", on ? { remove: name } : { add: name }); on = !on; paint(on); toast(on ? `⭐ Sigues ${name}` : "Ya no la sigues"); };
@@ -1359,17 +1451,50 @@ async function setSynergySheet(code) {
   } catch (err) { body.innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
 }
 
-async function synergySheet(name) {
+/* Gráfica del precio (Cardmarket) y tabla con lo importante: hoy, hace 7 y 30 días, máximo, mínimo y el mayor salto. */
+async function priceChart(box, q) {
+  if (!box) return;
+  box.innerHTML = skeleton(1);
+  const h = await api(`/api/history?${q.id ? `id=${encodeURIComponent(q.id)}` : `name=${encodeURIComponent(q.name)}`}`).catch(() => null);
+  if (!h || h.eur.length < 2) { box.innerHTML = `<div class="hint">Aún no hay historial de precio de esta carta.</div>`; return; }
+  const W = 320, H = 130, n = h.eur.length, lo = Math.min(...h.eur), hi = Math.max(...h.eur), span = hi - lo || 1;
+  const x = (i) => 4 + (i * (W - 8)) / (n - 1), y = (v) => 8 + (H - 22) * (1 - (v - lo) / span);
+  const line = h.eur.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const last = h.eur[n - 1], first = h.eur[0];
+  const change = (a) => pct(Math.round(((last - a) * 1000) / (a || 1)) / 10);
+  const at = (days) => { const t = new Date(Date.parse(h.days[n - 1]) - days * 864e5).toISOString().slice(0, 10); let k = -1; h.days.forEach((d, i) => { if (d <= t) k = i; }); return k; };
+  let jump = 0, jumpAt = 0;  // el mayor salto entre dos puntos seguidos (el "spike")
+  for (let i = 1; i < n; i++) { const r = h.eur[i - 1] ? (h.eur[i] - h.eur[i - 1]) / h.eur[i - 1] : 0; if (Math.abs(r) > Math.abs(jump)) { jump = r; jumpAt = i; } }
+  const iHi = h.eur.indexOf(hi), iLo = h.eur.indexOf(lo);
+  const short = (d) => d.slice(8, 10) + "/" + d.slice(5, 7);
+  const row = (label, k) => (k < 0 ? "" : `<tr><td>${label}</td><td>${short(h.days[k])}</td><td>${euro(h.eur[k])}</td><td class="${last >= h.eur[k] ? "up" : "down"}">${k === n - 1 ? "" : change(h.eur[k])}</td></tr>`);
+  const spike = Math.abs(jump) >= 0.15;
+  box.innerHTML = `<div class="pchart"><div class="pchart-head"><b>${euro(last)}</b><span class="${last >= first ? "up" : "down"}">${change(first)} desde el ${short(h.days[0])}</span><span class="sub">${esc(h.set)}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Precio de ${esc(h.name)}">
+      <polygon points="${x(0)},${H - 14} ${line} ${x(n - 1)},${H - 14}" fill="var(--gold)" opacity=".15"/>
+      <polyline points="${line}" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      ${spike ? `<circle cx="${x(jumpAt)}" cy="${y(h.eur[jumpAt])}" r="4" fill="${jump > 0 ? "#6bbf59" : "#e0675f"}"/>` : ""}
+      <text x="4" y="${H - 2}" font-size="10" fill="currentColor" opacity=".6">${short(h.days[0])}</text><text x="${W - 4}" y="${H - 2}" font-size="10" fill="currentColor" opacity=".6" text-anchor="end">${short(h.days[n - 1])}</text>
+    </svg>
+    <table class="ptable"><tr><th></th><th>Día</th><th>Precio</th><th>Hasta hoy</th></tr>
+      ${row("Hoy", n - 1)}${row("Hace 7 días", at(7))}${row("Hace 30 días", at(30))}${row("Máximo", iHi)}${row("Mínimo", iLo)}
+      ${spike ? `<tr><td>${jump > 0 ? "Pico" : "Caída"}</td><td>${short(h.days[jumpAt])}</td><td>${euro(h.eur[jumpAt - 1])} → ${euro(h.eur[jumpAt])}</td><td class="${jump > 0 ? "up" : "down"}">${pct(Math.round(jump * 1000) / 10)}</td></tr>` : ""}
+    </table></div>`;
+}
+
+async function synergySheet(name, id) {
   const body = openSheet(`<h3>Combinan con ${esc(name)}</h3>${skeleton(4)}`);
   try {
     const d = await api(`/api/cardsynergy?name=${encodeURIComponent(name)}`);
     body.innerHTML = `<h3>Combinan con ${esc(d.name)}</h3><img class="card-big" src="${esc(d.image)}" alt="${esc(d.name)}">
-      <button class="btn block" id="follow" style="margin:8px 0">☆ Seguir su precio en Mercado</button>
-      <div class="hint">Las cartas de todo Magic que mejor encajan con ella. "La tienes" = está en tu carpeta.</div>
+      <div id="price-chart"></div>
+      <button class="btn block" id="follow" style="margin:8px 0">${ico("follow")}Seguir su precio en Mercado</button>
+      <h2>${ico("synergy")}Cartas que combinan</h2><div class="hint">Las cartas de todo Magic que mejor encajan con ella. "La tienes" = está en tu carpeta.</div>
       <div class="list">${d.cards.map(predRow).join("") || '<div class="hint">No he encontrado sinergias claras.</div>'}</div>
       <a class="btn block" style="margin-top:10px;text-decoration:none" target="_blank" rel="noopener" href="${cardmarketUrl(d.name)}">🛒 Ver ${esc(d.name)} en Cardmarket</a>`;
     bindPred(body);
     followButton(body, d.name);
+    priceChart($("#price-chart", body), id ? { id } : { name: d.name });
   } catch (err) { body.innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
 }
 
@@ -1381,7 +1506,7 @@ views.alerts = async () => {
   if (events[0]) store("lastSeenEvent", events[0].id);
   $("#alert-dot").hidden = true;
   v.innerHTML = `<h2>Avisos</h2>
-    <div class="hint">Baneos en Pauper, colecciones nuevas, cambios en el meta y movimientos de precio de tus cartas. Se revisan cada día a las 9:00.</div>
+    <div class="hint">Baneos de todos los formatos y la fecha del próximo anuncio, colecciones nuevas, cambios en el meta y movimientos de precio de tus cartas. Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
     ${events.length ? `<div class="list">${events.map((e) => `<div class="event"><div class="t">${esc(e.title)}</div>${e.body ? `<div class="b">${esc(e.body).replace(/\n/g, "<br>")}</div>` : ""}<div class="d">${esc(e.day)}</div></div>`).join("")}</div>`
       : `<div class="empty"><strong>Sin avisos todavía</strong>Cuando haya un baneo, una colección nueva o una carta tuya se mueva más de un 10%, aparecerá aquí y en el móvil.</div>`}`;
 };
@@ -1751,11 +1876,11 @@ async function profileSheet() {
          <input class="search" id="cl-pass" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 6)" style="margin-top:8px">
          <div class="row-btns"><button class="btn" id="cl-new">Crear cuenta</button><button class="btn primary" id="cl-in">Entrar</button></div>`}` : ""}
 
-    <h2>🏆 Medallas (${m.sets.length + m.precons.length + got.length})</h2>
+    <h2>${ico("trophy")}Medallas (${m.sets.length + m.precons.length + got.length})</h2>
     <div class="medals">${got.map((x) => medal("<i>⭐</i>", x.label)).join("")}</div>
     ${m.sets.length ? `<h2>Colecciones completas (${m.sets.length})</h2><div class="medals">${m.sets.map((x) => medal(setIco(x), x.name, `${x.total} cartas`)).join("")}</div>` : ""}
     ${m.precons.length ? `<h2>Mazos preconstruidos completos (${m.precons.length})</h2><div class="medals">${m.precons.map((x) => medal(setIco(x), x.name, x.type)).join("")}</div>` : ""}
-    ${m.decks.length ? `<h2>Mazos del meta que puedes montar (${m.decks.length})</h2><div class="medals">${m.decks.map((x) => medal("<i>⚔️</i>", x)).join("")}</div>` : ""}
+    ${m.decks.length ? `<h2>Mazos del meta que puedes montar (${m.decks.length})</h2><div class="medals">${m.decks.map((x) => medal(`<i>${ico("meta")}</i>`, x)).join("")}</div>` : ""}
     ${m.near.length ? `<h2>A punto de conseguir</h2><div class="list">${m.near.map((x) => `<button class="item" data-set="${esc(x.code)}">
         <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="bar"><i style="width:${x.pct}%"></i></div>
         <div class="item-meta">${x.owned}/${x.total} · ${x.pct}%</div></div></button>`).join("")}</div>` : ""}
@@ -1767,7 +1892,8 @@ async function profileSheet() {
     <div class="hint">El CSV lleva todas tus carpetas y se puede importar aquí, en ManaBox o en Moxfield. La copia completa guarda también tus mazos y el perfil.</div>
     <button class="btn block" id="pf-csv">📤 Exportar todas mis cartas (CSV)</button>
     <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>
-    <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>`;
+    <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>
+    <button class="btn block" id="pf-credits" style="margin-top:14px">Créditos</button>`;
   body.querySelectorAll("[data-set]").forEach((b) => (b.onclick = () => setSheet(b.dataset.set)));
   const enter = async (create) => {
     try {
@@ -1810,6 +1936,7 @@ async function profileSheet() {
   });
   const day = new Date().toISOString().slice(0, 10);
   $("#pf-import", body).onclick = importSheet;
+  $("#pf-credits", body).onclick = creditsSheet;
   $("#pf-csv", body).onclick = async () => {
     const r = await api("/api/exportcsv");
     if (!r.rows) return toast("Aún no tienes cartas");
@@ -1962,7 +2089,8 @@ async function boot() {
       $("#boot-msg") && ($("#boot-msg").textContent = msg);
       $("#boot-bar") && ($("#boot-bar").style.width = `${Math.round((p || 0) * 100)}%`);
     });
-    for (const a of r.alerts) notifyLocal(a);
+    // En Android, la tarea en segundo plano ya avisa de los precios: aquí solo lo demás (colecciones que salen hoy…)
+    for (const a of r.alerts) if (!(Runner && a.kind === "price")) notifyLocal(a);
     if (r.offline) toast("Sin conexión: usando los últimos precios guardados");
     await unlock();
   } catch (err) {
@@ -1973,8 +2101,54 @@ async function boot() {
   loadSummary();
   render();
   checkAlertDot();
+  dailyReport();
+  syncRunner();
   Cloud.sync().then((r) => { if (r === "pulled") { cid = 1; store("cid", "1"); loadSummary(); render(); toast("☁️ Datos actualizados desde tu cuenta"); } })
     .catch(() => toast("☁️ Sin conexión con la nube: se guardará cuando vuelva"));
+}
+
+// ---------- créditos: de dónde sale todo lo que usa la app ----------
+function creditsSheet() {
+  const link = (url, text) => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
+  const item = (title, text) => `<div class="item"><div class="item-main"><div class="item-title">${title}</div><div class="item-meta">${text}</div></div></div>`;
+  openSheet(`<h3>Créditos</h3>
+    <h2>Iconos</h2><div class="list">
+      ${item(link("https://www.flaticon.com/", "Flaticon"), "Iconos de la app (seguir, sinergias, predicciones, colecciones, alteradas, trofeo, subidas y bajadas, meta, carpetas, imágenes…) de www.flaticon.com.")}
+    </div>
+    <h2>Datos</h2><div class="list">
+      ${item(link("https://scryfall.com/", "Scryfall"), "Cartas, imágenes, legalidades y precios de Cardmarket de cada día.")}
+      ${item(link("https://mtgjson.com/", "MTGJSON"), "Historial de precios de Cardmarket de los últimos 90 días.")}
+      ${item(link("https://www.mtgtop8.com/", "MTGTop8"), "Meta de cada formato, listas de torneo y ganadores (también el Super Pauper de inGenio BCN Games).")}
+      ${item(link("https://commanderspellbook.com/", "Commander Spellbook"), "Combos infinitos de dos cartas y sus pasos.")}
+      ${item(link("https://magic.wizards.com/", "Wizards of the Coast"), "Fechas de los anuncios de baneos.")}
+    </div>
+    <h2>Herramientas</h2><div class="list">
+      ${item(link("https://tesseract.projectnaptha.com/", "Tesseract.js"), "Lector de texto del escáner de cartas.")}
+      ${item(link("https://capacitorjs.com/", "Capacitor"), "App de Android.")}
+      ${item(link("https://supabase.com/", "Supabase"), "Cuentas en la nube.")}
+      ${item(link("https://fonts.google.com/specimen/Cinzel", "Cinzel"), "y EB Garamond: tipografías.")}
+    </div>
+    <div class="hint" style="margin-top:12px">Gathering Market es contenido no oficial permitido por la Fan Content Policy de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Partes de los materiales usados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.</div>`);
+}
+
+// ---------- resumen del día: al abrir la app (una vez por día de precios), qué cartas tuyas subieron y bajaron ----------
+async function dailyReport() {
+  try {
+    const m = await Engine.call("/api/movers?scope=collection&days=1&min=0.5&c=1");
+    if (!m.up.length && !m.down.length) return;
+    if (store("dailyReport") === m.latest) return;
+    store("dailyReport", m.latest);
+    const real = (l) => l.filter((i) => Math.abs(i.pct) >= 2).slice(0, 12);
+    const up = real(m.up), down = real(m.down);
+    if (!up.length && !down.length) return;
+    const tile = (i) => `<button class="day-card" data-follow="${esc(i.name)}" data-pid="${esc(i.id)}">
+      <img src="${esc(i.image)}" alt="${esc(i.name)}" loading="lazy"><span class="day-pct ${i.pct > 0 ? "up" : "down"}">${ico(i.pct > 0 ? "up" : "down")}${pct(i.pct)}</span>
+      <span class="day-eur">${euro(i.old)} → <b>${euro(i.new)}</b></span></button>`;
+    const body = openSheet(`<h3>Tus cartas desde ayer</h3><div class="hint">Del ${esc(m.base)} al ${esc(m.latest)} · cartas de 0,50 € o más. Toca una para ver su gráfica.</div>
+      ${up.length ? `<h2>${ico("up")}Han subido</h2><div class="day-grid">${up.map(tile).join("")}</div>` : ""}
+      ${down.length ? `<h2>${ico("down")}Han bajado</h2><div class="day-grid">${down.map(tile).join("")}</div>` : ""}`);
+    body.querySelectorAll("[data-follow]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.follow, el.dataset.pid)));
+  } catch { /* sin precios de ayer todavía */ }
 }
 
 // ---------- app de Android (Capacitor): botón atrás y permiso de notificaciones ----------
@@ -1987,6 +2161,16 @@ if (Native) {
     else Native.App.exitApp();
   });
   Native.LocalNotifications?.requestPermissions().catch(() => {});
+  Native.BackgroundRunner?.requestPermissions({ apis: ["notifications"] }).catch(() => {});
+  Native.App?.addListener("pause", syncRunner);  // al salir de la app, la lista de cartas al día
+}
+
+// Tarea en segundo plano (mobile/runners/background.js): avisa de tus cartas aunque la app esté cerrada.
+const Runner = Native?.BackgroundRunner || null;
+async function syncRunner() {
+  if (!Runner) return;
+  try { await Runner.dispatchEvent({ label: "app.gatheringmarket.prices", event: "syncCollection", details: await Engine.call("/api/watchids") }); }
+  catch { /* sin tarea en segundo plano (navegador o APK antiguo) */ }
 }
 
 // Notificación del sistema (en la app de Android); en el navegador no hace nada.
