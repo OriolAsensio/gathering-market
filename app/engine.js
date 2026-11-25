@@ -590,7 +590,30 @@ const Engine = (() => {
       decks: metaDone, ladder: [...ladder(STEPS, sum.cards), ...ladder(VALUE, sum.value || 0)] };
   }
   /** Todas las carpetas en CSV (columnas como ManaBox: se puede volver a importar aquí o en otras apps). */
-  function exportCsv() {
+  const LANG_EN = { en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese", ja: "Japanese",
+    ko: "Korean", ru: "Russian", zhs: "Chinese Simplified", zht: "Chinese Traditional" };
+  /** CSV para otras apps: "moxfield" (Collection → Import) o "manabox" (Import → CSV). Sin proxies: no son cartas de verdad. */
+  function exportFor(fmt) {
+    const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
+    const rows = fmt === "moxfield"
+      ? [["Count", "Tradelist Count", "Name", "Edition", "Condition", "Language", "Foil", "Tags", "Last Modified", "Collector Number", "Alter", "Proxy", "Purchase Price"]]
+      : [["Name", "Set code", "Set name", "Collector number", "Foil", "Rarity", "Quantity", "Scryfall ID", "Purchase price", "Misprint", "Altered", "Condition", "Language", "Purchase price currency"]];
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    for (const b of user.binders) {
+      for (const [pi, foil, qty0] of entries(b.id)) {
+        const [cid, oi, set, number, r] = P[pi], k = `${cid}|${foil ? 1 : 0}`;
+        const qty = qty0 - (proxyOf(b.id, k, qty0) || 0);
+        if (qty <= 0) continue;
+        const name = front(O[oi][0]), lang = langOf(b.id, k), price = eur(priceOf(pi, foil)) ?? "";
+        rows.push(fmt === "moxfield"
+          ? [qty, 0, O[oi][0], set, "Near Mint", LANG_EN[lang] || "English", foil ? "foil" : "", "", now, number, "False", "False", price]
+          : [name, set.toUpperCase(), SETS.get(set)?.name || "", number, foil ? "foil" : "normal", RARITY[r] || "", qty, cid, price, "false", alterOf(b.id, k, price, qty) ? "true" : "false", "near_mint", lang, "EUR"]);
+      }
+    }
+    return { csv: rows.map((x) => x.map(q).join(",")).join("\n"), rows: rows.length - 1 };
+  }
+  function exportCsv({ fmt } = {}) {
+    if (fmt === "moxfield" || fmt === "manabox") return exportFor(fmt);
     const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
     const rows = [["Binder Name", "Name", "Set code", "Set name", "Collector number", "Foil", "Quantity", "Scryfall ID", "Price EUR", "Altered", "Proxy", "Language"]];
     for (const b of user.binders) {
@@ -606,13 +629,13 @@ const Engine = (() => {
 
   // ---------------------------------------------------------------- importar CSV / listas
   const COLUMNS = {
-    scryfall: ["scryfall id", "scryfall_id", "scryfallid", "scryfall uuid"],
-    name: ["name", "card name", "card", "nombre", "card_name"],
-    set_name: ["set name", "edition name", "expansion name", "set_name"],
-    set: ["set code", "edition code", "setcode", "set_code", "set id", "set", "edition", "expansion", "edición"],
-    number: ["collector number", "card number", "collector_number", "number", "cn", "collector #"],
-    qty: ["quantity", "count", "qty", "amount", "cantidad", "copies"],
-    foil: ["foil", "printing", "finish", "foil/variant"],
+    scryfall: ["scryfall id", "scryfall_id", "scryfallid", "scryfall uuid", "scryfall card id", "scryfallid (en)"],
+    name: ["name", "card name", "card", "nombre", "card_name", "cardname", "english name", "localized name", "product name", "nombre de la carta"],
+    set_name: ["set name", "edition name", "expansion name", "set_name", "expansion", "edition", "set"],
+    set: ["set code", "edition code", "setcode", "set_code", "set id", "expansion code", "set", "edition", "edición", "código de edición"],
+    number: ["collector number", "card number", "collector_number", "number", "cn", "collector #", "collectornumber", "nº", "número", "numero"],
+    qty: ["quantity", "count", "qty", "amount", "cantidad", "copies", "total qty", "total quantity", "have", "number of copies"],
+    foil: ["foil", "printing", "finish", "foil/variant", "is foil", "isfoil", "variant"],
     lang: ["language", "lang", "idioma", "card language"],
   };
   const TEXT_LINE = /^\s*(\d+)\s*x?\s+(.+?)(?:\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w\-★]+))?)?(?:\s+\*[FE]\*)?\s*$/;
@@ -643,8 +666,12 @@ const Engine = (() => {
 
   function parseImport(text) {
     text = text.replace(/^﻿/, "").replace(/^sep=.\r?\n/i, "");  // Dragon Shield empieza con "sep=,"
-    const first = text.split(/\r?\n/, 1)[0] || "";
-    if (/[,;\t]/.test(first) && /name|card|nombre/i.test(first)) {
+    // La cabecera puede no ser la primera línea (títulos, líneas en blanco): se busca entre las 5 primeras
+    const lines = text.split(/\r?\n/);
+    const hi = lines.slice(0, 5).findIndex((l) => /[,;\t]/.test(l) && /name|card|nombre|scryfall/i.test(l));
+    if (hi > 0) text = lines.slice(hi).join("\n");
+    const first = hi >= 0 ? lines[hi] : lines[0] || "";
+    if (hi >= 0) {
       const [header, ...rows] = parseCsv(text);
       const h = header.map((x) => x.trim().toLowerCase());
       const col = {};
@@ -657,9 +684,15 @@ const Engine = (() => {
       if (col.name == null && col.scryfall == null) throw new Error("El CSV no tiene columna de nombre ni de Scryfall ID");
       return rows.filter((r) => r.some((v) => v.trim())).map((r) => {
         const get = (k) => (col[k] != null && col[k] < r.length ? r[col[k]].trim() : "");
-        const qty = get("qty");
-        return { name: get("name"), set: get("set"), set_name: get("set_name"), number: get("number"), scryfall: get("scryfall"),
-          qty: /^\d+$/.test(qty) ? +qty : 1, foil: isFoil(get("foil")), lang: toLang(get("lang")), raw: r.join(",").slice(0, 120) };
+        const qty = parseInt(get("qty").replace(/[^\d]/g, ""), 10);  // "2", "2x", "2.0"
+        // Columna de edición con el nombre entero ("Dominaria") en vez del código: se trata como nombre
+        let set = get("set"), setName = get("set_name");
+        if (set && !/^[a-z0-9]{2,6}$/i.test(set)) { setName = setName || set; set = ""; }
+        if (!set && /^[a-z0-9]{2,6}$/i.test(setName)) set = setName;  // "Edition" de Moxfield es el código; la de Deckbox, el nombre: se prueban los dos
+        const name = get("name").replace(/\s*\(foil\)$/i, "");
+        return { name, set, set_name: setName, number: get("number"), scryfall: get("scryfall"),
+          qty: get("qty") === "" ? 1 : Number.isFinite(qty) ? qty : 1, foil: isFoil(get("foil")) || /\(foil\)$/i.test(get("name")),
+          lang: toLang(get("lang")), raw: r.join(",").slice(0, 120) };
       });
     }
     const out = [];
@@ -681,9 +714,10 @@ const Engine = (() => {
       // Si el CSV trae nombre, tiene que cuadrar con el número (si no, manda el nombre).
       if (hit && (!row.name || norm(front(O[P[hit[0]][1]][0])) === norm(row.name) || norm(O[P[hit[0]][1]][0]) === norm(row.name))) return P[hit[0]][0];
     }
-    const oi = row.name ? oByNorm.get(norm(row.name)) : null;
+    let oi = row.name ? oByNorm.get(norm(row.name)) : null;
+    if (oi == null && row.name.includes("/")) oi = oByNorm.get(norm(row.name.split(/\s*\/\/?\s*/)[0]));  // "Fire / Ice", "A//B"
     if (oi == null) return null;
-    const setName = (row.set_name || (row.set.length > 6 ? row.set : "")).toLowerCase();
+    const setName = (row.set_name || (row.set.length > 6 ? row.set : "")).toLowerCase().trim();
     if (set || setName) {
       const pi = printsOf[oi].find((i) => P[i][2] === set || (SETS.get(P[i][2])?.name || "").toLowerCase() === setName);
       if (pi != null) return P[pi][0];

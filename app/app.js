@@ -134,19 +134,20 @@ function importSheet() {
   $("#import-file", body).onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    text = await f.text();
+    const buf = await f.arrayBuffer();
+    try { text = new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch { text = new TextDecoder("windows-1252").decode(buf); }
     $("#import-text", body).value = "";
     $("#import-text", body).placeholder = `${f.name} · ${text.split("\n").length - 1} líneas`;
   };
   $("#import-ok", body).onclick = async () => {
-    const t = $("#import-text", body).value.trim() || text;
-    if (!t) return toast("Elige un archivo o pega una lista");
+    const src = $("#import-text", body).value.trim() || text;
+    if (!src) return toast("Elige un archivo o pega una lista");
     if (mode === "replace" && !confirm(t("Se borrarán las cartas que hay ahora en esta carpeta. ¿Seguir?"))) return;
     const btn = $("#import-ok", body);
     btn.disabled = true;
     btn.textContent = "Importando…";
     try {
-      const r = await api("/api/import", { text: t, mode });
+      const r = await api("/api/import", { text: src, mode });
       $("#import-result", body).innerHTML = `
         <div class="stats"><div class="stat"><b>${r.imported}</b><span>Cartas importadas</span></div>
           <div class="stat"><b>${r.unique}</b><span>Distintas</span></div>
@@ -2094,6 +2095,7 @@ async function profileSheet() {
     <button class="btn block" id="pf-import">${ico("import")}Importar cartas de otra app (CSV)</button>
     <div class="hint">El CSV lleva todas tus carpetas y se puede importar aquí, en ManaBox o en Moxfield. La copia completa guarda también tus mazos y el perfil.</div>
     <button class="btn block" id="pf-csv">📤 Exportar todas mis cartas (CSV)</button>
+    <div class="row-btns"><button class="btn" id="pf-mox">📤 Para Moxfield</button><button class="btn" id="pf-mana">📤 Para ManaBox</button></div>
     <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>
     <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>
     <button class="btn block" id="pf-credits" style="margin-top:14px">Créditos</button>`;
@@ -2125,6 +2127,14 @@ async function profileSheet() {
     if (!r.rows) return toast("Aún no tienes cartas");
     saveFile(`gathering-market-${day}.csv`, r.csv, "text/csv");
   };
+  for (const [btn, fmt, how] of [["#pf-mox", "moxfield", "En Moxfield: Collection → Import → CSV."], ["#pf-mana", "manabox", "En ManaBox: Collection → Import → CSV."]]) {
+    $(btn, body).onclick = async () => {
+      const r = await api(`/api/exportcsv?fmt=${fmt}`);
+      if (!r.rows) return toast("Aún no tienes cartas");
+      saveFile(`gathering-market-${fmt}-${day}.csv`, r.csv, "text/csv");
+      toast(how);
+    };
+  }
   $("#pf-json", body).onclick = () => saveFile(`gathering-market-copia-${day}.json`, Engine.exportUser(), "application/json");
   $("#pf-restore", body).onchange = async (e) => {
     const f = e.target.files[0];
