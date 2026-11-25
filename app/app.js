@@ -717,6 +717,9 @@ function importDeckSheet() {
   };
 }
 
+// Dónde se jugó una prueba. Endstep, torneo, MTGO y MTGA pesan más al aprender (rivales de verdad); lo casual, menos.
+const PLAY_WHERE = ["Endstep", "En un torneo", "MTGO (Magic Online)", "MTGA (Magic Arena)", "En tu tienda (casual)", "Casual (casa de un amigo, feria…)"];
+
 async function deckSheet(id, keep = null) {
   const body = keep ? $("#sheet-body") : openSheet(skeleton(3));
   const d = await api(`/api/deck?id=${encodeURIComponent(id)}`);
@@ -752,8 +755,8 @@ async function deckSheet(id, keep = null) {
       <div class="field" style="flex-direction:row;gap:8px;align-items:center;flex-wrap:wrap"><span>Jugadas</span>
         <input class="search" type="number" id="tr-games" min="3" max="50" value="3" style="width:70px"><span>Ganadas</span>
         <input class="search" type="number" id="tr-wins" min="0" max="50" value="0" style="width:70px">
-        <input class="search" id="tr-where" placeholder="Dónde (Endstep, tienda…)" style="flex:1;min-width:140px"></div>
-      <textarea class="search" id="tr-note" rows="3" maxlength="500" placeholder="Cómo has visto el gameplay: qué funcionó, qué faltó (p. ej. pocas tierras, le falta robo…)"></textarea>
+        <select class="lang-sel" id="tr-where">${PLAY_WHERE.map((w) => `<option>${w}</option>`).join("")}</select></div>
+      <textarea class="search" id="tr-note" rows="6" maxlength="5000" placeholder="Cómo has visto el gameplay: qué funcionó, qué faltó (p. ej. pocas tierras, le falta robo…)"></textarea>
       <button class="btn block primary" id="tr-save" style="margin-top:6px">Guardar resultado</button>
       ${d.results.length ? `<div class="list" style="margin-top:8px">${d.results.map((r) => `<div class="item"><div class="item-main"><div class="item-title">${r.wins}/${r.games} ganadas${r.where ? ` · ${esc(r.where)}` : ""}</div>
         <div class="item-meta">${esc(r.day)}${r.note ? ` · ${esc(r.note)}` : ""}</div></div></div>`).join("")}</div>` : ""}` : ""}
@@ -1087,14 +1090,14 @@ async function builderSheet(seeds, startFormat) {
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
   let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
   let power = store("buildPower") || "3", bracket = store("buildBracket") || "3", focus = "", p9 = false, combo = store("buildCombo") === "1",
-    buy = store("buildBuy") === "1", sbbuy = store("buildSbBuy") === "1", spoil = store("buildSpoil") === "1";
+    buy = store("buildBuy") === "1", sbbuy = store("buildSbBuy") === "1", spoil = store("buildSpoil") === "1", offmeta = store("buildOffmeta") === "1";
   const excluded = [];  // cartas que has quitado del mazo
   const run = async () => {
     $("h3", body).textContent = `Mazo con ${seeds.join(", ")}`;
     $("#b-body", body).innerHTML = `<div class="hint">Buscando cartas que encajen con el plan…</div>${skeleton(4)}`;
     let d;
     try {
-      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}&focus=${encodeURIComponent(focus)}&exclude=${encodeURIComponent(excluded.join("|"))}${p9 ? "&p9=1" : ""}${combo ? "&combo=1" : ""}${buy ? "&buy=1" : ""}${spoil ? "&spoilers=1" : ""}${sbbuy ? "&sbbuy=1" : ""}${colors ? `&colors=${colors}` : ""}`);
+      d = await api(`/api/build?seeds=${encodeURIComponent(seeds.join("|"))}&format=${format}&style=${style}&power=${power}&bracket=${bracket}&focus=${encodeURIComponent(focus)}&exclude=${encodeURIComponent(excluded.join("|"))}${p9 ? "&p9=1" : ""}${combo ? "&combo=1" : ""}${buy ? "&buy=1" : ""}${spoil ? "&spoilers=1" : ""}${offmeta ? "&offmeta=1" : ""}${sbbuy ? "&sbbuy=1" : ""}${colors ? `&colors=${colors}` : ""}`);
     } catch (err) {
       $("#b-body", body).innerHTML = `<div class="empty"><strong>No he podido montarlo</strong>${esc(err.message)}</div>`;
       return;
@@ -1131,6 +1134,8 @@ async function builderSheet(seeds, startFormat) {
             <div class="item-meta">${k.cards.map((n, j) => (k.in_deck[j] ? `${esc(n)}: ya en el mazo` : k.owned[j] ? `${esc(n)}: la tienes` : `${esc(n)}: no la tienes${k.eur[j] != null ? ` (${euro(k.eur[j])})` : ""}`)).join(" · ")}</div></div></button>`).join("")}</div>`
         : `<div class="hint">No encuentro combos infinitos de dos cartas en estos colores y formato con tus cartas. Prueba otro formato (Casual o Commander tienen muchos más) u otros colores.</div>`}</div>` : ""}
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-buy" ${buy ? "checked" : ""}> Usar también cartas que no tengo (para comprar): las del meta o las que mejor encajan</label>
+      <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-offmeta" ${offmeta ? "checked" : ""}> Cartas fuera del meta: legales en el formato y con sinergia, aunque no las juegue ninguna lista (para sorprender en torneo)</label>
+      ${d.template ? `<div class="warn">Basado en la lista ganadora de ${esc(d.template.archetype)}${d.template.player ? ` de ${esc(d.template.player)}` : ""}${d.template.event ? ` (${d.template.result === "1" ? "ganó" : `${esc(d.template.result)}º en`} ${esc(d.template.event)})` : ""}: sus cartas, sus tierras y su banquillo, como haría un jugador de torneo.${power == 6 ? " En World Champion entra entera: lo que no tienes sale en gris para comprar." : " En Competitivo, solo lo que tienes; el resto lo completa el constructor."}</div>` : ""}
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-spoil" ${spoil ? "checked" : ""}> Spoilers: usar cartas anunciadas que aún no han salido y ver con cuáles hace sinergia el mazo</label>
       ${spoil ? `<h2>Spoilers que encajan con este mazo</h2>${d.spoilers.length ? `<div class="hint">Cartas anunciadas que aún no se pueden comprar. En dorado, las que ya he metido en el mazo.</div>
         <div class="grid">${d.spoilers.map((c) => `<div class="gcard ${c.in_deck ? "" : "missing"}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></div>`).join("")}</div>`
@@ -1202,6 +1207,7 @@ async function builderSheet(seeds, startFormat) {
     body.querySelectorAll("#b-style button").forEach((b) => (b.onclick = () => { style = b.dataset.s; store("buildStyle", style); run(); }));
     body.querySelectorAll("#b-power button").forEach((b) => (b.onclick = () => { power = b.dataset.p; store("buildPower", power); run(); }));
     $("#b-p9", body).onchange = (e) => { p9 = e.target.checked; run(); };
+    $("#b-offmeta", body).onchange = (e) => { offmeta = e.target.checked; store("buildOffmeta", offmeta ? "1" : "0"); run(); };
     $("#b-spoil", body).onchange = (e) => { spoil = e.target.checked; store("buildSpoil", spoil ? "1" : "0"); run(); };
     $("#b-buy", body).onchange = (e) => { buy = e.target.checked; store("buildBuy", buy ? "1" : "0"); run(); };
     $("#b-sbbuy", body)?.addEventListener("change", (e) => { sbbuy = e.target.checked; store("buildSbBuy", sbbuy ? "1" : "0"); run(); });
