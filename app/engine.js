@@ -1519,6 +1519,8 @@ const Engine = (() => {
       (t) => t.includes("planeswalker") || t.includes("saga")],
     ["legendarios", /\blegendary\b/, (t) => t.includes("legendary")],
     ["vehículos", /\bvehicles?\b|\bcrew\b/, (t) => t.includes("vehicle")],
+    // Comida (Food): quien la crea y quien la usa (Cauldron Familiar, Gilded Goose…). Reseña 2026-11-25: faltaba comida para el Familiar.
+    ["comida", /\bfood\b/, (t) => t.includes("food")],
     ["artefactos", /\bartifacts?\b|\btreasures?\b|\bfood\b|\bclues?\b/, (t) => t.includes("artifact")],
     // Incoloro: cartas que premian lo incoloro (Forsaken Monument, Eldrazi…) y cartas que lo son (artefactos, Eldrazi, devoid).
     // Rampa (acelerar maná con tierras o maná extra) y bichos grandes (lo que la rampa quiere bajar).
@@ -1558,7 +1560,7 @@ const Engine = (() => {
   ];
   // Temas que se complementan aunque no se llamen igual (quien sacrifica quiere fichas, etc.).
   const RELATED = {
-    "entran criaturas": ["fichas", "efectos al entrar", "parpadeo"], sacrificio: ["fichas", "efectos al entrar", "morir"], fichas: ["sacrificio", "criaturas"], morir: ["sacrificio", "fichas"], cementerio: ["molino", "descarte"],
+    "entran criaturas": ["fichas", "efectos al entrar", "parpadeo"], comida: ["sacrificio", "artefactos", "ganar vida"], sacrificio: ["fichas", "efectos al entrar", "morir", "comida"], fichas: ["sacrificio", "criaturas"], morir: ["sacrificio", "fichas"], cementerio: ["molino", "descarte"],
     molino: ["cementerio"], descarte: ["cementerio", "robar cartas"], contadores: ["contadores +1/+1", "planeswalkers"],
     "contadores +1/+1": ["contadores"], parpadeo: ["efectos al entrar"], "efectos al entrar": ["parpadeo", "devolver a la mano"],
     "devolver a la mano": ["efectos al entrar"], hechizos: ["robar cartas"], equipos: ["criaturas"], auras: ["criaturas"],
@@ -1795,6 +1797,7 @@ const Engine = (() => {
 
   // ---- Guía del mazo: cómo se juega (para quien empieza) ----
   const THEME_TIPS = {
+    comida: "Crea comida (Food) y úsala: sacrifícala para ganar vidas o para devolver criaturas como Cauldron Familiar una y otra vez.",
     fichas: "Llena la mesa de fichas y aprovéchalas: ataca en grupo, sacrifícalas o potencia a todas a la vez.",
     sacrificio: "Sacrifica las criaturas que ya han cumplido (fichas, o las que hacen algo al entrar o al morir) para sacar valor extra.",
     cementerio: "Tu cementerio es un recurso: llénalo pronto y recupera o lanza cartas desde él.",
@@ -2416,11 +2419,18 @@ const Engine = (() => {
       const minLands = Math.max(size === 100 ? 33 : 16, landsFor() - (power >= 5 ? 1 : 0));
       let extra = chosen.reduce((s, e) => s + e[1], 0) - (size - (commander ? 1 : 0) - minLands);
       while (extra > 0) {
-        const cut = chosen.filter(([x, , w]) => !w[0]?.startsWith("carta base") && !w[0]?.startsWith("Power 9") && !w[0]?.startsWith("de la lista"))
-          .map((e) => [e, valueOf(e[0])]).sort((a, b) => a[1] - b[1])[0];
+        // Por tandas: primero lo normal; si no basta, lo menos útil de la lista ganadora; y si aún sobra, copias de más de
+        // las cartas base (se dejan 2). Antes no se cortaba nada protegido y el mazo se quedaba SIN TIERRAS (reseña 2026-11-25).
+        const tiers = [([, , w]) => !w[0]?.startsWith("carta base") && !w[0]?.startsWith("Power 9") && !w[0]?.startsWith("de la lista"),
+          ([, , w]) => w[0]?.startsWith("de la lista"), ([, q, w]) => w[0]?.startsWith("carta base") && q > 2];
+        let cut = null, floor = 0;
+        for (const [i, ok] of tiers.entries()) {
+          cut = chosen.filter(ok).map((e) => [e, valueOf(e[0])]).sort((a, b) => a[1] - b[1])[0];
+          if (cut) { floor = i === 2 ? 2 : 0; break; }
+        }
         if (!cut) break;
         const e = cut[0];
-        const n = Math.min(e[1], extra);
+        const n = Math.min(e[1] - floor, extra);
         e[1] -= n; extra -= n;
         curve[Math.min(Math.floor(e[0].cmc), 6)] -= n; for (const r of e[0].roles) roles[r] -= n;
         if (!e[1]) chosen.splice(chosen.indexOf(e), 1);
@@ -2482,6 +2492,21 @@ const Engine = (() => {
     const exact = Object.fromEntries(cols.map((x) => [x, basicsN * (0.5 * deficit[x] / totalDef + 0.5 * (totalPips ? (pips[x] || 0) / totalPips : 1 / cols.length))]));
     const rounded = Object.fromEntries(cols.map((x) => [x, Math.floor(exact[x])]));
     cols.slice().sort((a, b) => (exact[b] - rounded[b]) - (exact[a] - rounded[a])).slice(0, basicsN - Object.values(rounded).reduce((a, b) => a + b, 0)).forEach((x) => rounded[x]++);
+    // Las básicas de la lista ganadora se respetan como mínimo (p. ej. el Forest para lanzar el banquillo verde)
+    if (template) {
+      const BASIC_COLOR = { plains: "W", island: "U", swamp: "B", mountain: "R", forest: "G" };
+      for (const [n, q, side] of template.cards) {
+        const col = BASIC_COLOR[norm(n).replace(/^snow-covered /, "")];
+        if (side || !col || !cols.includes(col) || (rounded[col] || 0) >= q) continue;
+        const donor = cols.filter((c) => c !== col).sort((a, b) => rounded[b] - rounded[a])[0];
+        const k = Math.min(q - (rounded[col] || 0), Math.max(0, (rounded[donor] || 0) - 6));
+        if (k > 0) { rounded[col] = (rounded[col] || 0) + k; rounded[donor] -= k; }
+      }
+    }
+    // Color elegido a mano sin ninguna carta de ese color: avisar (mejor que meter tierras que no lanzan nada)
+    if (colors) for (const col of cols) if (!chosen.some(([x]) => x.colors.has(col)) && !lands.some(([l]) => producedColors(l).has(col)) && !rounded[col]) {
+      warnings.push(`Has elegido ${COLOR_NAMES[col]} pero ninguna carta del mazo lo usa: quítalo de los colores o añade cartas base de ese color.`);
+    }
 
     // 4) Avisos: lo que pide la carta base y no está; funciones sin cubrir.
     if (F.maxPoints) warnings.push(`Puntos de Canadian Highlander: ${pointsUsed} de ${F.maxPoints} (las cartas más potentes cuentan puntos).`);
@@ -2598,6 +2623,28 @@ const Engine = (() => {
           if (qq <= 0) continue;
           out.push({ name: front(O[oi][0]), qty: qq, image: oImage(oi), eur: cheap[oi] ? eur(cheap[oi]) : null, owned: Math.min(owned, qq), reasons: [`banquillo de la lista ganadora (${template.archetype})`] });
           total += qq; sc.delete(k);
+        }
+        /* Contra agresivos: si los mazos rápidos (rojos, burn, madness, affinity…) son buena parte del meta, el banquillo lleva
+         * al menos ~4 cartas para ellos (ganar vidas, prevenir daño, barridos). Reseña 2026-11-25: "el banquillo no me servía
+         * contra Mono R Madness". Primero las que ya llevan los banquillos del meta; si no, cualquier carta legal y barata. */
+        const fastShare = META.filter((d) => d.format === FORMAT_META[fmt] && (/aggro/i.test(d.category || "") || /red|burn|madness|kuldotha|stompy|affinity|boros|gruul/i.test(d.archetype)))
+          .reduce((a, d) => a + (d.share || 0), 0);
+        const antiAggro = (o) => SB_KINDS.some(([k, rx]) => (k === "vsAggro" || k === "vsWide") && rx.test(o[5] || ""));
+        let antiN = out.filter((c) => { const oi = oByNorm.get(norm(c.name)); return oi != null && antiAggro(O[oi]); }).reduce((a, c) => a + c.qty, 0);
+        if (fastShare >= 15 && antiN < 4) {
+          const ranked = [...[...sc].sort((a, b) => b[1][0] - a[1][0]).map(([k]) => oByNorm.get(k)), ...O.map((_, i) => i).filter((i) => O[i][7]).sort((a, b) => O[a][7] - O[b][7])];
+          const seenA = new Set(out.map((c) => norm(c.name)));
+          for (const oi of ranked) {
+            if (antiN >= 4 || total >= 15) break;
+            if (oi == null || seenA.has(norm(O[oi][0])) || !antiAggro(O[oi])) continue;
+            const k = norm(O[oi][0]), x = pool.get(k) || mk(oi, 0), owned = pool.get(k)?.owned || 0;
+            seenA.add(k);
+            if (x.is_land || inMain.has(k) || excluded.has(k) || !legal(x) || !subset(x.colors, deckColors) || (!sbBuy && !owned) || (cheap[oi] || 0) > 300) continue;
+            const q = Math.min(sbBuy ? 3 : owned, 4 - antiN, 15 - total);
+            if (q <= 0) continue;
+            out.push({ name: x.name, qty: q, image: oImage(oi), eur: cheap[oi] ? eur(cheap[oi]) : null, owned: Math.min(owned, q), reasons: [`contra mazos agresivos (${Math.round(fastShare)} % del meta)`] });
+            total += q; antiN += q; sc.delete(k);
+          }
         }
         for (const [k, [, copies, n, archs]] of [...sc].sort((a, b) => b[1][0] - a[1][0])) {
           if (total >= 15) break;
