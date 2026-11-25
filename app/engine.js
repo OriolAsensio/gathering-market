@@ -1037,6 +1037,69 @@ const Engine = (() => {
     return { have: have.sort(byPop).slice(0, 150), one: one.sort(byPop).slice(0, 150), total: list.length };
   }
 
+  /* Plan de banquillo por enfrentamiento (lo que hacen los jugadores de torneo, p. ej. Mengu's Workshop): contra cada mazo top
+   * del meta, qué cartas del banquillo meter y cuáles del main sacar. Se mira qué es el rival (azul, rojo, artefactos, cementerio,
+   * ancho, agresivo, maná grande/combo, nieblas) y qué hace cada carta del banquillo. */
+  const SB_KINDS = [
+    ["vsBlue", /if it'?s blue|target blue|blue (spell|permanent)s?\b/i, "es azul"],
+    ["vsRed", /if it'?s red|target red|red (spell|permanent)s?\b/i, "es rojo"],
+    ["vsArtifacts", /(destroy|exile) (up to )?(two )?(target|all|each) (noncreature )?artifacts?|artifacts? (your opponents control )?(can't|each)|destroy target artifact|counter target artifact|sacrifice an? artifact.*destroy/i, "juega muchos artefactos"],
+    ["vsGraveyard", /exile (all cards from |each |target player's |all )?(graveyards?|.{0,20}from (a|target player's|all) graveyards?)|exile target card from a graveyard/i, "usa el cementerio"],
+    ["vsWide", /damage to each (creature|other creature)|each creature (gets|deals)|all creatures get -|creatures your opponents control get -/i, "juega muchas criaturas pequeñas"],
+    ["vsAggro", /gain \d+ life|prevent all combat damage|lifelink|prevent all damage that (red|black|green|white|blue)? ?sources/i, "es agresivo"],
+    ["vsBig", /counter target (noncreature|artifact|activated|spell)(?! if it'?s)|reveals? (his|her|their) hand.*discards?|target (player|opponent) discards|destroy target nonbasic land/i, "busca maná grande o combo"],
+    ["vsFog", /deals? \d+ damage to (each|target) (player|opponent)|can't be prevented|whenever .* (cast|tap).{0,40}deals? 1 damage/i, "juega nieblas"],
+  ];
+  function sbPlan({ format = "pauper", main = "", side = "" }) {
+    const code = FORMAT_META[format];
+    if (!code) return [];
+    const parse = (s) => String(s).split("|").filter(Boolean).map((x) => { const i = x.lastIndexOf(":"); return [x.slice(0, i), +x.slice(i + 1) || 1]; });
+    const mine = parse(main), sb = parse(side);
+    const row = (n) => { const oi = oByNorm.get(norm(n)); return oi == null ? null : O[oi]; };
+    const kindsOf = (n) => { const o = row(n); return o ? SB_KINDS.filter(([, rx]) => rx.test(o[5] || "")).map(([k]) => k) : []; };
+    const decks = META.filter((d) => d.format === code).sort((a, b) => (b.share || 0) - (a.share || 0)).slice(0, 8);
+    return decks.map((d) => {
+      const spells = d.cards.filter(([n, , s]) => !s && !/land/i.test(row(n)?.[1] || "")), q = (f) => spells.reduce((a, [n, k]) => a + (f(row(n), n) ? k : 0), 0);
+      const total = spells.reduce((a, [, k]) => a + k, 0) || 1;
+      const lands = d.cards.filter(([n, , s]) => !s && /land/i.test(row(n)?.[1] || ""));
+      const traits = new Set();
+      if (q((o) => o && /U/.test(o[4] || "")) / total >= 0.5) traits.add("vsBlue");
+      if (q((o) => o && /R/.test(o[4] || "")) / total >= 0.5) traits.add("vsRed");
+      if (d.cards.filter(([n, , s]) => !s && /artifact/i.test(row(n)?.[1] || "")).reduce((a, [, k]) => a + k, 0) >= 14) traits.add("vsArtifacts");
+      if (q((o) => o && /flashback|delve|dredge|madness|escape|from your graveyard|cards? in your graveyard|instant and sorcery cards in your graveyard/i.test(o[5] || "")) >= 6) traits.add("vsGraveyard");
+      if (q((o) => o && /creature/i.test(o[1])) >= 18 || q((o) => o && /create .{0,20}1\/1/i.test(o[5] || "")) >= 6) traits.add("vsWide");
+      if (/aggro/i.test(d.category || "")) traits.add("vsAggro");
+      if (lands.filter(([n]) => /^urza's/i.test(n)).length >= 3 || /combo/i.test(d.category || "")) traits.add("vsBig");
+      if (q((o) => o && /prevent all combat damage/i.test(o[5] || "")) >= 4) traits.add("vsFog");
+      // Del banquillo: lo que pega contra lo que es el rival
+      const bring = [];
+      for (const [n, k] of sb) {
+        const hits = kindsOf(n).filter((x) => traits.has(x));
+        if (hits.length) bring.push({ name: n, n: k, why: SB_KINDS.find(([x]) => x === hits[0])[2] });
+      }
+      let inN = Math.min(8, bring.reduce((a, b) => a + b.n, 0));
+      // Del main: lo que menos sirve en este enfrentamiento
+      const oppCreatures = q((o) => o && /creature/i.test(o[1]));
+      const weak = mine.map(([n, k]) => {
+        const o = row(n); if (!o || /land/i.test(o[1])) return null;
+        let bad = 0, why = "";
+        if (traits.has("vsAggro") && (o[3] || 0) >= 5) { bad = 3; why = "lenta contra un mazo agresivo"; }
+        else if (oppCreatures < 10 && /(destroy|exile) target creature|damage to target creature/i.test(o[5] || "") && !/any target|player/i.test(o[5] || "")) { bad = 2; why = "quita criaturas y el rival casi no juega"; }
+        else if (traits.has("vsAggro") && /draw (two|three) cards/i.test(o[5] || "") && (o[3] || 0) >= 3) { bad = 1; why = "robo lento contra un mazo agresivo"; }
+        return bad ? { name: n, n: k, why, bad } : null;
+      }).filter(Boolean).sort((a, b) => b.bad - a.bad);
+      // Si no hay cartas claramente malas aquí, salen las flexibles: las de 1-2 copias (las de 4 son el núcleo), primero las caras
+      const flex = mine.filter(([n, k]) => { const o = row(n); return o && !/land/i.test(o[1]) && k <= 2 && !weak.some((w) => w.name === n) && !bring.some((b) => b.name === n); })
+        .sort((a, b) => (row(b[0])[3] || 0) - (row(a[0])[3] || 0)).map(([n, k]) => ({ name: n, n: k, why: "flexible: es lo menos importante aquí" }));
+      const out = []; let left = inN;
+      for (const w of [...weak, ...flex]) { if (left <= 0) break; const k = Math.min(w.n, left); out.push({ name: w.name, n: k, why: w.why }); left -= k; }
+      if (left > 0) inN -= left;  // si no hay qué sacar, se mete menos
+      const takeIn = []; let room = inN;
+      for (const b of bring) { if (room <= 0) break; const k = Math.min(b.n, room); takeIn.push({ ...b, n: k }); room -= k; }
+      return { vs: d.archetype, share: d.share, traits: [...traits].map((x) => SB_KINDS.find(([k]) => k === x)?.[2]).filter(Boolean), in: takeIn, out };
+    });
+  }
+
   function events() {
     return [...user.events, ...PACK_EVENTS].sort((a, b) => (b.day || "").localeCompare(a.day || "")).slice(0, 100);
   }
@@ -2492,7 +2555,7 @@ const Engine = (() => {
 
   // ---------------------------------------------------------------- rutas
   const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection,
-    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
+    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };

@@ -1169,7 +1169,8 @@ async function builderSheet(seeds, startFormat) {
       ${d.sideboard ? `<h2>Banquillo contra el meta (${d.sideboard.reduce((n, c) => n + c.qty, 0)})</h2>
         <div class="hint">Lo que más llevan los banquillos de las listas del meta de ${esc(FORMAT_NAMES[format])}, en tus colores. Debajo, qué mazos lo usan.</div>
         <label class="toggle" style="margin:4px 0 8px"><input type="checkbox" id="b-sbbuy" ${sbbuy ? "checked" : ""}> Banquillo con cartas que no tengo (para comprar)</label>
-        ${d.sideboard.length ? `<div class="grid">${d.sideboard.map(t).join("")}</div>` : `<div class="hint">Con tus cartas no sale banquillo en estos colores: marca la opción para incluir cartas que no tienes.</div>`}` : ""}
+        ${d.sideboard.length ? `<div class="grid">${d.sideboard.map(t).join("")}</div>` : `<div class="hint">Con tus cartas no sale banquillo en estos colores: marca la opción para incluir cartas que no tienes.</div>`}
+        <div id="sb-plan"></div>` : ""}
       ${d.combos?.length ? `<h2>${ico("synergy")}Combos infinitos en este mazo</h2>${d.combos.map((k) => `<details class="guide"><summary>${k.cards.map(esc).join(" + ")} · ${esc(k.makes[0] || "")}</summary>
         ${k.pre || k.needs.length ? `<div class="hint">Necesitas: ${[...k.needs, k.pre].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
         <ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>`).join("")}` : ""}
@@ -1207,6 +1208,18 @@ async function builderSheet(seeds, startFormat) {
     body.querySelectorAll("#b-style button").forEach((b) => (b.onclick = () => { style = b.dataset.s; store("buildStyle", style); run(); }));
     body.querySelectorAll("#b-power button").forEach((b) => (b.onclick = () => { power = b.dataset.p; store("buildPower", power); run(); }));
     $("#b-p9", body).onchange = (e) => { p9 = e.target.checked; run(); };
+    // Plan de banquillo: contra cada mazo top del meta, qué meter y qué sacar
+    if (d.sideboard?.length && $("#sb-plan", body)) {
+      const enc = (l) => encodeURIComponent(l.map((c) => `${c.name}:${c.qty}`).join("|"));
+      api(`/api/sbplan?format=${format}&main=${enc(d.cards)}&side=${enc(d.sideboard)}`).then((plan) => {
+        const rows = plan.filter((p) => p.in.length);
+        $("#sb-plan", body).innerHTML = rows.length ? `<h2>Plan de banquillo</h2><div class="hint">Contra cada mazo top del meta: qué cartas del banquillo meter y cuáles del mazo sacar (lo mismo que hacen los jugadores de torneo).</div>
+          ${rows.map((p) => `<details class="guide"><summary>Contra ${esc(p.vs)}${p.share ? ` (${p.share}%)` : ""}</summary>
+            ${p.traits.length ? `<div class="hint">El rival ${p.traits.map(esc).join(", ")}.</div>` : ""}
+            <p><b>Mete:</b> ${p.in.map((c) => `${c.n} ${esc(c.name)} <span class="sub">(${esc(c.why)})</span>`).join(", ")}</p>
+            <p><b>Saca:</b> ${p.out.length ? p.out.map((c) => `${c.n} ${esc(c.name)} <span class="sub">(${esc(c.why)})</span>`).join(", ") : "lo más flojo en este enfrentamiento"}</p></details>`).join("")}` : "";
+      }).catch(() => {});
+    }
     $("#b-offmeta", body).onchange = (e) => { offmeta = e.target.checked; store("buildOffmeta", offmeta ? "1" : "0"); run(); };
     $("#b-spoil", body).onchange = (e) => { spoil = e.target.checked; store("buildSpoil", spoil ? "1" : "0"); run(); };
     $("#b-buy", body).onchange = (e) => { buy = e.target.checked; store("buildBuy", buy ? "1" : "0"); run(); };
