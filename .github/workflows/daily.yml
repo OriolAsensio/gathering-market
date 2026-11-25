@@ -80,7 +80,7 @@ jobs:
           printf 'window.GM_CONFIG = { packUrl: "./" };  // web: el paquete está al lado\n' > site/config.js
           # Cada publicación cambia la "versión" de los archivos para que el navegador no use una copia vieja.
           v="${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          sed -i -E "s/(src|href)=\"(app|engine|i18n|config|supabase|play)\.js\"/\1=\"\2.js?v=$v\"/g; s/href=\"style\.css\"/href=\"style.css?v=$v\"/; s/href=\"(icon\.svg|apple-touch-icon\.png|manifest\.webmanifest)\"/href=\"\1?v=$v\"/g" site/index.html
+          sed -i -E "s/(src|href)=\"(app|engine|i18n|config|supabase|play|life)\.js\"/\1=\"\2.js?v=$v\"/g; s/href=\"style\.css\"/href=\"style.css?v=$v\"/; s/href=\"(icon\.svg|apple-touch-icon\.png|manifest\.webmanifest)\"/href=\"\1?v=$v\"/g" site/index.html
           # los iconos también llevan versión: si no, el navegador y el móvil siguen enseñando el logo viejo
           sed -i -E "s/\"(icon-512\.png|icon\.svg)\"/\"\1?v=$v\"/g" site/manifest.webmanifest
           grep -c "?v=$v" site/index.html

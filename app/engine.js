@@ -1709,9 +1709,12 @@ const Engine = (() => {
     duel: { size: 100, cmd: true, single: true, meta: "DC" }, paupercommander: { size: 100, cmd: "pdh", single: true },
     predh: { size: 100, cmd: true, single: true }, brawl: { size: 100, cmd: true, single: true },
     standardbrawl: { size: 60, cmd: true, single: true }, oathbreaker: { size: 60, cmd: "pw", single: true },
-    highlander: { size: 100, single: true, key: "vintage", meta: "HIGH" }, canlander: { size: 100, single: true, key: "vintage", meta: "CHL" },
+    highlander: { size: 100, single: true, key: "vintage", meta: "HIGH" }, canlander: { size: 100, single: true, key: "vintage", meta: "CHL", maxPoints: 10 },
     gladiator: { size: 100, single: true }, casual: { size: 60 },
   };
+  // Canadian Highlander: puntos de las cartas más potentes; el mazo no puede pasar de 10 (canadianhighlander.ca, marzo de 2026).
+  const CHL_POINTS = { "ancestral recall": 8, "ancient tomb": 1, "balance": 1, "black lotus": 7, "demonic tutor": 3, "dig through time": 1, "enlightened tutor": 1, "flash": 7, "forth eorlingas!": 1, "gifts ungiven": 1, "imperial seal": 1, "intuition": 1, "mana crypt": 5, "mana drain": 1, "mana vault": 1, "merchant scroll": 1, "mox emerald": 3, "mox jet": 3, "mox pearl": 3, "mox ruby": 3, "mox sapphire": 3, "mystical tutor": 2, "nadu, winged wisdom": 1, "natural order": 1, "psychic frog": 1, "reanimate": 1, "sol ring": 3, "spellseeker": 1, "strip mine": 1, "tainted pact": 1, "tamiyo, inquisitive student": 1, "thassa's oracle": 5, "the fantasticar": 1, "the one ring": 1, "time vault": 7, "time walk": 5, "tinker": 3, "tolarian academy": 2, "treasure cruise": 1, "true-name nemesis": 1, "underworld breach": 3, "urza's saga": 1, "vampiric tutor": 2, "white plume adventurer": 1, "wishclaw talisman": 1, "wrenn and six": 1 };
+  const pointsOf = (name) => CHL_POINTS[norm(name)] || 0;
   const FMT_LABEL = { pauper: "Pauper", standard: "Estándar", pioneer: "Pioneer", modern: "Modern", legacy: "Legacy", vintage: "Vintage",
     premodern: "Premodern", oldschool: "Old School", penny: "Penny Dreadful", timeless: "Timeless", historic: "Historic", explorer: "Explorer",
     peasant: "Peasant", valuevintage: "Value Vintage", commander: "Commander", cedh: "cEDH", duel: "Duel Commander",
@@ -2125,7 +2128,12 @@ const Engine = (() => {
     const chosen = [];   // [carta, copias, motivos]
     const curve = {};
     const roles = { ramp: 0, draw: 0, removal: 0, wipe: 0, protect: 0 };
+    let pointsUsed = 0;
     const take = (x, n, why, score = 99) => {
+      if (F.maxPoints && pointsOf(x.name)) {
+        if (pointsUsed + pointsOf(x.name) > F.maxPoints) return false;
+        pointsUsed += pointsOf(x.name);
+      }
       n = Math.min(n, capOf(x));
       chosen.push([x, n, why, score]);
       const b = Math.min(Math.floor(x.cmc), 6);
@@ -2142,6 +2150,7 @@ const Engine = (() => {
     }
     for (const x of base) {
       if (x === commander || !(legal(x) || x.legalSpoiler) || !subset(x.colors, deckColors) || x.is_land) continue;
+      if (F.maxPoints && pointsUsed + pointsOf(x.name) > F.maxPoints) { warnings.push(`${x.name} vale ${pointsOf(x.name)} puntos y no cabe en los ${F.maxPoints} de Canadian Highlander: la he dejado fuera.`); continue; }
       take(x, x.owned ? Math.min(x.owned, capOf(x)) : capOf(x),
         [x.owned ? "carta base del mazo" : "carta base del mazo (no la tienes)"]);
     }
@@ -2367,7 +2376,7 @@ const Engine = (() => {
         const n = Math.min(x.owned, capOf(x), short);
         if (n <= 0) continue;
         left.delete(x);
-        take(x, n, [x.colors.size ? "para completar el mazo" : "incolora, para completar el mazo"]);
+        if (take(x, n, [x.colors.size ? "para completar el mazo" : "incolora, para completar el mazo"]) === false) continue;
         short -= n; filledOwned += n;
       }
     }
@@ -2380,7 +2389,7 @@ const Engine = (() => {
         if (x.is_land || !legal(x) || !subset(x.colors, deckColors)) continue;
         x.buy = true;
         const n2 = Math.min(q, short);
-        take(x, n2, [`de la lista ganadora: ${template.archetype} — no la tienes`]);
+        if (take(x, n2, [`de la lista ganadora: ${template.archetype} — no la tienes`]) === false) continue;
         short -= n2; filledBuy += n2;
       }
     }
@@ -2398,7 +2407,7 @@ const Engine = (() => {
         const x = mk(oi, 0);
         if (x.is_land || excluded.has(norm(x.name)) || !legal(x) || !subset(x.colors, deckColors) || !cheap[oi] || cheap[oi] > (F.perCard || (fmt === "pauper" ? 200 : 500))) continue;
         const n = Math.min(capOf(x), short);
-        take(x, n, ["para completar (no la tienes: cómprala o usa un proxy)"]);
+        if (take(x, n, ["para completar (no la tienes: cómprala o usa un proxy)"]) === false) continue;
         short -= n; filledBuy += n;
       }
     }
@@ -2475,6 +2484,7 @@ const Engine = (() => {
     cols.slice().sort((a, b) => (exact[b] - rounded[b]) - (exact[a] - rounded[a])).slice(0, basicsN - Object.values(rounded).reduce((a, b) => a + b, 0)).forEach((x) => rounded[x]++);
 
     // 4) Avisos: lo que pide la carta base y no está; funciones sin cubrir.
+    if (F.maxPoints) warnings.push(`Puntos de Canadian Highlander: ${pointsUsed} de ${F.maxPoints} (las cartas más potentes cuentan puntos).`);
     if (F.budget) {  // Value Vintage: el mazo entero no puede pasar de 30 $ (aquí, en euros de Cardmarket, aproximado)
       const cents = [...chosen, ...lands].reduce((t, [x, n]) => t + (BASICS.has(norm(x.name)) ? 0 : (cheap[x.oi] || 0) * n), 0);
       warnings.push(cents > F.budget ? `El mazo cuesta unos ${(cents / 100).toFixed(2)} € y en Value Vintage el tope es de 30 $ (unos ${(F.budget / 100).toFixed(0)} €), banquillo incluido: cambia las cartas más caras.`
