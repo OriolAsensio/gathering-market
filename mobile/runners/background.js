@@ -16,6 +16,8 @@ addEventListener("syncCollection", (resolve, reject, args) => {
   try {
     CapacitorKV.set("ids", JSON.stringify(args?.ids || []));   // ["<id>" normal, "<id>f" foil]
     CapacitorKV.set("names", JSON.stringify(args?.names || {}));
+    CapacitorKV.set("wishes", JSON.stringify(args?.wishes || []));  // [{name, target, pis}] (pis: posiciones en prices.json)
+    CapacitorKV.set("cardsVersion", args?.cardsVersion || "");
     if (args?.day && !kv("lastDay")) CapacitorKV.set("lastDay", args.day);  // no avisar de lo que ya se ve al abrir
     if (args?.lastEvent != null && !kv("lastEvent")) CapacitorKV.set("lastEvent", String(args.lastEvent));
     resolve();
@@ -52,6 +54,18 @@ addEventListener("checkPrices", async (resolve, reject) => {
           notify(`${up ? `📈 ${up} suben` : ""}${up && down ? " · " : ""}${down ? `📉 ${down} bajan` : ""} en tu colección`,
             hits.slice(0, 5).map(line).join("\n"));
         }
+      }
+      // Lista de deseos: la edición más barata ya está por debajo de tu precio objetivo
+      const wishes = JSON.parse(kv("wishes") || "[]"), hit = JSON.parse(kv("wishHit") || "{}");
+      if (wishes.length && version.cards_version === kv("cardsVersion")) {  // si cambian las cartas, las posiciones ya no valen
+        const pr = await (await fetch(PACK + "prices.json?d=" + version.day)).json();
+        for (const w of wishes) {
+          const now = Math.min(...w.pis.map((i) => pr.eur[i]).filter((v) => v != null));
+          if (!Number.isFinite(now)) continue;
+          if (now <= w.target && !hit[w.name]) { notify(`🎯 ${w.name} a ${euro(now)}`, `Ha bajado de tu precio objetivo (${euro(w.target)}).`); hit[w.name] = version.day; }
+          else if (now > w.target) delete hit[w.name];
+        }
+        CapacitorKV.set("wishHit", JSON.stringify(hit));
       }
       CapacitorKV.set("lastDay", version.day);
     }
