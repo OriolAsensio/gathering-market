@@ -906,7 +906,7 @@ const Engine = (() => {
       const oi = oByNorm.get(k);
       return { name, qty, side: !!side, have, owned: basic ? qty : owned.get(k) || 0, basic, eur: basic || oi == null ? null : eur(cheap[oi]), image: oi != null ? oImage(oi) : null };
     });
-    return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, ...deckInfo(d, owned),
+    return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, example: !!d.example, note: d.note || "", ...deckInfo(d, owned),
       test: mine && !!d.test, results: mine ? d.results || [] : [], built: mine ? d.built || null : null };
   }
 
@@ -945,7 +945,7 @@ const Engine = (() => {
     }
     const list = [...rows.entries()].sort((a, b) => (b[1].pct ?? 0) - (a[1].pct ?? 0) || (a[1].rank || 0) - (b[1].rank || 0)).slice(0, 100)
       .map(([k, r]) => ({ name: front(O[r.oi][0]), image: oImage(r.oi), eur: eur(cheap[r.oi]), pct: r.pct, avg: r.avg, rank: r.rank || null,
-        owned: owned.get(k) || 0, want: format === "EDH" ? 1 : 4 }));  // un playset: el meta cambia y es más cómodo tener las 4
+        owned: owned.get(k) || 0, want: ["EDH", "DC", "cEDH", "HIGH", "CHL"].includes(format) ? 1 : 4 }));  // formatos de una copia  // un playset: el meta cambia y es más cómodo tener las 4
     const have = list.filter((x) => x.owned >= x.want).length;
     const missingCost = Math.round(list.reduce((s, x) => s + Math.max(0, x.want - x.owned) * (x.eur || 0), 0) * 100) / 100;
     return { format, cards: list, have, total: list.length, missing_cost: missingCost, lists: STAPLES[format]?.lists || META.filter((d) => d.format === format).length };
@@ -1038,7 +1038,9 @@ const Engine = (() => {
 
   /** Combos infinitos de 2 cartas (Commander Spellbook) que puedes montar con tu colección, o a los que te falta una.
    *  format: pauper / commander / standard filtran por legalidad; casual (o vacío), todos. */
-  const COMBO_FMT = { pauper: "pauper", commander: "commander", standard: "standard" };
+  const COMBO_FMT = { pauper: "pauper", commander: "commander", standard: "standard", pioneer: "pioneer", modern: "modern", legacy: "legacy",
+    vintage: "vintage", cedh: "commander", duel: "commander", predh: "commander", highlander: "vintage", canlander: "vintage",
+    valuevintage: "vintage", explorer: "pioneer", peasant: "pauper", paupercommander: "pauper" };
   async function combosFor({ c, format = "" }) {
     const list = await extra("combos.json");
     const owned = ownedByName(binderOf(c) || 1);
@@ -1575,6 +1577,37 @@ const Engine = (() => {
   const COLOR_NAMES = { W: "blanco", U: "azul", B: "negro", R: "rojo", G: "verde", C: "incoloro" };
   const BASIC_FOR = { W: "Plains", U: "Island", B: "Swamp", R: "Mountain", G: "Forest", C: "Wastes" };
   const FORMATS = { pauper: 6, standard: 10, commander: 9 };  // índice en la fila de la carta (legalidad)
+  // Legalidad del resto de formatos: un carácter por formato en O[oi][12] (0 no, 1 legal, 2 baneada, 3 restringida).
+  // Mismo orden que LEGAL_FMTS en pipeline/ingest_prices.py.
+  const LEGAL_FMTS = ["pioneer", "modern", "legacy", "vintage", "premodern", "oldschool", "penny", "duel", "paupercommander",
+    "predh", "oathbreaker", "brawl", "standardbrawl", "gladiator", "timeless", "historic"];
+  function legalOf(o) {
+    const l = { pauper: o[6], commander: o[9], standard: o[10] }, str = o[12] || "";
+    LEGAL_FMTS.forEach((f, i) => { l[f] = +(str[i] || 0); });
+    return l;
+  }
+  /* Normas de cada formato del creador de mazos. size: cartas del mazo; cmd: lleva comandante ("pw" = un planeswalker, como
+   * en Oathbreaker; "pdh" = criatura infrecuente, como en Pauper Commander); single: una copia de cada (salvo básicas);
+   * key: con qué legalidad se mira; meta: código de MTGTop8 (o de los mazos de ejemplo); budget/perCard: topes en céntimos. */
+  const FORMAT_DEFS = {
+    pauper: { size: 60, meta: "PAU" }, standard: { size: 60, meta: "ST" }, pioneer: { size: 60, meta: "PI" },
+    modern: { size: 60, meta: "MO" }, legacy: { size: 60, meta: "LE" }, vintage: { size: 60, meta: "VI" },
+    premodern: { size: 60, meta: "PREM" }, oldschool: { size: 60 }, penny: { size: 60 }, timeless: { size: 60 },
+    historic: { size: 60, meta: "HI" }, explorer: { size: 60, key: "pioneer", meta: "EXP" },
+    peasant: { size: 60, meta: "PEA", peasant: true },  // solo cartas impresas como común o infrecuente
+    valuevintage: { size: 60, key: "vintage", meta: "VV", budget: 2800, perCard: 50, ban: ["nadu, winged wisdom"] },  // 30 $ el mazo entero
+    commander: { size: 100, cmd: true, single: true }, cedh: { size: 100, cmd: true, single: true, key: "commander", meta: "cEDH" },
+    duel: { size: 100, cmd: true, single: true, meta: "DC" }, paupercommander: { size: 100, cmd: "pdh", single: true },
+    predh: { size: 100, cmd: true, single: true }, brawl: { size: 100, cmd: true, single: true },
+    standardbrawl: { size: 60, cmd: true, single: true }, oathbreaker: { size: 60, cmd: "pw", single: true },
+    highlander: { size: 100, single: true, key: "vintage", meta: "HIGH" }, canlander: { size: 100, single: true, key: "vintage", meta: "CHL" },
+    gladiator: { size: 100, single: true }, casual: { size: 60 },
+  };
+  const FMT_LABEL = { pauper: "Pauper", standard: "Estándar", pioneer: "Pioneer", modern: "Modern", legacy: "Legacy", vintage: "Vintage",
+    premodern: "Premodern", oldschool: "Old School", penny: "Penny Dreadful", timeless: "Timeless", historic: "Historic", explorer: "Explorer",
+    peasant: "Peasant", valuevintage: "Value Vintage", commander: "Commander", cedh: "cEDH", duel: "Duel Commander",
+    paupercommander: "Pauper Commander", predh: "PreDH", brawl: "Brawl", standardbrawl: "Standard Brawl", oathbreaker: "Oathbreaker",
+    highlander: "Highlander", canlander: "Canadian Highlander", gladiator: "Gladiator", casual: "Casual" };
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   function analyse(c) {
@@ -1755,7 +1788,7 @@ const Engine = (() => {
     return "midrange";
   }
 
-  const FORMAT_META = { pauper: "PAU", standard: "ST" };
+  const FORMAT_META = Object.fromEntries(Object.entries(FORMAT_DEFS).filter(([, f]) => f.meta).map(([k, f]) => [k, f.meta]));
   /** Cuánto se juega cada carta en el main de las listas de torneo del formato (0-1, ponderado por la cuota de cada arquetipo). */
   function metaPlay(code) {
     const out = new Map();
@@ -1768,6 +1801,8 @@ const Engine = (() => {
   // Black Lotus siempre, el Mox de cada color del mazo, y las azules (Ancestral Recall, Time Walk, Timetwister) si es azul.
   const POWER9 = { "Black Lotus": "", "Mox Pearl": "W", "Mox Sapphire": "U", "Mox Jet": "B", "Mox Ruby": "R", "Mox Emerald": "G",
     "Ancestral Recall": "U", "Time Walk": "U", "Timetwister": "U" };
+  /** Cuándo sale la primera impresión de una carta ("9999" si no se sabe): las que aún no han salido son spoilers. */
+  const firstOutOf = (oi) => printsOf[oi].reduce((m, pi) => { const r = SETS.get(P[pi][2])?.released || "9999"; return r < m ? r : m; }, "9999");
   async function build({ c, seed, seeds, colors, format = "pauper", style: wanted = "auto", power: pw = 3, bracket: br = 3, focus = "", exclude = "", p9 = "", combo = "", buy = "", sbbuy = "", spoilers = "", offmeta = "" }) {
     const withOffmeta = String(offmeta) === "1";  // cartas legales con sinergia que no juega el meta
     const withSpoilers = String(spoilers) === "1";  // cartas anunciadas que aún no han salido
@@ -1799,7 +1834,7 @@ const Engine = (() => {
     const mk = (oi, owned) => {
       const [name, type_line, cost, cmc, ci, oracle_text, pauper, rank, , commander, standard, gc] = O[oi];
       return analyse({ name: front(name), owned, type_line, oracle_text, mana_cost: cost || "", cmc: cmc || 0,
-        colors: new Set(ci || ""), legal: { pauper, commander, standard }, rank, oi, gc: gc === 1 });
+        colors: new Set(ci || ""), legal: legalOf(O[oi]), rank, oi, gc: gc === 1 });
     };
     const pool = new Map();
     for (const [pi, foil, qty0] of entries(id)) {
@@ -1820,22 +1855,40 @@ const Engine = (() => {
       return mk(oi, 0);
     });
 
-    // Formato y comandante.
-    const commander = fmt === "commander" ? base.find((x) => x.can_command) : null;
-    if (fmt === "commander" && !commander) {
-      warnings.push(`Para Commander la carta base tiene que ser una criatura legendaria. He montado un mazo de 100 cartas con ${base[0].name} igualmente.`);
+    // Formato y comandante (normas en FORMAT_DEFS).
+    if (!FORMAT_DEFS[fmt]) fmt = "casual";
+    let F = FORMAT_DEFS[fmt];
+    const printedAs = (x, rs) => printsOf[x.oi].some((pi) => rs.includes(P[pi][4]));
+    const canLead = (x) => (F.cmd === "pw" ? /planeswalker/i.test(x.type_line || "")
+      : F.cmd === "pdh" ? /creature/i.test(x.type_line || "") && printedAs(x, "u") : x.can_command);
+    const commander = F.cmd ? base.find(canLead) || null : null;
+    if (F.cmd && !commander) {
+      warnings.push(F.cmd === "pw" ? `En Oathbreaker la carta base tiene que ser un planeswalker. He montado el mazo con ${base[0].name} igualmente.`
+        : F.cmd === "pdh" ? `En Pauper Commander el comandante es una criatura impresa como infrecuente. He montado el mazo con ${base[0].name} igualmente.`
+        : `Para ${FMT_LABEL[fmt]} la carta base tiene que ser una criatura legendaria. He montado un mazo de ${F.size} cartas con ${base[0].name} igualmente.`);
     }
-    if (FORMATS[fmt] != null) {
-      const bad = base.filter((x) => x.legal[fmt === "pauper" ? "pauper" : fmt] !== 1);
-      if (bad.length && fmt !== "commander") {
-        warnings.push(`${bad.map((x) => x.name).join(", ")} no ${bad.length > 1 ? "son legales" : "es legal"} en ${fmt === "pauper" ? "Pauper" : "Estándar"}; he montado el mazo en Casual.`);
-        fmt = "casual";
+    // Legalidad en el formato (las restringidas valen, con una copia)
+    const legalIn = (x) => {
+      if (fmt === "casual") return true;
+      if (F.ban?.includes(norm(x.name))) return false;
+      if (F.peasant) return printedAs(x, "cu") && [1, 3].includes(x.legal.vintage);
+      return [1, 3].includes(x.legal[F.key || fmt]);
+    };
+    if (fmt !== "casual") {
+      const bad = base.filter((x) => x !== commander && !legalIn(x) && !(withSpoilers && firstOutOf(x.oi) > today()));
+      if (bad.length && !F.cmd) {
+        warnings.push(`${bad.map((x) => x.name).join(", ")} no ${bad.length > 1 ? "son legales" : "es legal"} en ${FMT_LABEL[fmt]}; he montado el mazo en Casual.`);
+        fmt = "casual"; F = FORMAT_DEFS.casual;
       }
     }
-    const size = fmt === "commander" ? 100 : 60;
-    const maxCopies = size === 100 ? 1 : 4;
+    const size = F.size;
+    const maxCopies = F.single ? 1 : 4;
+    const capOf = (x) => (fmt !== "casual" && x.legal[F.key || fmt] === 3 ? 1 : maxCopies);  // restringida: una copia
     const BR = fmt === "commander" ? BRACKETS[bracket] : BRACKETS[5];
-    const legal = (x) => !(size === 60 && x.cmdr_only) && (fmt === "casual" || x.legal[fmt] === 1) && (BR.mld || !x.mld);
+    const baseSet = new Set(base);
+    const legal = (x) => !(!F.cmd && x.cmdr_only) && legalIn(x) && (BR.mld || !x.mld)
+      && (!F.perCard || baseSet.has(x) || (cheap[x.oi] || 0) <= F.perCard);  // Value Vintage: nada caro
+    if (F.cmd === "pw") warnings.push("Oathbreaker: elige tú el hechizo insignia (un instantáneo o conjuro de los colores de tu planeswalker).");
 
     // "C" = incoloro: solo C → mazo incoloro; C con colores → esos colores premiando las cartas incoloras.
     const wantC = /c/i.test(colors || "");
@@ -1868,7 +1921,7 @@ const Engine = (() => {
      * 2-3 las de apoyo y 2 las caras o legendarias (antes ponía tantas como tuvieras y faltaban cartas distintas). */
     const avgCopies = new Map((STAPLES[metaCode]?.cards || []).map(([n, , avg]) => [norm(n), avg]));
     const idealCopies = (x, sc) => {
-      if (size === 100) return 1;
+      if (maxCopies === 1) return 1;
       const a = avgCopies.get(norm(x.name));
       if (a) return Math.max(1, Math.min(4, Math.round(a)));
       if (/legendary/i.test(O[x.oi][1]) || x.cmc >= 5) return 2;
@@ -1922,7 +1975,7 @@ const Engine = (() => {
         : (indexAll(), synergyCandidates(makePlan(base), have).slice(0, 150).map(([oi]) => oi));
       for (const oi of extraOis) {
         if (oi == null || have.has(oi)) continue;
-        const x = mk(oi, size === 100 ? 1 : 4);
+        const x = mk(oi, maxCopies);
         x.buy = true;
         if (!x.is_land && legal(x) && subset(x.colors, deckColors) && !excluded.has(norm(x.name)) && cheap[oi] && cheap[oi] <= (fmt === "pauper" ? 500 : 3000)) { candidates.push(x); have.add(oi); }
       }
@@ -1935,10 +1988,10 @@ const Engine = (() => {
       const have = new Set([...candidates, ...base].map((x) => x.oi));
       for (const [oi, r] of first) {
         if (r <= td || r === "9999" || have.has(oi)) continue;
-        const x = mk(oi, size === 100 ? 1 : 4);
+        const x = mk(oi, maxCopies);
         x.buy = true; x.spoiler = r;
         const ok = fmt !== "pauper" || printsOf[oi].some((pi) => P[pi][4] === "c");
-        if (!x.is_land && ok && !(size === 60 && x.cmdr_only) && subset(x.colors, deckColors) && !excluded.has(norm(x.name))) { candidates.push(x); spoilerPool.push(x); have.add(oi); }
+        if (!x.is_land && ok && !(!F.cmd && x.cmdr_only) && subset(x.colors, deckColors) && !excluded.has(norm(x.name))) { candidates.push(x); spoilerPool.push(x); have.add(oi); }
       }
     }
     // "Cartas fuera del meta": legales con sinergia que ninguna lista del meta juega (para mazos con sorpresa); las que no tienes, para comprar.
@@ -1949,7 +2002,7 @@ const Engine = (() => {
       for (const [oi] of synergyCandidates(makePlan(base), have).slice(0, 250)) {
         const k = norm(O[oi][0]);
         if (have.has(oi) || playedMeta.get(k) || excluded.has(k)) continue;
-        const x = mk(oi, size === 100 ? 1 : 4);
+        const x = mk(oi, maxCopies);
         x.buy = true; x.offmeta = true;
         if (!x.is_land && legal(x) && subset(x.colors, deckColors) && cheap[oi] && cheap[oi] <= (fmt === "pauper" ? 500 : 3000)) { candidates.push(x); have.add(oi); }
       }
@@ -1964,6 +2017,7 @@ const Engine = (() => {
     const curve = {};
     const roles = { ramp: 0, draw: 0, removal: 0, wipe: 0, protect: 0 };
     const take = (x, n, why, score = 99) => {
+      n = Math.min(n, capOf(x));
       chosen.push([x, n, why, score]);
       const b = Math.min(Math.floor(x.cmc), 6);
       curve[b] = (curve[b] || 0) + n;
@@ -1973,14 +2027,13 @@ const Engine = (() => {
       else addToPlan(plan, x, 0.35, (m, k, v) => { if (m.has(k)) m.set(k, m.get(k) + v); });
     };
     // Spoilers elegidos como carta base: aún no tienen legalidad, valen (en Pauper, si salen como común)
-    const firstOut = (oi) => printsOf[oi].reduce((m, pi) => { const r = SETS.get(P[pi][2])?.released || "9999"; return r < m ? r : m; }, "9999");
     for (const x of base) {
-      const out = firstOut(x.oi);
+      const out = firstOutOf(x.oi);
       if (withSpoilers && out > today() && out !== "9999" && (fmt !== "pauper" || printsOf[x.oi].some((pi) => P[pi][4] === "c"))) { x.spoiler = out; x.buy = !x.owned; x.legalSpoiler = true; }
     }
     for (const x of base) {
       if (x === commander || !(legal(x) || x.legalSpoiler) || !subset(x.colors, deckColors) || x.is_land) continue;
-      take(x, x.owned ? Math.min(x.owned, maxCopies) : maxCopies,
+      take(x, x.owned ? Math.min(x.owned, capOf(x)) : capOf(x),
         [x.owned ? "carta base del mazo" : "carta base del mazo (no la tienes)"]);
     }
     if (commander) addToPlan(plan, commander, 0);
@@ -2072,7 +2125,7 @@ const Engine = (() => {
         if (n >= PW.staples * (size === 100 ? 1 : 0.5)) break;
         if ((x.gc && gcCount >= BR.gc) || !fitsCurve(x)) continue;
         left.delete(x);
-        take(x, Math.min(x.owned, maxCopies), [`básico del formato (${POWER_NAMES[power]})`, ...[...x.roles].map((r) => ROLE_NAMES[r])]);
+        take(x, Math.min(x.owned, capOf(x)), [`básico del formato (${POWER_NAMES[power]})`, ...[...x.roles].map((r) => ROLE_NAMES[r])]);
         if (x.gc) gcCount++;
         n++;
       }
@@ -2129,7 +2182,7 @@ const Engine = (() => {
       const fillsRole = [...best.roles].some((r) => roles[r] < target[r]);
       const reservable = [...left].some((x) => x !== best && fits(x) && [...x.roles].some((r) => roles[r] < target[r]));
       const free = spellSlots() - used - (fillsRole || !reservable ? 0 : deficit);  // no comerse los huecos reservados
-      take(best, Math.max(1, Math.min(best.owned, maxCopies, free, room, idealCopies(best, bestScore))), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
+      take(best, Math.max(1, Math.min(best.owned, capOf(best), free, room, idealCopies(best, bestScore))), bestWhy.length ? bestWhy : ["buena carta del color"], fit(plan, best)[0]);
       if (best.gc) gcCount++;
       if (best.extra_turn) turnsCount++;
     }
@@ -2149,7 +2202,7 @@ const Engine = (() => {
       if (!weak) break;
       const [[wx, wn, wwhy], wv] = weak;
       const wb = Math.min(Math.floor(wx.cmc), 6);
-      const better = [...left].filter((x) => Math.abs(Math.min(Math.floor(x.cmc), 6) - wb) <= 1 && x.owned >= Math.min(wn, maxCopies)
+      const better = [...left].filter((x) => Math.abs(Math.min(Math.floor(x.cmc), 6) - wb) <= 1 && x.owned >= Math.min(wn, capOf(x))
         && !(x.gc && gcCount >= BR.gc) && !(x.extra_turn && turnsCount >= BR.turns) && !(voltron && x.roles.has("wipe") && !x.one_sided))
         .map((x) => [x, valueOf(x)]).sort((a, b) => b[1] - a[1])[0];
       if (!better || better[1] < wv + (PW.swapGap ?? 2)) break;
@@ -2158,7 +2211,7 @@ const Engine = (() => {
       chosen.splice(i, 1);
       curve[wb] -= wn; for (const r of wx.roles) roles[r] -= wn;
       left.delete(bx); left.add(wx);
-      take(bx, Math.min(wn, bx.owned, maxCopies), [...fit(plan, bx)[1].map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)).slice(0, 2), `mejor que ${wx.name}`], valueOf(bx));
+      take(bx, Math.min(wn, bx.owned, capOf(bx)), [...fit(plan, bx)[1].map((t) => (t.startsWith("tribal") ? t : `sinergia: ${t}`)).slice(0, 2), `mejor que ${wx.name}`], valueOf(bx));
       if (bx.gc) gcCount++;
       swaps.push([wx.name, bx.name]);
     }
@@ -2202,7 +2255,7 @@ const Engine = (() => {
     if (short > 0) {
       for (const [x] of [...left].map((x) => [x, valueOf(x) + (x.colors.size ? 0 : 0.5)]).sort((a, b) => b[1] - a[1])) {
         if (short <= 0) break;
-        const n = Math.min(x.owned, maxCopies, short);
+        const n = Math.min(x.owned, capOf(x), short);
         if (n <= 0) continue;
         left.delete(x);
         take(x, n, [x.colors.size ? "para completar el mazo" : "incolora, para completar el mazo"]);
@@ -2234,8 +2287,8 @@ const Engine = (() => {
       for (const [oi] of fillers) {
         if (short <= 0) break;
         const x = mk(oi, 0);
-        if (x.is_land || excluded.has(norm(x.name)) || !legal(x) || !subset(x.colors, deckColors) || !cheap[oi] || cheap[oi] > (fmt === "pauper" ? 200 : 500)) continue;
-        const n = Math.min(maxCopies, short);
+        if (x.is_land || excluded.has(norm(x.name)) || !legal(x) || !subset(x.colors, deckColors) || !cheap[oi] || cheap[oi] > (F.perCard || (fmt === "pauper" ? 200 : 500))) continue;
+        const n = Math.min(capOf(x), short);
         take(x, n, ["para completar (no la tienes: cómprala o usa un proxy)"]);
         short -= n; filledBuy += n;
       }
@@ -2281,7 +2334,7 @@ const Engine = (() => {
       // Si entra girada en un mazo de un color, mejor una básica.
       if (deckColors.size === 1 && /enters (the battlefield )?tapped/.test(land.text) && metaScore(land) < 0.04) continue;
       if (deckColors.size > 1 ? useful.length >= 2 || s >= 2 : s >= 2.5) {
-        const n = Math.min(land.owned, maxCopies, room);
+        const n = Math.min(land.owned, capOf(land), room);
         lands.push([land, n, s > 0 ? ["encaja con el plan"] : [`da maná ${useful.map((m) => COLOR_NAMES[m]).join(" y ")}`]]);
         room -= n;
       }
@@ -2313,6 +2366,11 @@ const Engine = (() => {
     cols.slice().sort((a, b) => (exact[b] - rounded[b]) - (exact[a] - rounded[a])).slice(0, basicsN - Object.values(rounded).reduce((a, b) => a + b, 0)).forEach((x) => rounded[x]++);
 
     // 4) Avisos: lo que pide la carta base y no está; funciones sin cubrir.
+    if (F.budget) {  // Value Vintage: el mazo entero no puede pasar de 30 $ (aquí, en euros de Cardmarket, aproximado)
+      const cents = [...chosen, ...lands].reduce((t, [x, n]) => t + (BASICS.has(norm(x.name)) ? 0 : (cheap[x.oi] || 0) * n), 0);
+      warnings.push(cents > F.budget ? `El mazo cuesta unos ${(cents / 100).toFixed(2)} € y en Value Vintage el tope es de 30 $ (unos ${(F.budget / 100).toFixed(0)} €), banquillo incluido: cambia las cartas más caras.`
+        : `Presupuesto de Value Vintage: el mazo cuesta unos ${(cents / 100).toFixed(2)} € de ${(F.budget / 100).toFixed(0)} € (30 $), sin contar el banquillo.`);
+    }
     for (const [theme, w] of plan.wantsType) {
       if (w < 3 || base.some((x) => x.type_tags.has(theme))) continue;
       const inDeck = chosen.filter(([x, , why]) => !why[0].startsWith("carta base del mazo") && x.type_tags.has(theme)).reduce((s, [, n]) => s + n, 0);
@@ -2363,7 +2421,7 @@ const Engine = (() => {
       indexAll();
       const have = new Set([...pool.values()].map((x) => x.oi));
       base.forEach((x) => have.add(x.oi));
-      const capCents = fmt === "pauper" ? 300 : fmt === "commander" ? 1500 : 1000;
+      const capCents = F.perCard || (fmt === "pauper" ? 300 : F.cmd ? 1500 : 1000);
       const ok = (oi) => { const x = ALL[oi]; return !x.is_land && legal(x) && subset(x.colors, deckColors) && (!colorlessOnly || !x.colors.size)
         && !(x.gc && gcCount >= BR.gc) && !(voltron && x.roles.has("wipe") && !x.one_sided)
         && cheap[oi] && cheap[oi] <= capCents && !BASICS.has(norm(O[oi][0])); };
@@ -2446,6 +2504,7 @@ const Engine = (() => {
           seen.add(key);
           const ois = k.cards.map((n) => oByNorm.get(norm(n)));
           if (ois.some((oi) => oi == null) || k.cards.some((n) => excluded.has(norm(n)))) continue;
+          if (fmt !== "casual" && ois.some((oi) => !legalIn({ name: front(O[oi][0]), legal: legalOf(O[oi]), oi }))) continue;  // las dos cartas, legales en el formato
           const ci = new Set(ois.flatMap((oi) => [...(O[oi][4] || "")]));
           // Que quepa en los colores del mazo; fuera de Commander se admite un color más (se avisa y, al elegirlo, el mazo lo suma)
           const extra = [...ci].filter((col) => !deckColors.has(col));
@@ -2497,7 +2556,7 @@ const Engine = (() => {
   function indexAll() {
     if (ALL) return;
     ALL = O.map((o, oi) => analyse({ name: front(o[0]), type_line: o[1], oracle_text: o[5], mana_cost: o[2] || "", cmc: o[3] || 0,
-      colors: new Set(o[4] || ""), legal: { pauper: o[6], commander: o[9], standard: o[10] }, rank: o[7], oi, owned: 0, gc: o[11] === 1 }));
+      colors: new Set(o[4] || ""), legal: legalOf(o), rank: o[7], oi, owned: 0, gc: o[11] === 1 }));
     BY_TAG = new Map(); BY_TYPE = new Map(); BY_SUB = new Map();
     const push = (m, k, oi) => { if (!m.has(k)) m.set(k, []); m.get(k).push(oi); };
     ALL.forEach((x, oi) => {
@@ -2610,12 +2669,14 @@ const Engine = (() => {
     indexAll();
     const pool = new Map();
     for (const [pi] of entries(binderOf(c) || 1)) { const oi = P[pi][1]; pool.set(norm(O[oi][0]), oi); }
-    const ok = (x) => !x.is_land && !(format !== "commander" && x.cmdr_only) && (format === "casual" || x.legal[format] === 1);
+    const F = FORMAT_DEFS[format] || FORMAT_DEFS.casual, key = F.peasant ? "vintage" : F.key || format;
+    const ok = (x) => !x.is_land && !(!F.cmd && x.cmdr_only) && (!FORMAT_DEFS[format] || format === "casual" || [1, 3].includes(x.legal[key])
+      || (F.cmd && (x.can_command || (F.cmd === "pw" && /planeswalker/i.test(x.type_line || "")))));
     const allowed = [...pool.values()].filter((oi) => ok(ALL[oi])).map((oi) => front(O[oi][0]));
     const base = seeds.split("|").map((n) => oByNorm.get(norm(n))).filter((oi) => oi != null).map((oi) => ALL[oi]);
     if (!base.length) return { allowed, suggest: [] };
     const plan = makePlan(base);
-    const cmd = format === "commander" ? base.find((x) => x.can_command) : null;
+    const cmd = F.cmd ? base.find((x) => (F.cmd === "pw" ? /planeswalker/i.test(x.type_line || "") : x.can_command)) : null;
     const cols = new Set(cmd ? cmd.colors : base.flatMap((x) => [...x.colors]));
     const taken = new Set(base.map((x) => norm(x.name)));
     const inCols = (x) => [...x.colors].every((col) => cols.has(col));

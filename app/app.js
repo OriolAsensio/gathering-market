@@ -594,7 +594,14 @@ const deckCard = (d) => `
     <div class="deck-foot"><span>Tienes el ${d.owned_pct}%</span><span>${d.missing_cost ? `Te faltan ${euro(d.missing_cost)}` : "¡Lo puedes montar!"}</span></div>
   </button>`;
 
-const META_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage" };
+const META_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage", PREM: "Premodern",
+  PEA: "Peasant", DC: "Duel Commander", cEDH: "cEDH", HIGH: "Highlander", CHL: "Canadian Highlander", EXP: "Explorer", HI: "Historic",
+  VV: "Value Vintage", DAN: "Dandân" };
+// Formatos sin meta de torneo: mazos de ejemplo (y sus normas)
+const EXAMPLE_FORMATS = {
+  VV: "Value Vintage: cartas de Vintage, pero el mazo entero (con banquillo) cuesta como máximo 30 $. Formato de la comunidad (vvmtg.com), sin meta publicado: aquí tienes listas de ejemplo.",
+  DAN: "Dandân (Forgetful Fish): los dos jugadores comparten un único mazo de 80 cartas, la biblioteca y el cementerio. Es más un juego de mesa dentro de Magic, para partidas rápidas: estos son los mazos que se usan.",
+};
 views.decks = async () => {
   const v = $("#view");
   v.innerHTML = `<button class="item builder-cta" id="deck-build">
@@ -619,7 +626,7 @@ views.decks = async () => {
   mine = mine.filter((d) => !d.test);
   const count = (f) => decks.filter((d) => d.format === f).length;
   $("#deck-tab").innerHTML = `<option value="mine">Mis mazos (${mine.length})</option><option value="test">Mazos para probar (${tests.length})</option>
-    ${formats.map((f) => `<option value="${f}">Meta de ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
+    ${formats.map((f) => `<option value="${f}">${EXAMPLE_FORMATS[f] ? "Ejemplos de" : "Meta de"} ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
   const sorters = { meta: (a, b) => b.share - a.share, owned: (a, b) => b.owned_pct - a.owned_pct, cheap: (a, b) => a.price - b.price, missing: (a, b) => a.missing_cost - b.missing_cost };
   const bind = (root) => root.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
   const draw = () => {
@@ -646,14 +653,14 @@ views.decks = async () => {
       return winnersView($("#wins", body));
     }
     const list = decks.filter((d) => d.format === tab);
-    body.innerHTML = `${viewSeg}<div class="hint">${tab === "PAU"
+    body.innerHTML = `${viewSeg}<div class="hint">${EXAMPLE_FORMATS[tab] ? EXAMPLE_FORMATS[tab] : tab === "PAU"
       ? `De cada arquetipo, la lista mejor clasificada (la ganadora si la hay) de los últimos 2 meses en MTGTop8. "Weenie White" es el mono blanco (Convoke, Kor Skyfisher…).`
       : `Los arquetipos más jugados de ${META_FORMATS[tab]} en MTGTop8 y, de cada uno, la lista mejor clasificada (la ganadora si la hay).`}</div>
       <div class="seg" id="deck-sort">
         <button data-s="meta">Más jugados</button><button data-s="owned">Puedo montar</button><button data-s="cheap">Más baratos</button><button data-s="missing">Me falta menos €</button>
       </div>
       ${list.length ? `<div class="list">${[...list].sort(sorters[state.deckSort]).map(deckCard).join("")}</div>`
-        : `<div class="empty"><strong>Aún no hay datos del meta</strong>Se descargan cada día.</div>`}`;
+        : `<div class="empty"><strong>Aún no hay datos del meta</strong>Se descargan dos veces al día (los formatos nuevos pueden tardar una vuelta).</div>`}`;
     bindView();
     body.querySelectorAll("#deck-sort button").forEach((b) => {
       b.classList.toggle("on", b.dataset.s === state.deckSort);
@@ -741,8 +748,8 @@ async function deckSheet(id, keep = null) {
   const main = d.cards.filter((c) => !c.side), side = d.cards.filter((c) => c.side);
   const missing = d.cards.filter((c) => !c.basic && c.have < c.qty).map((c) => `${c.qty - c.have} ${c.name}`);
   body.innerHTML = `
-    <h3>${esc(d.archetype)}</h3>
-    <div class="sub">${d.mine ? esc(d.event) : `${esc(d.player)} · ${d.result === "1" ? `${ico("trophy")}Ganadora` : `${esc(d.result)}º`} en ${esc(d.event)} · ${esc(d.date)}`}</div>
+    <h3>${esc(d.archetype)}</h3>${d.note ? `<div class="hint">${esc(d.note)}</div>` : ""}
+    <div class="sub">${d.example ? `Mazo de ejemplo · ${esc(d.event)}` : d.mine ? esc(d.event) : `${esc(d.player)} · ${d.result === "1" ? `${ico("trophy")}Ganadora` : `${esc(d.result)}º`} en ${esc(d.event)} · ${esc(d.date)}`}</div>
     <div class="stats">
       <div class="stat"><b>${euro(d.price)}</b><span>Precio del mazo</span></div>
       <div class="stat"><b>${d.owned_pct}%</b><span>Lo tienes</span></div>
@@ -924,7 +931,8 @@ views.sets = async () => {
 };
 
 // Staples: las cartas más jugadas de cada formato y cuántas tienes.
-const STAPLE_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage", EDH: "Commander" };
+const STAPLE_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage", EDH: "Commander",
+  PREM: "Premodern", PEA: "Peasant", DC: "Duel Commander", cEDH: "cEDH", HIGH: "Highlander", CHL: "Canadian Highlander", EXP: "Explorer", HI: "Historic" };
 async function staplesSheet(format = store("stapleFormat") || "PAU", keepScroll = 0) {
   const body = keepScroll ? $("#sheet-body") : openSheet(`<h3>Staples</h3>${skeleton(4)}`);
   const d = await api(`/api/staples?format=${format}`);
@@ -1130,7 +1138,15 @@ async function setSheet(code, opts = {}) {
 
 // ---------- constructor de mazos ----------
 const COLORS = [["W", "Blanco"], ["U", "Azul"], ["B", "Negro"], ["R", "Rojo"], ["G", "Verde"], ["C", "Incoloro"]];
-const FORMAT_NAMES = { pauper: "Pauper", commander: "Commander", standard: "Estándar", casual: "Casual" };
+const FORMAT_NAMES = { pauper: "Pauper", commander: "Commander", standard: "Estándar", casual: "Casual", pioneer: "Pioneer", modern: "Modern",
+  legacy: "Legacy", vintage: "Vintage", premodern: "Premodern", peasant: "Peasant", valuevintage: "Value Vintage", oldschool: "Old School",
+  penny: "Penny Dreadful", timeless: "Timeless", historic: "Historic", explorer: "Explorer", cedh: "cEDH", duel: "Duel Commander",
+  paupercommander: "Pauper Commander", predh: "PreDH", brawl: "Brawl", standardbrawl: "Standard Brawl", oathbreaker: "Oathbreaker",
+  highlander: "Highlander", canlander: "Canadian Highlander", gladiator: "Gladiator" };
+const COMBO_FORMATS = { pauper: "Pauper", commander: "Commander", standard: "Estándar", casual: "Casual" };
+// Formatos con comandante (la carta base es el comandante; en Oathbreaker, un planeswalker)
+const CMD_FORMATS = new Set(["commander", "cedh", "duel", "paupercommander", "predh", "brawl", "standardbrawl", "oathbreaker"]);
+const formatSelect = (id, on) => `<select class="search deck-select" id="${id}">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<option value="${k}" ${k === on ? "selected" : ""}>${n}</option>`).join("")}</select>`;
 const STYLE_NAMES = { auto: "Auto", aggro: "Agresivo", midrange: "Medio rango", control: "Control" };
 const POWER_LABELS = { 1: "🤡 Meme", 2: "🍺 Muy casual", 3: "⚖️ Equilibrado", 4: "🎯 Optimizado", 5: "🏆 Competitivo", 6: "🌍 World Champion" };
 const FOCUS_LABELS = { rampa: "Rampa y bichos grandes", grandes: "Bichos grandes", robo: "Robo de cartas", control: "Control", aggro: "Agresivo",
@@ -1174,7 +1190,7 @@ async function builderSheet(seeds, startFormat) {
     const rows = [...(d.commander ? [d.commander] : []), ...d.cards, ...d.lands];
     const listText = rows.map((c) => `${c.qty} ${c.name}`).join("\n") + (d.sideboard?.length ? `\n\nSideboard\n${d.sideboard.map((c) => `${c.qty} ${c.name}`).join("\n")}` : "");
     $("#b-body", body).innerHTML = `
-      <div class="seg" id="b-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
+      ${formatSelect("b-format", format)}
       <div class="seg" id="b-style">${Object.entries(STYLE_NAMES).map(([k, n]) => `<button data-s="${k}" class="${style === k ? "on" : ""}">${k === "auto" && style === "auto" ? `Auto (${STYLE_NAMES[d.style].toLowerCase()})` : n}</button>`).join("")}</div>
       <div class="field"><label>Enfoque del mazo</label><div class="seg" id="b-focus"><button data-fo="" class="${focus ? "" : "on"}">✨ Automático</button>${d.focus_options.map((o) => `<button data-fo="${esc(o.key)}" class="${focus === o.key ? "on" : ""}">${o.rec ? "★ " : ""}${esc(FOCUS_LABELS[o.key] || o.key)} (${o.count})</button>`).join("")}</div>
         <div class="hint">★ = lo que mejor hace este color. Entre paréntesis, cuántas cartas de ese tipo tienes que valgan.</div></div>
@@ -1244,10 +1260,7 @@ async function builderSheet(seeds, startFormat) {
           <span class="badge part">${euro(c.eur)}</span><div class="why">${esc(c.reasons.join(" · "))}</div></a>`).join("")}</div>` : ""}
       <div class="row-btns"><button class="btn" id="b-other">Otras cartas</button><button class="btn" id="b-copy">Copiar lista</button></div>
       <button class="btn block primary" id="b-save" style="margin-top:8px">💾 Guardar en Mis mazos</button>`;
-    body.querySelectorAll("#b-format button").forEach((b) => {
-      b.classList.toggle("on", b.dataset.f === format);
-      b.onclick = () => { format = b.dataset.f; store("buildFormat", format); colors = null; run(); };
-    });
+    $("#b-format", body).onchange = (e) => { format = e.target.value; store("buildFormat", format); colors = null; run(); };
     body.querySelectorAll("#b-colors button").forEach((b) => (b.onclick = () => {
       const set = new Set(colors.split(""));
       set.has(b.dataset.c) ? set.delete(b.dataset.c) : set.add(b.dataset.c);
@@ -1359,7 +1372,7 @@ async function combosSheet(format = "casual") {
   const draw = async () => {
     body.innerHTML = `<h3>${ico("synergy")}Combos infinitos</h3>
       <div class="hint">Combos de dos cartas que crean algo infinito (vida, daño, maná, fichas…), de Commander Spellbook. No son sinergias: con las dos cartas en juego el combo se repite sin fin.</div>
-      <div class="seg" id="cb-fmt">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}" class="${k === fmt ? "on" : ""}">${n}</button>`).join("")}</div>
+      <div class="seg" id="cb-fmt">${Object.entries(COMBO_FORMATS).map(([k, n]) => `<button data-f="${k}" class="${k === fmt ? "on" : ""}">${n}</button>`).join("")}</div>
       <div id="cb-list">${skeleton(4)}</div>`;
     body.querySelectorAll("#cb-fmt button").forEach((b) => (b.onclick = () => { fmt = b.dataset.f; draw(); }));
     let r;
@@ -1394,7 +1407,7 @@ async function pickSeed(already = [], keepFormat = null) {
   let format = keepFormat || store("buildFormat") || "pauper";
   const body = openSheet(`<h3>Crear un mazo</h3>
     <div class="field"><label>1. ¿Para qué formato?</label>
-      <div class="seg" id="seed-format">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<button data-f="${k}">${n}</button>`).join("")}</div>
+      ${formatSelect("seed-format", "pauper")}
       <div class="hint" id="seed-fhint"></div></div>
     <button class="btn block" id="seed-combos" style="margin-bottom:10px">${ico("synergy")}Combos infinitos con tus cartas</button>
     <div class="field"><label>2. Elige una o varias cartas</label>
@@ -1416,7 +1429,17 @@ async function pickSeed(already = [], keepFormat = null) {
   let allowed = new Set(), onlyLegends = false, limit = 90;
   const isLegend = (c) => /legendary.*creature/i.test(c.type || "");
   const FHINT = { pauper: "60 cartas, solo comunes.", commander: "100 cartas sin repetir. Empieza por una criatura legendaria: será tu comandante.",
-    standard: "60 cartas de las colecciones recientes.", casual: "60 cartas, sin restricciones: para jugar con amigos." };
+    standard: "60 cartas de las colecciones recientes.", casual: "60 cartas, sin restricciones: para jugar con amigos.",
+    pioneer: "60 cartas, desde Return to Ravnica (2012).", modern: "60 cartas, desde Octava Edición (2003).", legacy: "60 cartas, casi todo Magic (con su lista de prohibidas).",
+    vintage: "60 cartas, todo Magic: las restringidas, una copia.", premodern: "60 cartas de Cuarta Edición a Azote (1995-2003).",
+    peasant: "60 cartas, solo comunes e infrecuentes.", valuevintage: "60 cartas de Vintage y el mazo entero cuesta como máximo 30 $ (banquillo incluido).",
+    oldschool: "60 cartas de las primeras colecciones (1993-1994).", penny: "60 cartas que cuestan 1 céntimo de tique en MTGO (cambia cada temporada).",
+    timeless: "60 cartas de MTG Arena, todo lo de Arena.", historic: "60 cartas de MTG Arena (Historic).", explorer: "60 cartas de Arena legales en Pioneer.",
+    cedh: "Commander competitivo: 100 cartas sin repetir, lo más potente.", duel: "Commander 1 contra 1: 100 cartas sin repetir, 20 vidas y su propia lista de prohibidas.",
+    paupercommander: "100 cartas comunes sin repetir; el comandante, una criatura infrecuente.", predh: "Commander solo con cartas hasta 2011 (antes de los mazos de Commander).",
+    brawl: "100 cartas sin repetir con comandante, cartas de Arena.", standardbrawl: "60 cartas sin repetir con comandante, legales en Estándar.",
+    oathbreaker: "60 cartas sin repetir: un planeswalker (tu oathbreaker) y un hechizo insignia.", highlander: "100 cartas sin repetir y sin comandante (Highlander europeo, con puntos).",
+    canlander: "100 cartas sin repetir y sin comandante, con su lista de puntos.", gladiator: "100 cartas de Arena sin repetir y sin comandante." };
   const update = () => {
     $("#seed-n", body).textContent = picked.size ? [...picked].join(", ") : "Ninguna elegida";
     $("#seed-go", body).disabled = !picked.size;
@@ -1452,19 +1475,19 @@ async function pickSeed(already = [], keepFormat = null) {
   const setFormat = async (f) => {
     format = f;
     store("buildFormat", f);
-    body.querySelectorAll("#seed-format button").forEach((b) => b.classList.toggle("on", b.dataset.f === f));
+    $("#seed-format", body).value = f;
     $("#seed-fhint", body).textContent = FHINT[f];
-    onlyLegends = f === "commander" && ![...picked].some((n) => isLegend(cards.find((c) => c.name === n) || {}));
+    onlyLegends = CMD_FORMATS.has(f) && f !== "oathbreaker" && ![...picked].some((n) => isLegend(cards.find((c) => c.name === n) || {}));
     $("#seed-legend", body).classList.toggle("on", onlyLegends);
     allowed = new Set((await api(`/api/seedhelp?format=${f}`)).allowed);
     draw();
     suggest();
   };
-  body.querySelectorAll("#seed-format button").forEach((b) => (b.onclick = () => setFormat(b.dataset.f)));
+  $("#seed-format", body).onchange = (e) => setFormat(e.target.value);
   $("#seed-legend", body).onclick = (e) => { onlyLegends = !onlyLegends; e.target.classList.toggle("on", onlyLegends); draw(); };
   $("#seed-go", body).onclick = () => {
     let seeds = [...picked];
-    const legend = format === "commander" && seeds.find((n) => isLegend(cards.find((c) => c.name === n) || {}));
+    const legend = CMD_FORMATS.has(format) && seeds.find((n) => isLegend(cards.find((c) => c.name === n) || {}));
     if (legend) seeds = [legend, ...seeds.filter((n) => n !== legend)];  // el comandante, primero
     builderSheet(seeds, format);
   };

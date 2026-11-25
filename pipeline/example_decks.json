@@ -1,0 +1,602 @@
+[
+ {
+  "format": "DAN",
+  "name": "Dandân (Forgetful Fish clásico)",
+  "category": "Juego de mesa",
+  "source": "Card Kingdom",
+  "note": "Mazo compartido de 80 cartas: los dos jugadores roban de la misma biblioteca y comparten cementerio. 20 vidas; pierdes a 0 vidas o si no puedes robar. Un mulligan gratis si la mano tiene menos de 2 tierras. Dandân es la única criatura.",
+  "cards": [
+   [
+    "Dandân",
+    10,
+    0
+   ],
+   [
+    "Memory Lapse",
+    8,
+    0
+   ],
+   [
+    "Accumulated Knowledge",
+    4,
+    0
+   ],
+   [
+    "Brainstorm",
+    2,
+    0
+   ],
+   [
+    "Crystal Spray",
+    2,
+    0
+   ],
+   [
+    "Dance of the Skywise",
+    2,
+    0
+   ],
+   [
+    "Diminishing Returns",
+    2,
+    0
+   ],
+   [
+    "Metamorphose",
+    2,
+    0
+   ],
+   [
+    "Mind Bend",
+    2,
+    0
+   ],
+   [
+    "Mystical Tutor",
+    2,
+    0
+   ],
+   [
+    "Mystic Retrieval",
+    2,
+    0
+   ],
+   [
+    "Predict",
+    2,
+    0
+   ],
+   [
+    "Ray of Command",
+    2,
+    0
+   ],
+   [
+    "Supplant Form",
+    2,
+    0
+   ],
+   [
+    "Unsubstantiate",
+    2,
+    0
+   ],
+   [
+    "Vision Charm",
+    2,
+    0
+   ],
+   [
+    "Izzet Boilerworks",
+    2,
+    0
+   ],
+   [
+    "Lonely Sandbar",
+    2,
+    0
+   ],
+   [
+    "Halimar Depths",
+    2,
+    0
+   ],
+   [
+    "Remote Isle",
+    2,
+    0
+   ],
+   [
+    "Svyelunite Temple",
+    2,
+    0
+   ],
+   [
+    "Temple of Epiphany",
+    2,
+    0
+   ],
+   [
+    "Island",
+    20,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "DAN",
+  "name": "Dandân (Secret Lair 2026)",
+  "category": "Juego de mesa",
+  "source": "Secret Lair (Wizards)",
+  "note": "Mazo compartido de 80 cartas: los dos jugadores roban de la misma biblioteca y comparten cementerio. 20 vidas; pierdes a 0 vidas o si no puedes robar. Un mulligan gratis si la mano tiene menos de 2 tierras. Dandân es la única criatura.",
+  "cards": [
+   [
+    "Dandân",
+    10,
+    0
+   ],
+   [
+    "Accumulated Knowledge",
+    4,
+    0
+   ],
+   [
+    "Brainstorm",
+    2,
+    0
+   ],
+   [
+    "Magical Hack",
+    2,
+    0
+   ],
+   [
+    "Memory Lapse",
+    8,
+    0
+   ],
+   [
+    "Crystal Spray",
+    2,
+    0
+   ],
+   [
+    "Mental Note",
+    2,
+    0
+   ],
+   [
+    "Metamorphose",
+    2,
+    0
+   ],
+   [
+    "Predict",
+    2,
+    0
+   ],
+   [
+    "Telling Time",
+    2,
+    0
+   ],
+   [
+    "Unsubstantiate",
+    2,
+    0
+   ],
+   [
+    "Capture of Jingzhou",
+    2,
+    0
+   ],
+   [
+    "Chart a Course",
+    2,
+    0
+   ],
+   [
+    "Day's Undoing",
+    2,
+    0
+   ],
+   [
+    "Control Magic",
+    2,
+    0
+   ],
+   [
+    "Halimar Depths",
+    2,
+    0
+   ],
+   [
+    "Haunted Fengraf",
+    2,
+    0
+   ],
+   [
+    "Island",
+    20,
+    0
+   ],
+   [
+    "Lonely Sandbar",
+    2,
+    0
+   ],
+   [
+    "Mystic Sanctuary",
+    2,
+    0
+   ],
+   [
+    "Remote Isle",
+    2,
+    0
+   ],
+   [
+    "Svyelunite Temple",
+    2,
+    0
+   ],
+   [
+    "The Surgical Bay",
+    2,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "VV",
+  "name": "Red Cycling Aggro (Hollow One)",
+  "category": "Aggro",
+  "source": "Draftsim",
+  "note": "Value Vintage: cartas legales en Vintage (con sus restringidas) y el mazo entero, con banquillo, cuesta como máximo 30 $ (TCGplayer, la edición más barata). Nadu, Winged Wisdom está prohibida.",
+  "cards": [
+   [
+    "Anger",
+    1,
+    0
+   ],
+   [
+    "Hobgoblin, Mantled Marauder",
+    3,
+    0
+   ],
+   [
+    "Detective's Phoenix",
+    4,
+    0
+   ],
+   [
+    "Flameblade Adept",
+    4,
+    0
+   ],
+   [
+    "Hollow One",
+    4,
+    0
+   ],
+   [
+    "Ivora, Insatiable Heir",
+    2,
+    0
+   ],
+   [
+    "Marauding Mako",
+    4,
+    0
+   ],
+   [
+    "Ox of Agonas",
+    3,
+    0
+   ],
+   [
+    "Street Wraith",
+    4,
+    0
+   ],
+   [
+    "Fireblast",
+    3,
+    0
+   ],
+   [
+    "Burning Inquiry",
+    3,
+    0
+   ],
+   [
+    "Control of the Court",
+    4,
+    0
+   ],
+   [
+    "Faithless Looting",
+    4,
+    0
+   ],
+   [
+    "Mountain",
+    17,
+    0
+   ],
+   [
+    "Damping Sphere",
+    4,
+    1
+   ],
+   [
+    "Harsh Mentor",
+    4,
+    1
+   ],
+   [
+    "Leyline of the Void",
+    4,
+    1
+   ],
+   [
+    "Lightning Axe",
+    3,
+    1
+   ]
+  ]
+ },
+ {
+  "format": "VV",
+  "name": "Mono-Black Initiative",
+  "category": "Midrange",
+  "source": "Draftsim",
+  "note": "Value Vintage: cartas legales en Vintage (con sus restringidas) y el mazo entero, con banquillo, cuesta como máximo 30 $ (TCGplayer, la edición más barata). Nadu, Winged Wisdom está prohibida.",
+  "cards": [
+   [
+    "Caustic Bronco",
+    4,
+    0
+   ],
+   [
+    "Deep-Cavern Bat",
+    2,
+    0
+   ],
+   [
+    "Emperor of Bones",
+    2,
+    0
+   ],
+   [
+    "Evolved Sleeper",
+    1,
+    0
+   ],
+   [
+    "Faerie Dreamthief",
+    2,
+    0
+   ],
+   [
+    "Passageway Seer",
+    4,
+    0
+   ],
+   [
+    "Ravenloft Adventurer",
+    3,
+    0
+   ],
+   [
+    "Sunset Saboteur",
+    2,
+    0
+   ],
+   [
+    "Vicious Battlerager",
+    3,
+    0
+   ],
+   [
+    "Sol Ring",
+    1,
+    0
+   ],
+   [
+    "Power Word Kill",
+    3,
+    0
+   ],
+   [
+    "Archenemy's Charm",
+    2,
+    0
+   ],
+   [
+    "Dark Ritual",
+    3,
+    0
+   ],
+   [
+    "Hymn to Tourach",
+    4,
+    0
+   ],
+   [
+    "Inquisition of Kozilek",
+    4,
+    0
+   ],
+   [
+    "Mishra's Factory",
+    2,
+    0
+   ],
+   [
+    "Swamp",
+    18,
+    0
+   ],
+   [
+    "Break the Ice",
+    4,
+    1
+   ],
+   [
+    "Duress",
+    2,
+    1
+   ],
+   [
+    "Game Over",
+    2,
+    1
+   ],
+   [
+    "Necromentia",
+    2,
+    1
+   ],
+   [
+    "Ravenous Trap",
+    3,
+    1
+   ],
+   [
+    "Sudden Edict",
+    2,
+    1
+   ]
+  ]
+ },
+ {
+  "format": "VV",
+  "name": "Izzet Spellslinger",
+  "category": "Tempo",
+  "source": "Draftsim",
+  "note": "Value Vintage: cartas legales en Vintage (con sus restringidas) y el mazo entero, con banquillo, cuesta como máximo 30 $ (TCGplayer, la edición más barata). Nadu, Winged Wisdom está prohibida.",
+  "cards": [
+   [
+    "Thing in the Ice",
+    4,
+    0
+   ],
+   [
+    "Tolarian Terror",
+    4,
+    0
+   ],
+   [
+    "Bedlam Reveler",
+    2,
+    0
+   ],
+   [
+    "Sailors' Bane",
+    3,
+    0
+   ],
+   [
+    "Mission Briefing",
+    2,
+    0
+   ],
+   [
+    "Counterspell",
+    3,
+    0
+   ],
+   [
+    "Consider",
+    4,
+    0
+   ],
+   [
+    "Spell Pierce",
+    4,
+    0
+   ],
+   [
+    "Otherworldly Gaze",
+    4,
+    0
+   ],
+   [
+    "Lightning Bolt",
+    4,
+    0
+   ],
+   [
+    "Artful Dodge",
+    2,
+    0
+   ],
+   [
+    "Maximize Velocity",
+    2,
+    0
+   ],
+   [
+    "Preordain",
+    4,
+    0
+   ],
+   [
+    "Sulfur Falls",
+    4,
+    0
+   ],
+   [
+    "Shivan Reef",
+    4,
+    0
+   ],
+   [
+    "Mountain",
+    2,
+    0
+   ],
+   [
+    "Island",
+    8,
+    0
+   ],
+   [
+    "Tormod's Crypt",
+    2,
+    1
+   ],
+   [
+    "Surgical Extraction",
+    2,
+    1
+   ],
+   [
+    "Smash to Smithereens",
+    2,
+    1
+   ],
+   [
+    "Skin Invasion",
+    2,
+    1
+   ],
+   [
+    "Meltdown",
+    2,
+    1
+   ],
+   [
+    "Dispel",
+    3,
+    1
+   ],
+   [
+    "Anger of the Gods",
+    2,
+    1
+   ]
+  ]
+ }
+]

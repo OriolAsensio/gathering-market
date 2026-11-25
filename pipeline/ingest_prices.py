@@ -28,6 +28,18 @@ def cents(value):
     return round(float(value) * 100) if value else None
 
 
+# Formatos con legalidad propia (además de pauper/commander/estándar): un carácter por formato, en este orden.
+# La app (engine.js, LEGAL_FMTS) usa la misma lista: si se cambia aquí, cambiarla allí.
+LEGAL_FMTS = ["pioneer", "modern", "legacy", "vintage", "premodern", "oldschool", "penny", "duel", "paupercommander",
+              "predh", "oathbreaker", "brawl", "standardbrawl", "gladiator", "timeless", "historic"]
+LEGAL_CODE = {"legal": "1", "banned": "2", "restricted": "3"}
+
+
+def legal_string(c: dict) -> str:
+    leg = c.get("legalities") or {}
+    return "".join(LEGAL_CODE.get(leg.get(f), "0") for f in LEGAL_FMTS)
+
+
 def card_row(c: dict):
     faces = c.get("card_faces") or []
     oracle_text = c.get("oracle_text")
@@ -43,7 +55,7 @@ def card_row(c: dict):
         images.get("normal"), c.get("legalities", {}).get("pauper"),
         c["name"].split(" // ")[0], int(is_variant(c)),
         int(bool(c.get("reserved"))), c.get("legalities", {}).get("commander"),
-        c.get("legalities", {}).get("standard"), int(bool(c.get("game_changer"))),
+        c.get("legalities", {}).get("standard"), int(bool(c.get("game_changer"))), legal_string(c),
     )
 
 
@@ -89,7 +101,7 @@ def main(force: bool = False):
 
     def flush():
         conn.executemany(
-            "INSERT OR REPLACE INTO cards VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", card_batch)
+            "INSERT OR REPLACE INTO cards VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", card_batch)
         conn.executemany(
             "INSERT OR REPLACE INTO prices VALUES (?,?,?,?,?,?)", price_batch)
         card_batch.clear()

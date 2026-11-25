@@ -16,7 +16,9 @@ TOP_N = 60          # arquetipos que seguimos (en la práctica, todos)
 META = 145          # periodo de MTGTop8: últimos 2 meses (más arquetipos que "2 semanas")
 DELAY = 5           # segundos entre peticiones
 # Otros formatos: código de MTGTop8, nombre y cuántos arquetipos (los más jugados, en su periodo por defecto).
-OTHER = [("ST", "Estándar", 20), ("MO", "Modern", 20), ("PI", "Pioneer", 15), ("LE", "Legacy", 15), ("VI", "Vintage", 10)]
+OTHER = [("ST", "Estándar", 20), ("MO", "Modern", 20), ("PI", "Pioneer", 15), ("LE", "Legacy", 15), ("VI", "Vintage", 10),
+         ("PREM", "Premodern", 12), ("PEA", "Peasant", 10), ("EDH", "Duel Commander", 12, "DC"), ("cEDH", "cEDH", 12),
+         ("HIGH", "Highlander", 8), ("CHL", "Canadian Highlander", 8), ("EXP", "Explorer", 10), ("HI", "Historic", 10)]
 # Listas extra por arquetipo (las más recientes) para calcular los staples, y tope de listas nuevas por ejecución
 # (cada una son 5 s; lo que no quepa hoy se baja en las siguientes vueltas: las ya guardadas no se repiten).
 EXTRA = {"PAU": 4}
@@ -99,9 +101,10 @@ def save_deck(conn, deck_id, a, m, force=False):
     return True
 
 
-def scrape(conn, today, f, archetypes):
+def scrape(conn, today, f, archetypes, code=None):
     """Guarda la foto del día de un formato: cuota de cada arquetipo, su mejor lista y unas cuantas más (staples)."""
     saved = 0
+    code = code or f  # código con el que se guarda (Duel Commander: "DC", que "EDH" en la app es Commander)
     for a in archetypes:
         html = get(f"archetype?a={a['id']}&meta={a['meta']}&f={f}")
         # La lista con mejor puesto ("1" gana a "3-4"); a igualdad, la más reciente (la primera).
@@ -122,12 +125,12 @@ def scrape(conn, today, f, archetypes):
                 lists.append(rid)
         with conn:
             conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?,?,?,?,?,?)",
-                         (today, f, a["id"], a["name"], a["category"], a["share"], deck_id))
+                         (today, code, a["id"], a["name"], a["category"], a["share"], deck_id))
             conn.executemany("INSERT OR REPLACE INTO meta_lists VALUES (?,?,?,?)",
-                             [(today, f, a["id"], d) for d in lists
+                             [(today, code, a["id"], d) for d in lists
                               if conn.execute("SELECT 1 FROM decks WHERE id = ?", (d,)).fetchone()])
         saved += 1
-        print(f"  {f} {a['share']:4.0f}%  {a['name']}")
+        print(f"  {code} {a['share']:4.0f}%  {a['name']}")
     return saved
 
 
@@ -166,11 +169,11 @@ def main():
     print(f"Meta Pauper: {len(archetypes)} arquetipos guardados.")
 
     # Otros formatos (sin avisos: la app se centra en Pauper). Un fallo en uno no para los demás.
-    for f, label, top in OTHER:
+    for f, label, top, *code in OTHER:
         try:
             arch = [a for a in parse_archetypes(get(f"format?f={f}"), f) if not a["name"].startswith("Other")]
             arch = sorted(arch, key=lambda a: a["share"], reverse=True)[:top]
-            print(f"Meta {label}: {scrape(conn, today, f, arch)} arquetipos guardados.")
+            print(f"Meta {label}: {scrape(conn, today, f, arch, *code)} arquetipos guardados.")
         except Exception as e:  # noqa: BLE001
             print(f"Meta {label}: no se ha podido leer ({e})")
 

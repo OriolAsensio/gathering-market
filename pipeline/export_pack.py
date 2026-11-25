@@ -47,18 +47,21 @@ def main(out=None):
     rows = conn.execute(f"""
         SELECT id, name, front_name, set_code, collector_number, rarity, variant, type_line, mana_cost,
                cmc, color_identity, oracle_text, pauper, edhrec_rank, released_at, reserved, commander, standard,
-               coalesce(game_changer, 0)
+               coalesce(game_changer, 0), coalesce(legal, '')
         FROM cards WHERE {NOT_TOKEN} ORDER BY front_name, released_at DESC""").fetchall()
     for (cid, name, front, set_code, number, rarity, variant, type_line, cost, cmc, ci, text,
-         pauper, rank, released, reserved, commander, standard, game_changer) in rows:
+         pauper, rank, released, reserved, commander, standard, game_changer, legal) in rows:
         if front not in o_index:
             o_index[front] = len(oracle)
-            # [nombre, tipo, coste, cmc, identidad, texto, pauper, rank, reservada, commander, estándar, game changer]
+            # [nombre, tipo, coste, cmc, identidad, texto, pauper, rank, reservada, commander, estándar, game changer, legalidades]
             oracle.append([name, type_line or "", cost or "", cmc or 0, ci or "", text or "",
                            PAUPER.get(pauper, 0), rank or 0, reserved or 0,
-                           PAUPER.get(commander, 0), PAUPER.get(standard, 0), game_changer])
+                           PAUPER.get(commander, 0), PAUPER.get(standard, 0), game_changer, legal])
         elif PAUPER.get(pauper, 0) and not oracle[o_index[front]][6]:
             oracle[o_index[front]][6] = PAUPER[pauper]  # legalidad por nombre (la más permisiva)
+        if legal and front in o_index:  # legalidades: la más permisiva de todas sus impresiones (por formato)
+            cur = oracle[o_index[front]][12] or "0" * len(legal)
+            oracle[o_index[front]][12] = "".join(max(x, y, key=lambda c: {"1": 3, "3": 2, "2": 1}.get(c, 0)) for x, y in zip(cur.ljust(len(legal), "0"), legal))
         printings.append([cid, o_index[front], set_code, number, RARITY.get(rarity, "c"), variant or 0])
     p_index = {p[0]: i for i, p in enumerate(printings)}
     cards_text = dump(out / "cards.json", {"o": oracle, "p": printings})
@@ -127,6 +130,12 @@ def main(out=None):
                              (deck_id,)).fetchall()
         meta.append(dict(id=deck_id, format=fmt, archetype=arch, category=cat, share=share, player=d[0], event=d[1],
                          result=d[2], date=d[3], cards=[list(c) for c in cards]))
+    # Formatos sin meta de torneo (Dandân, Value Vintage…): mazos de ejemplo escritos a mano.
+    examples = json.loads((ROOT / "pipeline" / "example_decks.json").read_text(encoding="utf-8"))
+    for i, d in enumerate(examples):
+        meta.append(dict(id=-1 - i, format=d["format"], archetype=d["name"], category=d.get("category", ""), share=None,
+                         player=d.get("player", ""), event=d.get("source", ""), result="", date="", example=True,
+                         note=d.get("note", ""), cards=[[n, q, s] for n, q, s in d["cards"]]))
     dump(out / "meta.json", meta)
 
     # --- Staples de cada formato (como en MTGDecks): de todas las listas que se miran de cada arquetipo,
