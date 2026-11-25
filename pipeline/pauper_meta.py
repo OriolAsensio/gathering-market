@@ -134,6 +134,48 @@ def scrape(conn, today, f, archetypes, code=None):
     return saved
 
 
+# Formatos de Commander (Duel Commander, cEDH): MTGTop8 no da arquetipos, solo torneos. El "meta" sale de los tops de los
+# últimos torneos: cada comandante es un arquetipo, su cuota es cuántas veces sale en los tops y su lista, la mejor clasificada.
+EVENTS_META = {"EDH", "cEDH"}
+EVENTS_N = 10
+
+
+def scrape_events(conn, today, f, top, code):
+    import zlib
+    from tournaments import EVENT_RE, ROW_RE
+    events = []
+    for m in EVENT_RE.finditer(get(f"format?f={f}")):
+        if m.group(2) == f and m.group(1) not in [e[0] for e in events]:
+            events.append((m.group(1), m.group(3).strip(), f"{m.group(5)}/{m.group(6)}/{m.group(7)}"))
+    rows = []
+    for eid, name, day in events[:EVENTS_N]:
+        page = get(f"event?e={eid}&f={f}")
+        rows += [(r.group(1).strip(), int(r.group(3)), r.group(4).strip(), r.group(5).strip(), name, day)
+                 for r in ROW_RE.finditer(page) if r.group(2) == eid]
+    if not rows:
+        return 0
+    rank = lambda r: int(re.match(r"\d+", r[0]).group()) if re.match(r"\d+", r[0]) else 99
+    by = {}
+    for r in rows:
+        by.setdefault(r[2], []).append(r)
+    saved = 0
+    for arch, rs in sorted(by.items(), key=lambda kv: (-len(kv[1]), min(map(rank, kv[1]))))[:top]:
+        best = min(rs, key=rank)
+        result, deck_id, _, player, event, day = best
+        a = dict(id=zlib.crc32(arch.encode()) & 0x7FFFFFFF, name=arch)
+        if not conn.execute("SELECT 1 FROM decks WHERE id = ?", (deck_id,)).fetchone():
+            cards = parse_list(get(f"mtgo?d={deck_id}"))
+            with conn:
+                conn.execute("INSERT INTO decks VALUES (?,?,?,?,?,?,?,?)", (deck_id, a["id"], arch, arch, player, event, result, day))
+                conn.executemany("INSERT OR REPLACE INTO deck_cards VALUES (?,?,?,?)", [(deck_id, n, q, s) for n, q, s in cards])
+        with conn:
+            conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?,?,?,?,?,?)",
+                         (today, code, a["id"], arch, "Commander", round(100 * len(rs) / len(rows), 1), deck_id))
+            conn.execute("INSERT OR REPLACE INTO meta_lists VALUES (?,?,?,?)", (today, code, a["id"], deck_id))
+        saved += 1
+    return saved
+
+
 def main():
     conn = connect()
     today = date.today().isoformat()
@@ -171,6 +213,9 @@ def main():
     # Otros formatos (sin avisos: la app se centra en Pauper). Un fallo en uno no para los demás.
     for f, label, top, *code in OTHER:
         try:
+            if f in EVENTS_META:
+                print(f"Meta {label}: {scrape_events(conn, today, f, top, (code or [f])[0])} comandantes guardados.")
+                continue
             arch = [a for a in parse_archetypes(get(f"format?f={f}"), f) if not a["name"].startswith("Other")]
             arch = sorted(arch, key=lambda a: a["share"], reverse=True)[:top]
             print(f"Meta {label}: {scrape(conn, today, f, arch, *code)} arquetipos guardados.")

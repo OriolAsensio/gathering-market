@@ -89,7 +89,9 @@ def main(force: bool = False):
     url = bulk["jsonl_download_uri"]
 
     conn = connect()
-    if not force and conn.execute("SELECT 1 FROM ingests WHERE day = ?", (day,)).fetchone():
+    # (se repite si faltan las legalidades de los formatos: columna nueva del 2026-11-25)
+    missing_legal = conn.execute("SELECT 1 FROM cards WHERE legal IS NULL OR legal = '' LIMIT 1").fetchone()
+    if not force and not missing_legal and conn.execute("SELECT 1 FROM ingests WHERE day = ?", (day,)).fetchone():
         print(f"El día {day} ya está guardado. Usa --force para repetirlo.")
         return
 
