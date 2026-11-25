@@ -6,6 +6,7 @@ en GitHub Pages para la app. También puede lanzarse a mano en el PC:
     python pipeline/daily.py            (registro en data/daily.log)
     python pipeline/daily.py --stdout   (registro en pantalla; así lo usa GitHub)
 """
+import json
 import sys
 import traceback
 from datetime import datetime
@@ -39,7 +40,9 @@ def main():
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     weekly = datetime.now().weekday() == 0  # lunes: lo que cambia poco (y pesa mucho)
     steps = [("precios", ingest_prices.main), ("historial MTGJSON", backfill_prices.main), ("colecciones", sets.main)]
-    if weekly or "precons" not in tables:
+    # (también si los mazos guardados son de antes de separar main y banquillo)
+    old_precons = "precons" in tables and len((json.loads(conn.execute("SELECT cards FROM precons LIMIT 1").fetchone()[0] or "[[]]") or [[]])[0]) < 3
+    if weekly or "precons" not in tables or old_precons:
         steps.append(("mazos preconstruidos", precons.main))
     steps.append(("combos", combos.main))  # en cada vuelta (~1 min): los combos nuevos llegan enseguida
     if weekly or "foreign_names" not in tables:

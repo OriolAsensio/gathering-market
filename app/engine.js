@@ -1126,9 +1126,21 @@ const Engine = (() => {
     return null;
   }
   const ownedOracles = (id) => { const s = new Set(); for (const [pi] of entriesForSets(id)) s.add(P[pi][1]); return s; };
+  const ownedQtyByOracle = (id) => { const m = new Map(); for (const [pi, , q] of entriesForSets(id)) m.set(P[pi][1], (m.get(P[pi][1]) || 0) + q); return m; };
+  /** Copias que pide un mazo preconstruido por carta (cualquier edición vale) y cuántas de ellas tienes. */
+  function deckNeed(counts) { const m = new Map(); for (const [pi, n] of counts) m.set(P[pi][1], (m.get(P[pi][1]) || 0) + n); return m; }
+  function deckProgress(counts, qty) {
+    let have = 0, total = 0;
+    for (const [oi, n] of deckNeed(counts)) { total += n; have += Math.min(n, qty?.get(oi) || 0); }
+    return { have, total };
+  }
   async function setInfo(code, owned) {
     const sp = await special(code);
     if (sp) {
+      if (sp.counts) {  // mazo: por copias
+        const pr = deckProgress(sp.counts, owned instanceof Map ? owned : null);
+        return { code, name: sp.name, type: sp.type, released: sp.released, icon: sp.icon, total: pr.total, special: true, deck: true, have: pr.have };
+      }
       const ois = new Set(sp.pis.map((pi) => P[pi][1]));
       const have = owned ? [...ois].filter((oi) => owned.has(oi)).length : 0;
       return { code, name: sp.name, type: sp.type, released: sp.released, icon: sp.icon, total: ois.size, special: true, have };
@@ -1145,10 +1157,10 @@ const Engine = (() => {
       owned.get(set).add(P[pi][1]);
     }
     const pinned = new Set(user.pinned[id] || []);
-    const anyOwned = ownedOracles(id);
+    const anyOwned = ownedOracles(id), qtyOwned = ownedQtyByOracle(id);
     const out = [];
     for (const code of new Set([...owned.keys(), ...pinned])) {
-      const s = await setInfo(code, anyOwned);
+      const s = await setInfo(code, code.startsWith("deck:") ? qtyOwned : anyOwned);
       const have = s.special ? s.have : Math.min(owned.get(code)?.size || 0, s.total || Infinity);
       out.push({ ...s, owned: have, pinned: pinned.has(code), pct: s.total ? Math.round((100 * have) / s.total) : 0 });
     }
@@ -1158,14 +1170,13 @@ const Engine = (() => {
   /** Mazos preconstruidos: búsqueda por nombre, tipo o edición; los empezados primero. */
   async function precons({ c, q }) {
     const all = await extra("precons.json");
-    const owned = ownedOracles(binderOf(c) || 1);
+    const owned = ownedQtyByOracle(binderOf(c) || 1);
     const text = (q || "").trim().toLowerCase();
     const rows = all.filter((d) => !text || `${d[1]} ${d[2]} ${d[4]} ${SETS.get(d[4])?.name || ""}`.toLowerCase().includes(text))
       .map((d) => {
-        const ois = new Set(d[5].map(([pi]) => P[pi][1]));
-        const have = [...ois].filter((oi) => owned.has(oi)).length;
+        const { have, total } = deckProgress(d[5], owned);
         return { code: `deck:${d[0]}`, name: d[1], type: d[2], released: d[3], icon: SETS.get(d[4])?.icon || null,
-          total: ois.size, owned: have, pct: Math.round((100 * have) / ois.size) };
+          total, owned: have, pct: Math.round((100 * have) / (total || 1)) };
       });
     return rows.sort((a, b) => b.pct - a.pct || (b.released || "").localeCompare(a.released || "")).slice(0, 60);
   }
@@ -1182,14 +1193,20 @@ const Engine = (() => {
       if (sp || P[pi][2] === code) qtyByName.set(P[pi][1], (qtyByName.get(P[pi][1]) || 0) + qty);
     }
     const num = (n) => { const d = String(n).replace(/\D/g, ""); return d ? +d : 1e6; };
+    const need = sp?.counts ? deckNeed(sp.counts) : null;  // mazo preconstruido: copias de cada carta
+    const needPart = new Map();  // copias por carta y parte del mazo (0 main, 1 banquillo, 2 comandante)
+    for (const [pi, n, part = 0] of sp?.counts || []) { const k = `${P[pi][1]}|${part}`; needPart.set(k, (needPart.get(k) || 0) + n); }
+    // En un mazo se recorre cada entrada (la misma impresión puede estar en el main y en el banquillo)
+    const entriesList = sp?.counts ? sp.counts.map(([pi, , part = 0]) => [pi, part]).sort((a, b) => front(O[P[a[0]][1]][0]).localeCompare(front(O[P[b[0]][1]][0]))) : null;
     const cards = new Map();
     const pis = sp ? sp.pis.slice().sort((a, b) => front(O[P[a][1]][0]).localeCompare(front(O[P[b][1]][0])))
       : (bySet.get(code) || []).slice().sort((a, b) => num(P[a][3]) - num(P[b][3]));
-    for (const pi of pis) {
-      if (sp) {  // especial: una entrada por carta, con la edición de la lista
+    for (const [pi, part0] of entriesList || pis.map((pi) => [pi, 0])) {
+      if (sp) {  // especial: una entrada por carta (y parte del mazo), con la edición de la lista: su arte
         const [cid, oi, set, number, r] = P[pi];
-        if (!cards.has(oi)) cards.set(oi, { id: cid, name: front(O[oi][0]), number: `${set.toUpperCase()} ${number}`, rarity: RARITY[r], image: img(cid),
-          eur: eur(cheapest().price[oi]), qty: qtyByName.get(oi) || 0, variant: false, basic: O[oi][1].startsWith("Basic"), order: cards.size });
+        const part = part0, key2 = need ? `${oi}|${part}` : oi;
+        if (!cards.has(key2)) cards.set(key2, { part, id: cid, name: front(O[oi][0]), number: `${set.toUpperCase()} ${number}`, rarity: RARITY[r], image: img(cid),
+          eur: eur(cheapest().price[oi]), qty: qtyByName.get(oi) || 0, need: need ? needPart.get(key2) : 1, variant: false, basic: O[oi][1].startsWith("Basic"), order: cards.size });
         continue;
       }
       const [cid, oi, , number, r, variant] = P[pi];
@@ -1207,6 +1224,18 @@ const Engine = (() => {
     list.forEach((x) => delete x.order);
     const rarity = {};
     for (const x of list) { const r = (rarity[x.rarity] ||= { owned: 0, total: 0 }); r.total++; if (x.qty) r.owned++; }
+    if (need) {  // mazo: progreso, valor y lo que falta por copias
+      const left = new Map();
+      for (const x of list.slice().sort((a, b) => ((a.part + 1) % 3) - ((b.part + 1) % 3))) {  // comandante, main, banquillo
+        const oi = oByNorm.get(norm(x.name)), have = left.has(oi) ? left.get(oi) : x.qty;
+        x.qty = Math.min(have, x.need); left.set(oi, have - x.qty);
+      }
+      const got = (x) => Math.min(x.qty, x.need);
+      return { ...s, cards: list, owned: list.reduce((t, x) => t + got(x), 0), total: list.reduce((t, x) => t + x.need, 0),
+        pinned: (user.pinned[id] || []).includes(code), all: false, deck: true,
+        missing_cost: Math.round(list.filter((x) => !x.basic).reduce((t, x) => t + (x.eur || 0) * (x.need - got(x)), 0) * 100) / 100,
+        value_owned: Math.round(list.reduce((t, x) => t + (x.eur || 0) * got(x), 0) * 100) / 100, rarity };
+    }
     return { ...s, cards: list, owned: list.filter((x) => x.qty).length, total: list.length,
       pinned: (user.pinned[id] || []).includes(code), all: showAll,
       missing_cost: Math.round(list.filter((x) => !x.qty && !x.basic).reduce((t, x) => t + (x.eur || 0), 0) * 100) / 100,
@@ -1233,6 +1262,22 @@ const Engine = (() => {
       for (const s of sets) out.push({ ...(await setInfo(s.code)), via: card.name });
     }
     return out;
+  }
+  async function preconOwn(body) {
+    const id = binderOf(body.c);
+    if (!id) throw new Error("Esa carpeta ya no existe");
+    const sp = await special(String(body.code || ""));
+    if (!sp?.counts) throw new Error("No encuentro ese mazo preconstruido");
+    const qty = ownedQtyByOracle(id), adds = [];  // tus copias se van gastando entrada a entrada (la misma carta puede venir en dos ediciones)
+    for (const [pi, n] of sp.counts) {
+      const oi = P[pi][1], use = Math.min(n, qty.get(oi) || 0), missing = n - use;
+      qty.set(oi, (qty.get(oi) || 0) - use);
+      if (missing) adds.push([P[pi][0], missing, pi]);
+    }
+    let changed = 0;
+    const completed = completing(id, adds.map((a) => a[2]), () => { for (const [cid, n] of adds) { addCard(id, cid, false, n); changed += n; } });
+    saveUser();
+    return { changed, completed };
   }
   function setsPin(body) {
     const id = binderOf(body.c) || 1;
@@ -2560,7 +2605,7 @@ const Engine = (() => {
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/lang": langPost, "/api/watch": watchPost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

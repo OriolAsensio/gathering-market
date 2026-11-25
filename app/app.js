@@ -978,13 +978,15 @@ async function setSheet(code, opts = {}) {
     const y = sheet.scrollTop;
     const pct = d.total ? Math.round((100 * d.owned) / d.total) : 0;
     const qn = q.trim().toLowerCase();
-    const cards = d.cards.filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? !c.qty : c.qty))
+    const lacks = (c) => c.qty < (c.need || 1);  // en un mazo: te faltan copias
+    const cards = d.cards.filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? lacks(c) : !lacks(c)))
       && (!qn || c.name.toLowerCase().includes(qn) || String(c.number).toLowerCase() === qn));
-    const missing = d.cards.filter((c) => !c.qty && !c.basic);
+    const missing = d.cards.filter((c) => lacks(c) && !c.basic);
     body.innerHTML = `
       <div class="set-head">${setIcon(d)}<div>
         <h3>${esc(d.name)}</h3><div class="sub">${d.special ? esc(d.type === "reserved" ? "No se reimprimen" : d.type) : esc(d.code.toUpperCase())}${d.released ? ` · ${esc(d.released)}` : ""}</div></div></div>
-      <button class="btn block ${d.pinned ? "" : "primary"}" id="set-pin">${d.pinned ? "Dejar de seguir" : `${ico("pin")}Seguir esta colección`}</button>
+      <button class="btn block ${d.pinned ? "" : "primary"}" id="set-pin">${d.pinned ? "Dejar de seguir" : `${ico("pin")}${d.deck ? "Seguir mazo" : "Seguir esta colección"}`}</button>
+      ${d.deck ? `<button class="btn block primary" id="set-own" style="margin-top:8px" ${d.owned >= d.total ? "disabled" : ""}>${ico("plus")}${d.owned >= d.total ? "Tienes todo el mazo" : "Tengo este mazo"}</button>` : ""}
       <div class="stats">
         <div class="stat"><b>${d.owned}/${d.total}</b><span>Tienes (${pct}%)</span></div>
         <div class="stat"><b>${euro(d.value_owned)}</b><span>Lo que tienes vale</span></div>
@@ -999,7 +1001,11 @@ async function setSheet(code, opts = {}) {
       <div class="hint">${d.special ? "Vale cualquier edición de cada carta." : all ? "Incluye promos, versiones sin borde, showcase…" : "Cartas normales de la colección; vale cualquier versión de la misma edición."}
         Toca una carta para añadirla.</div>
       <button class="btn block" id="sel-toggle"></button>
-      <div class="grid" style="margin-top:12px">${cards.map((c) => tile(c, `<span class="num-tag">#${esc(c.number)}</span>`)).join("") || `<div class="hint">Ninguna carta con estos filtros.</div>`}</div>
+      ${d.deck ? [[2, "Comandante"], [0, "Main deck"], [1, "Sideboard"]].map(([p, title]) => {
+          const part = cards.filter((c) => (c.part || 0) === p);
+          return part.length ? `<h2>${title} (${part.reduce((n, c) => n + c.need, 0)})</h2><div class="grid">${part.map((c) => tile(c, `<span class="num-tag ${lacks(c) ? "" : "full"}">${Math.min(c.qty, c.need)}/${c.need}</span>`)).join("")}</div>` : "";
+        }).join("") || `<div class="hint">Ninguna carta con estos filtros.</div>`
+      : `<div class="grid" style="margin-top:12px">${cards.map((c) => tile(c, `<span class="num-tag">#${esc(c.number)}</span>`)).join("") || `<div class="hint">Ninguna carta con estos filtros.</div>`}</div>`}
       <div class="row-btns">
         <button class="btn" id="set-copy" ${missing.length ? "" : "disabled"}>Copiar lo que falta</button>
         <button class="btn primary" id="set-share" ${missing.length ? "" : "disabled"}>Compartir lo que falta (${missing.length})</button>
@@ -1027,7 +1033,17 @@ async function setSheet(code, opts = {}) {
       draw();
       if ((location.hash || "#collection") === "#sets") views.sets();
     };
-    const missingText = () => missing.map((c) => (d.special ? `1 ${c.name}` : `1 ${c.name} (${d.code.toUpperCase()}) ${c.number}`)).join("\n");
+    // "Tengo este mazo": añade a tu colección las copias que te faltan, con la edición (arte) del mazo
+    $("#set-own", body)?.addEventListener("click", async () => {
+      if (!confirm(t(`¿Añadir a tu colección las ${d.total - d.owned} cartas que te faltan de ${d.name}?`))) return;
+      const r = await api("/api/preconown", { code: d.code });
+      toast(`${plural(r.changed, "carta añadida", "cartas añadidas")}`);
+      celebrate(r);
+      closeSheet.dirty = true;
+      loadSummary();
+      load(true);
+    });
+    const missingText = () => missing.map((c) => (d.deck ? `${c.need - Math.min(c.qty, c.need)} ${c.name}` : d.special ? `1 ${c.name}` : `1 ${c.name} (${d.code.toUpperCase()}) ${c.number}`)).join("\n");
     $("#set-copy", body).onclick = () => copy(missingText(), "Lista de lo que falta copiada");
     $("#set-share", body).onclick = () => shareText(`Me falta de ${d.name}`, missingText());
     $("#sel-toggle", body).onclick = () => sel.set(!sel.on);

@@ -179,7 +179,7 @@ def main(out=None):
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     if "precons" in tables:
         dump(out / "precons.json", [[pid, name, kind, released, set_code,
-                                     [[p_index[i], n] for i, n in json.loads(cards) if i in p_index],
+                                     [[p_index[c[0]], c[1], c[2] if len(c) > 2 else 0] for c in json.loads(cards) if c[0] in p_index],
                                      [p_index[i] for i in json.loads(cmd) if i in p_index]]
                                     for pid, name, kind, released, set_code, cards, cmd in conn.execute(
                                         "SELECT * FROM precons ORDER BY released DESC")])

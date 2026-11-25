@@ -20,7 +20,7 @@ TYPES = {"Commander Deck", "Theme Deck", "Intro Pack", "Planeswalker Deck", "Due
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS precons (
     id TEXT PRIMARY KEY, name TEXT, type TEXT, released TEXT, set_code TEXT,
-    cards TEXT,          -- JSON [[scryfall_id, copias], ...]
+    cards TEXT,          -- JSON [[scryfall_id, copias, parte], ...]  parte: 0 main, 1 banquillo, 2 comandante
     commanders TEXT      -- JSON [scryfall_id, ...]
 )"""
 
@@ -42,14 +42,14 @@ def main():
                 d = json.loads(z.read(info)).get("data", {})
                 if d.get("type") not in TYPES:
                     continue
-                def ids(board):
-                    return [[c["identifiers"]["scryfallId"], c.get("count", 1)]
+                def ids(board, part=0):
+                    return [[c["identifiers"]["scryfallId"], c.get("count", 1), part]
                             for c in d.get(board) or [] if c.get("identifiers", {}).get("scryfallId")]
-                cards = ids("commander") + ids("mainBoard") + ids("sideBoard")
+                cards = ids("commander", 2) + ids("mainBoard", 0) + ids("sideBoard", 1)
                 if cards:
                     rows.append((Path(info.filename).stem, d.get("name"), d.get("type"), d.get("releaseDate"),
                                  (d.get("code") or "").lower(), json.dumps(cards),
-                                 json.dumps([c[0] for c in ids("commander")])))
+                                 json.dumps([c[0] for c in ids("commander", 2)])))
     with conn:
         conn.execute("DELETE FROM precons")
         conn.executemany("INSERT INTO precons VALUES (?,?,?,?,?,?,?)", rows)
