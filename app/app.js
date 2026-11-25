@@ -290,6 +290,73 @@ async function shareText(title, text) {
   return copy(text, "Lista copiada");
 }
 
+// ---------- compartir un mazo: imagen (las cartas con sus copias) o enlace (la web abre la lista para guardarla) ----------
+const WEB_URL = "https://oriolasensio.github.io/gathering-market/";
+async function deckLink(d, main, side) {
+  const text = [d.archetype, ...main.map((c) => `${c.qty} ${c.name}`), ...(side.length ? ["Sideboard", ...side.map((c) => `${c.qty} ${c.name}`)] : [])].join("\n");
+  let bytes = new TextEncoder().encode(text), z = "t";
+  try {  // comprimido, para que el enlace sea corto
+    bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer()); z = "z";
+  } catch { /* navegador sin compresión: sin comprimir */ }
+  let bin = ""; bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return `${WEB_URL}?deck=${z}${btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
+}
+async function openDeckLink() {
+  const q = new URLSearchParams(location.search).get("deck");
+  if (!q) return false;
+  history.replaceState(null, "", location.pathname + location.hash);
+  try {
+    const bin = atob(q.slice(1).replace(/-/g, "+").replace(/_/g, "/"));
+    let bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+    if (q[0] === "z") bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    const [name, ...lines] = new TextDecoder().decode(bytes).split("\n");
+    importDeckSheet();
+    $("#dk-name").value = name;
+    $("#dk-text").value = lines.join("\n");
+    toast("Te han pasado un mazo: guárdalo en Mis mazos");
+    return true;
+  } catch { toast("Ese enlace de mazo no se puede leer"); return false; }
+}
+async function shareDeckImage(d, main, side) {
+  toast("Preparando la imagen…");
+  const W = 146, H = 204, COLS = 6, PAD = 10, list = main.filter((c) => c.image);
+  const rows = Math.ceil(list.length / COLS), cv = document.createElement("canvas");
+  cv.width = COLS * (W + PAD) + PAD; cv.height = 70 + rows * (H + PAD) + 40;
+  const g = cv.getContext("2d");
+  g.fillStyle = "#16110c"; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = "#d6a84e"; g.font = "bold 28px Georgia, serif"; g.fillText(d.archetype, PAD, 42);
+  g.font = "16px Georgia, serif"; g.fillStyle = "#bfae90";
+  g.fillText(`${main.reduce((a, c) => a + c.qty, 0)} cartas${side.length ? ` · banquillo ${side.reduce((a, c) => a + c.qty, 0)}` : ""} · Gathering Market`, PAD, 62);
+  const load = (src) => new Promise((ok) => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; });
+  const imgs = await Promise.all(list.map((c) => load(c.image)));
+  list.forEach((c, i) => {
+    const x = PAD + (i % COLS) * (W + PAD), y = 70 + Math.floor(i / COLS) * (H + PAD);
+    if (imgs[i]) g.drawImage(imgs[i], x, y, W, H); else { g.fillStyle = "#2a2118"; g.fillRect(x, y, W, H); }
+    g.fillStyle = "rgba(0,0,0,.75)"; g.beginPath(); g.arc(x + 20, y + 22, 16, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.font = "bold 18px sans-serif"; g.textAlign = "center"; g.fillText(`${c.qty}`, x + 20, y + 28); g.textAlign = "left";
+  });
+  g.fillStyle = "#8a7a60"; g.font = "13px sans-serif"; g.fillText(WEB_URL, PAD, cv.height - 14);
+  let blob;
+  try { blob = await new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.88)); } catch { blob = null; }
+  if (!blob) return toast("No he podido preparar la imagen");
+  const name = `${d.archetype.replace(/[^\w\- ]+/g, "").trim() || "mazo"}.jpg`;
+  const N = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins : null;
+  try {
+    if (N?.Filesystem && N?.Share) {
+      const b64 = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.readAsDataURL(blob); });
+      const w = await N.Filesystem.writeFile({ path: name, data: b64, directory: "CACHE" });
+      return await N.Share.share({ title: d.archetype, files: [w.uri], dialogTitle: d.archetype });
+    }
+    const file = new File([blob], name, { type: "image/jpeg" });
+    if (navigator.canShare?.({ files: [file] })) return await navigator.share({ files: [file], title: d.archetype });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) {
+    if (!/cancel|abort/i.test(String(e?.message || e?.name || e))) toast(e.message || String(e));
+  }
+}
+
 // Selector visual de edición/arte: tira de imágenes de todas las impresiones.
 const artStrip = (printings, pid) => `<div class="arts" id="arts">${printings.map((x) => `
     <button class="art ${x.id === pid ? "on" : ""}" data-pid="${x.id}">
@@ -769,6 +836,12 @@ async function deckSheet(id, keep = null) {
       <button class="btn" id="copy-all">Copiar lista</button>
       <button class="btn primary" id="share-missing" ${missing.length ? "" : "disabled"}>Compartir lo que falta</button>
     </div>
+    <button class="btn block" id="dk-cm" style="margin-top:8px" ${missing.length ? "" : "disabled"}>🛒 Comprar lo que falta en Cardmarket</button>
+    <h2>Probar el mazo</h2>
+    <div class="row-btns"><button class="btn" id="dk-hand">🃏 Mano de prueba</button><button class="btn" id="dk-prob">🎲 Probabilidades</button></div>
+    <button class="btn block primary" id="dk-play" style="margin-top:8px">⚔️ Partida contra ${esc(BOTS[0].name)}</button>
+    <h2>Compartir el mazo</h2>
+    <div class="row-btns"><button class="btn" id="dk-img">🖼️ Como imagen</button><button class="btn" id="dk-link">🔗 Como enlace</button></div>
     ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
       ${d.built?.level ? `<div class="item-meta">Creado con: <span class="chip gold">${esc(d.built.level)}</span><span class="chip">${esc(d.built.archetype || "")}</span>${d.built.combo ? '<span class="chip">combo</span>' : ""}</div>` : ""}
       <div class="hint">Juégalo 3 partidas como mínimo (las que quieras) y apunta cuántas has jugado, cuántas has ganado y una frase sobre cómo ha ido el gameplay. El creador de mazos aprende de estas reseñas.</div>
@@ -813,6 +886,16 @@ async function deckSheet(id, keep = null) {
   drawCards();
   $("#copy-all", body).onclick = () => copy([...main.map((c) => `${c.qty} ${c.name}`), ...(side.length ? ["", "Sideboard", ...side.map((c) => `${c.qty} ${c.name}`)] : [])].join("\n"), "Lista copiada");
   $("#share-missing", body).onclick = () => shareText(`Me falta para ${d.archetype}`, missing.join("\n"));
+  // Cardmarket: la lista de lo que falta, copiada, y su página de "Wants" para pegarla (Crear lista → Añadir lista de cartas)
+  $("#dk-cm", body).onclick = async () => {
+    await copy(missing.join("\n"), "Lista copiada: en Cardmarket, crea una lista de Wants y pégala");
+    window.open("https://www.cardmarket.com/es/Magic/Wants", "_blank", "noopener");
+  };
+  $("#dk-hand", body).onclick = () => Play.handSheet(d);
+  $("#dk-prob", body).onclick = () => Play.probSheet(d);
+  $("#dk-play", body).onclick = () => Play.gameSheet(d);
+  $("#dk-img", body).onclick = () => shareDeckImage(d, main, side);
+  $("#dk-link", body).onclick = async () => shareText(d.archetype, `${d.archetype}: ${await deckLink(d, main, side)}`);
   $("#deck-all", body).onclick = async () => {
     const add = [...need.entries()].filter(([, x]) => x.have < x.qty).map(([n, x]) => [n, x.qty - x.have]);
     if (!confirm(t(`¿Añadir a tu carpeta las ${add.reduce((a, [, q]) => a + q, 0)} cartas que faltan?`))) return;
@@ -2349,7 +2432,8 @@ async function boot() {
   loadSummary();
   render();
   checkAlertDot();
-  if (!store("accountAsked") && !Cloud.user) accountWelcome(); else dailyReport();
+  if (await openDeckLink()) { /* abierto un mazo compartido */ }
+  else if (!store("accountAsked") && !Cloud.user) accountWelcome(); else dailyReport();
   syncRunner();
   Cloud.sync().then((r) => { if (r === "pulled") { cid = 1; store("cid", "1"); loadSummary(); render(); toast("☁️ Datos actualizados desde tu cuenta"); } })
     .catch(() => toast("☁️ Sin conexión con la nube: se guardará cuando vuelva"));

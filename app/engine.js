@@ -404,6 +404,16 @@ const Engine = (() => {
     return { name: "Tu colección", set: "", days, eur: days.map((d) => eur(byDay.get(d))) };
   }
 
+  /** Datos de juego de unas cartas (mano de prueba, probabilidades, partida contra el bot). */
+  function cardInfo({ names = "" }) {
+    return String(names).split("|").filter(Boolean).map((n) => {
+      const oi = oByNorm.get(norm(n));
+      if (oi == null) return { name: n, type: "", cost: "", cmc: 0, text: "", image: null };
+      const o = O[oi];
+      return { name: front(o[0]), type: o[1], cost: o[2], cmc: o[3] || 0, text: o[5] || "", colors: o[4] || "", image: oImage(oi) };
+    });
+  }
+
   function collectionsList() {
     return user.binders.map((b) => ({ id: b.id, name: b.name, cards: entries(b.id).reduce((s, e) => s + e[2], 0) }));
   }
@@ -992,7 +1002,7 @@ const Engine = (() => {
       const oi = oByNorm.get(k);
       return { name, qty, side: !!side, have, owned: basic ? qty : owned.get(k) || 0, basic, eur: basic || oi == null ? null : eur(cheap[oi]), image: oi != null ? oImage(oi) : null };
     });
-    return { id: d.id, archetype: d.archetype, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, example: !!d.example, note: d.note || "", ...deckInfo(d, owned),
+    return { id: d.id, archetype: d.archetype, format: mine ? null : d.format, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, example: !!d.example, note: d.note || "", ...deckInfo(d, owned),
       test: mine && !!d.test, results: mine ? d.results || [] : [], built: mine ? d.built || null : null };
   }
 
@@ -2787,7 +2797,7 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- rutas
-  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/valuehistory": valueHistory, "/api/added": added,
+  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/cardinfo": cardInfo, "/api/valuehistory": valueHistory, "/api/added": added,
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
