@@ -498,3 +498,9 @@ a.gcard { text-decoration: none; color: inherit; display: block; }
 .title-back { display: flex; align-items: center; gap: 10px; }
 .title-back h3 { margin: 0; }
 .back-btn { flex: none; width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 20px; line-height: 1; }
+
+.mini-chip { font: inherit; font-size: 12px; background: none; color: var(--gold); border: 1px solid rgba(214,168,78,.4); border-radius: 999px; padding: 2px 9px; margin-top: 4px; cursor: pointer; }
+.mini-chip.up { color: var(--up, #6fcf7f); border-color: currentColor; }
+
+#top-value, #top-sub { cursor: pointer; }
+.link { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }

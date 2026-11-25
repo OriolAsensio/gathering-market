@@ -294,6 +294,11 @@ const Engine = (() => {
     const created = [];
     const first = user.lastPriceDay == null;
     user.lastPriceDay = PR.day;
+    for (const b of user.binders) {
+      const log = ((user.valueLog ||= {})[b.id] ||= {});
+      log[PR.day] = Math.round((summary({ c: b.id }).value || 0) * 100);
+      for (const d of Object.keys(log).sort().slice(0, -400)) delete log[d];  // como mucho, algo más de un año
+    }
     if (!first && PR.days && PR.days["1"]) {
       for (const [pi, foil] of entries(1)) {
         if (foil) continue;
@@ -306,6 +311,17 @@ const Engine = (() => {
           if (e) created.push(e);
         }
       }
+    }
+    // Lista de deseos: la carta ha bajado de tu precio objetivo (se avisa una vez; si vuelve a subir, se rearma)
+    const cheapNow = cheapest().price, hit = (user.targetHit ||= {});
+    for (const [n, cents] of Object.entries(user.targets || {})) {
+      const oi = oByNorm.get(norm(n)), now = oi == null ? null : cheapNow[oi];
+      if (!now) continue;
+      if (now <= cents && !hit[n]) {
+        const e = addEvent(PR.day, "wish", `🎯 ${n} a ${(now / 100).toFixed(2)} €`, `Ha bajado de tu precio objetivo (${(cents / 100).toFixed(2)} €). Es la edición más barata en Cardmarket.`);
+        if (e) created.push(e);
+        hit[n] = PR.day;
+      } else if (now > cents) delete hit[n];
     }
     for (const code of user.pinned[1] || []) {
       const s = SETS.get(code);
@@ -350,6 +366,42 @@ const Engine = (() => {
     }
     return { day: PR.day, value: eur(value), prev_value: hasPrev ? eur(prev) : null, cards, unique,
       collection: user.binders.find((b) => b.id === id).name, collection_id: id };
+  }
+
+  /** Valor de tu colección día a día. Con el historial de cada carta (history/XX.json) si son pocos ficheros; si no, los
+   *  4 puntos de prices.json (hace 30 y 7 días, ayer, hoy). Más la foto diaria que guarda la app (user.valueLog). */
+  async function valueHistory({ c }) {
+    const id = binderOf(c) || 1;
+    const rows = entries(id).map(([pi, foil, qty]) => {
+      const key = `${P[pi][0]}|${foil ? 1 : 0}`;
+      return [pi, foil, (qty - proxyOf(id, key, qty)) * (LANG_FACTOR[langOf(id, key)] || 1)];
+    }).filter((r) => r[2] > 0);
+    const byDay = new Map();
+    const shards = new Set(rows.map(([pi]) => P[pi][0].slice(0, 2)));
+    if (rows.length && shards.size <= 64) {  // shortcut: hasta 64 ficheros (~4 MB); con colecciones grandes, solo los 4 puntos
+      for (const sh of shards) if (!historyShards.has(sh)) historyShards.set(sh, fetchText(`history/${sh}.json?d=${PR.day}`).then(JSON.parse).catch(() => null));
+      const files = new Map(await Promise.all([...shards].map(async (sh) => [sh, await historyShards.get(sh)])));
+      const days = [...new Set([...files.values()].flatMap((h) => h?.days || []))].sort();
+      for (const d of days) {
+        let total = 0;
+        for (const [pi, foil, n] of rows) {
+          const h = files.get(P[pi][0].slice(0, 2)), vals = h?.c?.[P[pi][0]];
+          let v = null;
+          if (vals) { const k = h.days.indexOf(d); for (let i = k; i >= 0 && v == null; i--) v = vals[i]; }  // el último precio conocido
+          total += n * (v ?? (foil ? PR.eur_foil[pi] : PR.eur[pi]) ?? 0);
+        }
+        byDay.set(d, total);
+      }
+    } else {
+      for (const [k, col] of [["30", "d30"], ["7", "d7"], ["1", "d1"]]) {
+        if (!PR.days?.[k] || PR.days[k] === PR.day) continue;
+        byDay.set(PR.days[k], rows.reduce((t, [pi, , n]) => t + n * (PR[col][pi] ?? PR.eur[pi] ?? 0), 0));
+      }
+    }
+    for (const [d, v] of Object.entries(user.valueLog?.[id] || {})) byDay.set(d, v);
+    byDay.set(PR.day, (summary({ c: id }).value || 0) * 100);
+    const days = [...byDay.keys()].sort();
+    return { name: "Tu colección", set: "", days, eur: days.map((d) => eur(byDay.get(d))) };
   }
 
   function collectionsList() {
@@ -995,15 +1047,24 @@ const Engine = (() => {
     return (user.watch || []).map((name) => {
       const oi = oByNorm.get(norm(name));
       if (oi == null) return null;
+      const target = user.targets?.[front(O[oi][0])];
       return { name: front(O[oi][0]), image: oImage(oi), eur: eur(now[oi]), d1: change(oi, 1), d7: change(oi, 7), d30: change(oi, 30),
-        owned: owned.get(norm(name)) || 0 };
+        owned: owned.get(norm(name)) || 0, target: target ? eur(target) : null, reached: !!(target && now[oi] && now[oi] <= target) };
     }).filter(Boolean);
   }
-  function watchPost({ c, add, remove, top }) {
+  function watchPost({ c, add, remove, top, target, price }) {
     const list = (user.watch ||= []);
+    if (target) {  // lista de deseos: avisar cuando la edición más barata baje de este precio (0 o vacío = quitar)
+      const oi = oByNorm.get(norm(target));
+      if (oi == null) throw new Error("No conozco esa carta");
+      const n = front(O[oi][0]), cents = Math.round(parseFloat(String(price || "").replace(",", ".")) * 100);
+      user.targets ||= {};
+      if (cents > 0) { user.targets[n] = cents; if (!list.some((x) => norm(x) === norm(n))) list.unshift(n); } else delete user.targets[n];
+      delete (user.targetHit ||= {})[n];
+    }
     const has = (n) => list.some((x) => norm(x) === norm(n));
     if (add) { const oi = oByNorm.get(norm(add)); if (oi == null) throw new Error("No conozco esa carta"); if (!has(add)) list.unshift(front(O[oi][0])); }
-    if (remove) user.watch = list.filter((x) => norm(x) !== norm(remove));
+    if (remove) { user.watch = list.filter((x) => norm(x) !== norm(remove)); if (user.targets) delete user.targets[front(remove)]; }
     if (top) {  // tus cartas más valiosas
       const cheap = cheapest().price;
       const names = [...ownedByName(binderOf(c) || 1).keys()].map((k) => oByNorm.get(k)).filter((oi) => oi != null)
@@ -1067,7 +1128,11 @@ const Engine = (() => {
       if (names[k]) continue;
       ids.push(k); names[k] = `${front(O[P[pi][1]][0])} (${P[pi][2].toUpperCase()}${foil ? " foil" : ""})`;
     }
-    return { ids, names, day: PR.day, lastEvent: Math.max(0, ...PACK_EVENTS.map((e) => +e.id || 0)) };
+    const wishes = Object.entries(user.targets || {}).map(([n, cents]) => {
+      const oi = oByNorm.get(norm(n));
+      return oi == null ? null : { name: n, target: cents, pis: printsOf[oi].filter((pi) => !P[pi][5]) };
+    }).filter(Boolean);
+    return { ids, names, wishes, cardsVersion: PR.cards_version, day: PR.day, lastEvent: Math.max(0, ...PACK_EVENTS.map((e) => +e.id || 0)) };
   }
 
   /** Combos infinitos de 2 cartas (Commander Spellbook) que puedes montar con tu colección, o a los que te falta una.
@@ -2722,7 +2787,7 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- rutas
-  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/added": added,
+  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/valuehistory": valueHistory, "/api/added": added,
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,

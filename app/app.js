@@ -67,7 +67,7 @@ async function loadSummary() {
     const d = s.value - s.prev_value;
     sub = `<span class="${d >= 0 ? "up" : "down"}">${d >= 0 ? "▲" : "▼"} ${euro(Math.abs(d))} desde ayer</span> · ${sub}`;
   }
-  $("#top-sub").innerHTML = sub;
+  $("#top-sub").innerHTML = `${sub} · <span class="link">📈 Ver evolución</span>`;
   return s;
 }
 
@@ -92,6 +92,11 @@ async function collectionsSheet() {
     if (cid === c.id) use(1); else collectionsSheet();
   }));
 }
+// Tocar el valor: cómo ha cambiado el valor de tu colección día a día
+$("#top-value").onclick = $("#top-sub").onclick = async () => {
+  const body = openSheet(`<h3>Valor de tu colección</h3><div class="hint">Cuánto valen tus cartas cada día (precios de Cardmarket, sin proxies, según el idioma de cada carta).</div><div id="value-chart"></div>`);
+  priceChart($("#value-chart", body), { data: await api("/api/valuehistory") });
+};
 $("#top-label").onclick = async () => { if ((await api("/api/collections")).length > 1) collectionsSheet(); };
 
 // Idioma de la app (ver i18n.js): al cambiarlo se recarga para traducir todo de nuevo.
@@ -1547,7 +1552,7 @@ views.market = async () => {
 
 // Cartas que sigues: precio de Cardmarket y cuánto ha subido o bajado en 1, 7 y 30 días.
 async function watchView(box) {
-  box.innerHTML = `<div class="hint">Sigue cartas concretas (tuyas o no) y mira cómo cambia su precio. Toca una para verla; ✕ para dejar de seguirla.</div>
+  box.innerHTML = `<div class="hint">Sigue cartas concretas (tuyas o no) y mira cómo cambia su precio. Con 🎯 pones un precio objetivo (lista de deseos): te aviso cuando baje de ahí. Toca una para verla; ✕ para dejar de seguirla.</div>
     <input class="search" id="w-q" placeholder="Buscar una carta para seguirla…">
     <div class="list" id="w-search"></div>
     <button class="btn block" id="w-top" style="margin-top:8px">${ico("follow")}Seguir mis 20 cartas más valiosas</button>
@@ -1558,10 +1563,19 @@ async function watchView(box) {
     $("#w-list", box).innerHTML = rows.length ? `<div class="list">${rows.map((c) => `
       <div class="item watch" data-name="${esc(c.name)}"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ` <span class="chip gold">La tienes ×${c.owned}</span>` : ""}</div>
-          <div class="item-meta">${chg(c.d1, "1 d")}${chg(c.d7, "7 d")}${chg(c.d30, "30 d")}</div></div>
+          <div class="item-meta">${chg(c.d1, "1 d")}${chg(c.d7, "7 d")}${chg(c.d30, "30 d")}</div>
+          <div class="item-meta"><button class="mini-chip ${c.reached ? "up" : ""}" data-target="${esc(c.name)}" data-v="${c.target ?? ""}">🎯 ${c.target != null ? `${c.reached ? "¡Ya está! " : ""}Objetivo ${euro(c.target)}` : "Precio objetivo"}</button></div></div>
         <div class="item-side"><div class="price">${euro(c.eur)}</div><button class="btn w-del" data-del="${esc(c.name)}" aria-label="Dejar de seguir">✕</button></div></div>`).join("")}</div>`
       : `<div class="empty"><strong>Aún no sigues ninguna carta</strong>Búscala arriba, o pulsa «Seguir su precio» en la ficha de una carta.</div>`;
-    box.querySelectorAll(".watch[data-name]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del]")) synergySheet(el.dataset.name); }));
+    box.querySelectorAll(".watch[data-name]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del],[data-target]")) synergySheet(el.dataset.name); }));
+    box.querySelectorAll("[data-target]").forEach((b) => (b.onclick = async () => {
+      const v = prompt(t(`¿Avisarte cuando ${b.dataset.target} baje de cuántos euros? (vacío = quitar el objetivo)`), b.dataset.v.replace(".", ","));
+      if (v === null) return;
+      await api("/api/watch", { target: b.dataset.target, price: v });
+      toast(v.trim() ? `Te aviso cuando baje de ${v.trim()} €` : "Objetivo quitado");
+      syncRunner?.();
+      draw();
+    }));
     box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => { await api("/api/watch", { remove: b.dataset.del }); draw(); }));
   };
   let t;
@@ -1648,8 +1662,8 @@ async function setSynergySheet(code) {
 async function priceChart(box, q) {
   if (!box) return;
   box.innerHTML = skeleton(1);
-  const h = await api(`/api/history?${q.id ? `id=${encodeURIComponent(q.id)}` : `name=${encodeURIComponent(q.name)}`}`).catch(() => null);
-  if (!h || h.eur.length < 2) { box.innerHTML = `<div class="hint">Aún no hay historial de precio de esta carta.</div>`; return; }
+  const h = q.data || await api(`/api/history?${q.id ? `id=${encodeURIComponent(q.id)}` : `name=${encodeURIComponent(q.name)}`}`).catch(() => null);
+  if (!h || h.eur.length < 2) { box.innerHTML = `<div class="hint">${q.data ? "Aún no hay historial del valor de tu colección: vuelve mañana." : "Aún no hay historial de precio de esta carta."}</div>`; return; }
   const W = 320, H = 130, n = h.eur.length, lo = Math.min(...h.eur), hi = Math.max(...h.eur), span = hi - lo || 1;
   const x = (i) => 4 + (i * (W - 8)) / (n - 1), y = (v) => 8 + (H - 22) * (1 - (v - lo) / span);
   const line = h.eur.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
@@ -1703,7 +1717,7 @@ views.alerts = async () => {
   $("#alert-dot").hidden = true;
   // Dos pestañas: precios de cartas, y baneos y eventos (anuncios de baneos, torneos grandes, colecciones, meta)
   const tab = store("alertTab") || "price";
-  const shown = events.filter((e) => (tab === "price") === (e.kind === "price"));
+  const shown = events.filter((e) => (tab === "price") === (e.kind === "price" || e.kind === "wish"));  // los deseos, con los precios
   v.innerHTML = `<h2>Avisos</h2>
     <div class="seg" id="al-tab"><button data-t="price" class="${tab === "price" ? "on" : ""}">${ico("up")}Precios de cartas</button><button data-t="events" class="${tab === "events" ? "on" : ""}">${ico("trophy")}Baneos y eventos</button></div>
     <div class="hint">${tab === "price" ? "Cartas tuyas que suben o bajan un 10 % o más, y cartas de los mazos top de Pauper que se mueven." : "Baneos de todos los formatos y la fecha del próximo anuncio, ganadores de torneos grandes (Paupergeddon, Super Pauper, RCQ, Mundial), colecciones nuevas y cambios en el meta."} Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
@@ -2324,7 +2338,7 @@ async function boot() {
       $("#boot-bar") && ($("#boot-bar").style.width = `${Math.round((p || 0) * 100)}%`);
     });
     // En Android, la tarea en segundo plano ya avisa de los precios: aquí solo lo demás (colecciones que salen hoy…)
-    for (const a of r.alerts) if (!(Runner && a.kind === "price")) notifyLocal(a);
+    for (const a of r.alerts) if (!(Runner && (a.kind === "price" || a.kind === "wish"))) notifyLocal(a);  // en Android ya avisa la tarea en segundo plano
     if (r.offline) toast("Sin conexión: usando los últimos precios guardados");
     await unlock();
   } catch (err) {
