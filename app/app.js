@@ -312,16 +312,18 @@ views.collection = async () => {
   const v = $("#view");
   let mode = store("colView") || "grid";
   v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
+    <button class="btn block" id="col-added" style="margin-top:8px">🕘 Últimas añadidas</button>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
     <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">${ico("alter")}Alteradas</button></div>
-    ${sortSelect("col-sort", store("colSort") || "price", CARD_SORTS.slice(1))}
+    ${sortSelect("col-sort", store("colSort") || "price", CARD_SORTS.filter(([k]) => k !== "set" && k !== "name"))}<div id="col-pips"></div>
     <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">${ico("picture")}Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
     <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">🗑 Quitar</button><button class="btn primary" id="col-go">🔨 Crear mazo</button></div>`);
   $("#col-import").onclick = importSheet;
   $("#col-build").onclick = () => builderSheet();
+  $("#col-added").onclick = addedSheet;
   const items = await api("/api/collection");
   items.forEach((c) => (c.key = c.row_id));
   const box = $("#col-list");
@@ -343,7 +345,10 @@ views.collection = async () => {
     v.querySelectorAll("#col-kind button").forEach((b) => b.classList.toggle("on", b.dataset.k === kind));
     const kindOk = (c) => kind === "all" || (kind === "proxy" ? c.proxy > 0 : kind === "real" ? c.proxy < c.qty : !!c.alter);
     const shown = items.filter((c) => kindOk(c) && (!f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f))));
-    const page = sortCards(shown, store("colSort") || "price").slice(0, limit);
+    const by = store("colSort") === "name" ? "price" : store("colSort") || "price", pip = by === "color" ? store("colPip") : "";
+    $("#col-pips").innerHTML = by === "color" ? colorPips("col-pip", pip) : "";
+    v.querySelectorAll("#col-pip button").forEach((b) => (b.onclick = () => { store("colPip", pip === b.dataset.pip ? "" : b.dataset.pip); draw(); }));
+    const page = sortCards(shown.filter((c) => pipOk(c, pip)), by).slice(0, limit);
     const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, (c.foil || c.alter || c.lang !== "en" ? `<span class="num-tag">${[c.lang !== "en" ? esc(c.lang.toUpperCase()) : "", c.foil ? "Foil" : "", c.alter ? ico("alter") : ""].filter(Boolean).join(" ")}</span>` : "")
       + (c.proxy ? `<span class="proxy-tag">PROXY${c.proxy < c.qty ? ` ×${c.proxy}` : ""}</span>` : ""))).join("")}</div>`
       : `<div class="list">${page.map((c) => `
@@ -857,6 +862,9 @@ function sortCards(list, by) {
     color: (a, b) => colorRank(a.colors) - colorRank(b.colors) || (a.colors || "").localeCompare(b.colors || "") || name(a, b) }[by];
   return cmp ? [...list].sort(cmp) : list;
 }
+// Al ordenar por color: los 6 símbolos de maná para quedarte con las cartas de un color (otra vez para quitarlo)
+const colorPips = (id, on) => `<div class="seg mana-row" id="${id}" style="margin-top:8px">${COLORS.map(([k, n]) => `<button data-pip="${k}" class="mana ${on === k ? "on" : ""}" aria-label="${n}" title="${n}">${manaIcon(k, n)}</button>`).join("")}</div>`;
+const pipOk = (c, k) => !k || (k === "C" ? !c.colors : (c.colors || "").includes(k));
 const sortSelect = (id, by, opts = CARD_SORTS) => `<label class="sub" style="display:block;margin-top:8px">Ordenar por <select class="lang-sel" id="${id}">${opts.map(([k, n]) => `<option value="${k}" ${k === by ? "selected" : ""}>${n}</option>`).join("")}</select></label>`;
 const RARITIES = [["common", "Común"], ["uncommon", "Infrecuente"], ["rare", "Rara"], ["mythic", "Mítica"]];
 const year = (d) => (d ? d.slice(0, 4) : "");
@@ -964,6 +972,21 @@ async function preconSheet() {
 }
 
 // opts: filtros y posición a recuperar al volver (para no saltar arriba después de añadir).
+// Historial: las cartas que has añadido a la carpeta, por días
+async function addedSheet() {
+  const body = openSheet(`<h3>Últimas añadidas</h3>${skeleton(3)}`);
+  const days = await api("/api/added");
+  const fecha = (d) => new Date(`${d}T12:00`).toLocaleDateString(document.documentElement.lang || "es", { weekday: "long", day: "numeric", month: "long" });
+  const hoy = new Date().toLocaleDateString("sv"), ayer = new Date(Date.now() - 864e5).toLocaleDateString("sv");
+  body.innerHTML = `<h3>Últimas añadidas</h3>${days.length ? days.map((g) => `<h2>${g.day === hoy ? "Hoy" : g.day === ayer ? "Ayer" : esc(fecha(g.day))} · ${plural(g.count, "carta", "cartas")}</h2>
+    <div class="grid">${g.cards.map((c) => tile(c, c.foil ? `<span class="num-tag">Foil</span>` : "")).join("")}</div>`).join("")
+    : `<div class="empty"><strong>Aún no hay historial</strong>Las cartas que añadas a partir de ahora saldrán aquí, por días.</div>`}`;
+  body.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => {
+    const c = days.flatMap((g) => g.cards).find((x) => x.id === b.dataset.id);
+    addSheet([{ name: c.name, best: c.id }], { onDone: addedSheet });
+  }));
+}
+
 async function setSheet(code, opts = {}) {
   const body = openSheet(skeleton(3));
   const sheet = $("#sheet");
@@ -994,7 +1017,8 @@ async function setSheet(code, opts = {}) {
     const pct = d.total ? Math.round((100 * d.owned) / d.total) : 0;
     const qn = q.trim().toLowerCase();
     const lacks = (c) => c.qty < (c.need || 1);  // en un mazo: te faltan copias
-    const cards = sortCards(d.cards, store("setSort") || "set").filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? lacks(c) : !lacks(c)))
+    const setBy = store("setSort") || "set", setPip = setBy === "color" ? store("setPip") : "";
+    const cards = sortCards(d.cards, setBy).filter((c) => pipOk(c, setPip) && (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? lacks(c) : !lacks(c)))
       && (!qn || c.name.toLowerCase().includes(qn) || String(c.number).toLowerCase() === qn));
     const missing = d.cards.filter((c) => lacks(c) && !c.basic);
     body.innerHTML = `
@@ -1015,7 +1039,7 @@ async function setSheet(code, opts = {}) {
       <div class="seg" id="set-rarity"><button data-r="all">Cualquier rareza</button>${RARITIES.map(([k, n]) => `<button data-r="${k}">${n}</button>`).join("")}</div>
       <div class="hint">${d.special ? "Vale cualquier edición de cada carta." : all ? "Incluye promos, versiones sin borde, showcase…" : "Cartas normales de la colección; vale cualquier versión de la misma edición."}
         Toca una carta para añadirla.</div>
-      ${sortSelect("set-sort", store("setSort") || "set")}
+      ${sortSelect("set-sort", setBy)}${setBy === "color" ? colorPips("set-pip", setPip) : ""}
       <button class="btn block" id="sel-toggle"></button>
       ${d.deck ? [[2, "Comandante"], [0, "Main deck"], [1, "Sideboard"]].map(([p, title]) => {
           const part = cards.filter((c) => (c.part || 0) === p);
@@ -1037,6 +1061,7 @@ async function setSheet(code, opts = {}) {
     body.querySelectorAll("#set-show button").forEach((b) => (b.onclick = () => { show = b.dataset.s; store("setShow", show); draw(); }));
     body.querySelectorAll("#set-rarity button").forEach((b) => (b.onclick = () => { rarity = b.dataset.r; draw(); }));
     $("#set-sort", body).onchange = (e) => { store("setSort", e.target.value); draw(); };
+    body.querySelectorAll("#set-pip button").forEach((b) => (b.onclick = () => { store("setPip", setPip === b.dataset.pip ? "" : b.dataset.pip); draw(); }));
     $("#set-cq", body).oninput = (e) => {
       q = e.target.value;
       clearTimeout(draw.t);
@@ -1170,8 +1195,8 @@ async function builderSheet(seeds, startFormat) {
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-offmeta" ${offmeta ? "checked" : ""}> Cartas fuera del meta: legales en el formato y con sinergia, aunque no las juegue ninguna lista (para sorprender en torneo)</label>
       ${d.template ? `<div class="warn"><span>Basado en la lista ganadora de ${esc(d.template.archetype)}${d.template.player ? ` de ${esc(d.template.player)}` : ""}${d.template.event ? ` (${d.template.result === "1" ? "ganó" : `${esc(d.template.result)}º en`} ${esc(d.template.event)})` : ""}: sus cartas, sus tierras y su banquillo, como haría un jugador de torneo.</span> <span>${power == 6 ? "En World Champion entra entera: lo que no tienes sale en gris para comprar." : "En Competitivo, solo lo que tienes; el resto lo completa el constructor."}</span></div>` : ""}
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-spoil" ${spoil ? "checked" : ""}> Spoilers: usar cartas anunciadas que aún no han salido y ver con cuáles hace sinergia el mazo</label>
-      ${spoil ? `<h2>Spoilers que encajan con este mazo</h2>${d.spoilers.length ? `<div class="hint">Cartas anunciadas que aún no se pueden comprar. En dorado, las que ya he metido en el mazo.</div>
-        <div class="grid">${d.spoilers.map((c) => `<div class="gcard ${c.in_deck ? "" : "missing"}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></div>`).join("")}</div>`
+      ${spoil ? `<h2>Spoilers que encajan con este mazo</h2>${d.spoilers.length ? `<div class="hint">Cartas anunciadas que aún no se pueden comprar. En dorado, las que ya están en el mazo. Toca una para meterla o sacarla${format === "commander" ? "" : " (entran 4 copias)"}.</div>
+        <div class="grid">${d.spoilers.map((c) => `<button class="gcard ${c.in_deck ? "" : "missing"}" data-spoil="${esc(c.name)}" data-in="${c.in_deck ? 1 : 0}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span class="num-tag ${c.in_deck ? "full" : ""}">${c.in_deck ? "✓" : "+"}</span><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></button>`).join("")}</div>`
         : `<div class="hint">Ningún spoiler de los que hay ahora encaja con este mazo en estos colores.</div>`}` : ""}
       <label class="toggle" style="margin:4px 0 10px"><input type="checkbox" id="b-p9" ${p9 ? "checked" : ""}> ⚡ Power 9 (Black Lotus, los Mox de tus colores y, si es azul, Ancestral Recall, Time Walk y Timetwister; aunque no los tengas. Solo Casual)</label>
       <div class="field"><label>Meter una carta concreta</label><input class="search" id="b-addq" placeholder="Escribe el nombre de una carta…"><div class="list" id="b-addres"></div></div>
@@ -1255,20 +1280,26 @@ async function builderSheet(seeds, startFormat) {
     }
     $("#b-offmeta", body).onchange = (e) => { offmeta = e.target.checked; store("buildOffmeta", offmeta ? "1" : "0"); run(); };
     $("#b-spoil", body).onchange = (e) => { spoil = e.target.checked; store("buildSpoil", spoil ? "1" : "0"); run(); };
+    // Spoilers: tocar uno lo mete en el mazo como carta base (o lo saca)
+    body.querySelectorAll("[data-spoil]").forEach((b) => (b.onclick = () => {
+      const n = b.dataset.spoil, i = seeds.indexOf(n);
+      if (b.dataset.in === "1") { if (i >= 0 && seeds.length > 1) seeds.splice(i, 1); excluded.push(n); toast(`${n}: fuera del mazo`); }
+      else { if (i < 0) seeds.push(n); const j = excluded.indexOf(n); if (j >= 0) excluded.splice(j, 1); toast(`${n}: añadida como carta base`); }
+      run();
+    }));
     $("#b-buy", body).onchange = (e) => { buy = e.target.checked; store("buildBuy", buy ? "1" : "0"); run(); };
     $("#b-sbbuy", body)?.addEventListener("change", (e) => { sbbuy = e.target.checked; store("buildSbBuy", sbbuy ? "1" : "0"); run(); });
     $("#b-combo", body).onchange = (e) => { combo = e.target.checked; store("buildCombo", combo ? "1" : "0"); run(); };
     // Elegir un combo: se explica y, si quieres, sus dos cartas pasan a ser cartas base del mazo
     body.querySelectorAll("[data-co]").forEach((b) => (b.onclick = () => {
       const k = d.combo_options[+b.dataset.co];
-      const box = openSheet(`<h3>${k.cards.map(esc).join(" + ")}</h3>
+      const box = openSheet(`<div class="title-back"><button class="btn back-btn" id="co-back" aria-label="Volver al mazo">←</button><h3>${k.cards.map(esc).join(" + ")}</h3></div>
         <div class="combo-big">${k.images.map((src, j) => `<figure><img src="${esc(src)}" alt="${esc(k.cards[j])}" class="${k.owned[j] ? "" : "missing"}"><figcaption>${k.in_deck[j] ? "Ya en el mazo" : k.owned[j] ? "La tienes" : `No la tienes${k.eur[j] != null ? ` · ${euro(k.eur[j])}` : ""}`}</figcaption></figure>`).join("")}</div>
         <h2>Qué consigues</h2><div class="item-meta">${k.makes.map((m) => `<span class="chip gold">${esc(m)}</span>`).join("")}</div>
         ${k.pre || k.needs.length || k.mana ? `<h2>Qué necesitas</h2><ul class="combo-pre">${k.needs.map((n) => `<li>${esc(n)}</li>`).join("")}${k.pre ? `<li>${esc(k.pre)}</li>` : ""}${k.mana ? `<li>Maná: ${esc(k.mana)}</li>` : ""}</ul>` : ""}
         <h2>Cómo funciona, paso a paso</h2><ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
         <div class="hint">Los pasos vienen de Commander Spellbook (la base de combos que usa EDHREC), en inglés.</div>
-        <button class="btn block primary" id="co-add" style="margin-top:10px">${ico("plus")}Meter este combo en el mazo</button>
-        <button class="btn block" id="co-back" style="margin-top:8px">Volver al mazo</button>`);
+        <button class="btn block primary" id="co-add" style="margin-top:10px">${ico("plus")}Meter este combo en el mazo</button>`);
       const back = () => builderSheet(seeds, format);
       $("#co-add", box).onclick = () => { for (const n of k.cards) if (!seeds.includes(n)) seeds.push(n); back(); };
       $("#co-back", box).onclick = back;

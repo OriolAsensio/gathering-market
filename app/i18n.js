@@ -15,6 +15,10 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["🕘 Últimas añadidas", "🕘 Recently added", "🕘 Darreres afegides"], ["Últimas añadidas", "Recently added", "Darreres afegides"],
+  ["Aún no hay historial", "No history yet", "Encara no hi ha historial"], ["Hoy", "Today", "Avui"], ["Ayer", "Yesterday", "Ahir"],
+  ["Las cartas que añadas a partir de ahora saldrán aquí, por días.", "Cards you add from now on will show up here, by day.", "Les cartes que afegeixis a partir d'ara sortiran aquí, per dies."],
+  ["Toca una para meterla o sacarla.", "Tap one to add or remove it.", "Toca'n una per posar-la o treure-la."],
   ["Ordenar por", "Sort by", "Ordenar per"], ["Orden de colección", "Collector number", "Ordre de col·lecció"], ["Precio", "Price", "Preu"],
   ["Alfabético", "Alphabetical", "Alfabètic"], ["Tipo", "Type", "Tipus"], ["Color", "Color", "Color"],
   ["Main deck", "Main deck", "Baralla principal"], ["Sideboard", "Sideboard", "Banqueta"], ["Banquillo", "Sideboard", "Banqueta"],
@@ -500,6 +504,8 @@ const THEME_WORDS = [
 
 // Frases con datos. Se aplican en orden sobre cada texto (los nombres de cartas se conservan).
 const RULES = [
+  [/^(Hoy|Ayer) · (.+)$/, (m) => `${m[1] === "Hoy" ? "Today" : "Yesterday"} · ${tr(m[2], "en")}`, (m) => `${m[1] === "Hoy" ? "Avui" : "Ahir"} · ${tr(m[2], "ca")}`],
+  [/^Cartas anunciadas que aún no se pueden comprar\. En dorado, las que ya están en el mazo\. Toca una para meterla o sacarla( \(entran 4 copias\))?\.$/, (m) => `Announced cards you can't buy yet. Highlighted: the ones in the deck. Tap one to add or remove it${m[1] ? " (4 copies go in)" : ""}.`, (m) => `Cartes anunciades que encara no es poden comprar. En daurat, les que ja són a la baralla. Toca'n una per posar-la o treure-la${m[1] ? " (hi entren 4 còpies)" : ""}.`],
   [/^(.+) · (\d+) líneas$/, "$1 · $2 lines", "$1 · $2 línies"],
   [/^Precio normal (.+)\.$/, "Normal price $1.", "Preu normal $1."],
   [/^(.+): la tienes$/, "$1: you own it", "$1: la tens"], [/^(.+): no la tienes( \(.+\))?$/, "$1: you don't own it$2", "$1: no la tens$2"],

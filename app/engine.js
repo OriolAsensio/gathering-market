@@ -257,6 +257,28 @@ const Engine = (() => {
     const key = `${id}|${foil ? 1 : 0}`;
     const qty = (cards[key] || 0) + delta;
     if (qty > 0) cards[key] = qty; else delete cards[key];
+    if (delta > 0) logAdded(c, id, foil, delta);
+  }
+  /** Historial de cartas añadidas: [día local, carpeta, carta, foil, copias], lo más nuevo primero. */
+  function logAdded(c, id, foil, n) {
+    const day = new Date().toLocaleDateString("sv"), log = (user.added ||= []), f = foil ? 1 : 0;
+    let e = null;
+    for (const x of log) { if (x[0] !== day) break; if (x[1] === c && x[2] === id && x[3] === f) { e = x; break; } }
+    if (e) e[4] += n; else log.unshift([day, c, id, f, n]);
+    if (log.length > 3000) log.length = 3000;  // shortcut: guarda las 3.000 últimas; si se queda corto, subir el límite
+  }
+  function added({ c }) {
+    const id = binderOf(c);
+    if (!id) return [];
+    const days = new Map();
+    for (const [day, b, cid, foil, n] of user.added || []) {
+      const pi = byId.get(cid);
+      if (b !== id || pi == null) continue;
+      if (!days.has(day)) days.set(day, []);
+      const r = printingRow(pi);
+      days.get(day).push({ id: cid, name: front(r.name), image: r.image, set: r.set, number: r.number, qty: n, foil: !!foil, eur: eur(priceOf(pi, !!foil)) });
+    }
+    return [...days].map(([day, cards]) => ({ day, cards, count: cards.reduce((a, x) => a + x.qty, 0) }));
   }
   function addEvent(day, kind, title, body = "") {
     if (user.events.some((e) => e.day === day && e.kind === kind && e.title === title)) return null;
@@ -1950,8 +1972,14 @@ const Engine = (() => {
       if (x === commander) addToPlan(plan, x, 3);
       else addToPlan(plan, x, 0.35, (m, k, v) => { if (m.has(k)) m.set(k, m.get(k) + v); });
     };
+    // Spoilers elegidos como carta base: aún no tienen legalidad, valen (en Pauper, si salen como común)
+    const firstOut = (oi) => printsOf[oi].reduce((m, pi) => { const r = SETS.get(P[pi][2])?.released || "9999"; return r < m ? r : m; }, "9999");
     for (const x of base) {
-      if (x === commander || !legal(x) || !subset(x.colors, deckColors) || x.is_land) continue;
+      const out = firstOut(x.oi);
+      if (withSpoilers && out > today() && out !== "9999" && (fmt !== "pauper" || printsOf[x.oi].some((pi) => P[pi][4] === "c"))) { x.spoiler = out; x.buy = !x.owned; x.legalSpoiler = true; }
+    }
+    for (const x of base) {
+      if (x === commander || !(legal(x) || x.legalSpoiler) || !subset(x.colors, deckColors) || x.is_land) continue;
       take(x, x.owned ? Math.min(x.owned, maxCopies) : maxCopies,
         [x.owned ? "carta base del mazo" : "carta base del mazo (no la tienes)"]);
     }
@@ -2599,7 +2627,7 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- rutas
-  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection,
+  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/added": added,
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
