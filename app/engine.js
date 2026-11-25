@@ -412,7 +412,7 @@ const Engine = (() => {
       const r = printingRow(pi);
       const o = O[P[pi][1]];
       return { row_id: `${r.id}|${foil ? 1 : 0}`, id: r.id, name: r.name, set: r.set, set_name: r.set_name, number: r.number,
-        rarity: r.rarity, image: r.image, qty, foil, eur: eur(priceOf(pi, foil)), pauper: r.pauper, type: o[1],
+        rarity: r.rarity, image: r.image, qty, foil, eur: eur(priceOf(pi, foil)), pauper: r.pauper, type: o[1], colors: o[4] || "",
         decks: used.get(norm(o[0])) || [], alter: alterOf(id, `${r.id}|${foil ? 1 : 0}`, eur(priceOf(pi, foil)), qty),
         proxy: proxyOf(id, `${r.id}|${foil ? 1 : 0}`, qty), proxy_collect: !user.proxyNoSet?.[id]?.[`${r.id}|${foil ? 1 : 0}`],
         lang: langOf(id, `${r.id}|${foil ? 1 : 0}`), lang_name: CARD_LANGS[langOf(id, `${r.id}|${foil ? 1 : 0}`)],
@@ -1205,7 +1205,7 @@ const Engine = (() => {
       if (sp) {  // especial: una entrada por carta (y parte del mazo), con la edición de la lista: su arte
         const [cid, oi, set, number, r] = P[pi];
         const part = part0, key2 = need ? `${oi}|${part}` : oi;
-        if (!cards.has(key2)) cards.set(key2, { part, id: cid, name: front(O[oi][0]), number: `${set.toUpperCase()} ${number}`, rarity: RARITY[r], image: img(cid),
+        if (!cards.has(key2)) cards.set(key2, { part, id: cid, name: front(O[oi][0]), number: `${set.toUpperCase()} ${number}`, rarity: RARITY[r], image: img(cid), type: O[oi][1], colors: O[oi][4] || "",
           eur: eur(cheapest().price[oi]), qty: qtyByName.get(oi) || 0, need: need ? needPart.get(key2) : 1, variant: false, basic: O[oi][1].startsWith("Basic"), order: cards.size });
         continue;
       }
@@ -1215,7 +1215,7 @@ const Engine = (() => {
       const price = PR.eur[pi];
       const cur = cards.get(key);
       if (!cur || (!showAll && price != null && (cur.eur == null || price / 100 < cur.eur))) {
-        cards.set(key, { id: cid, name: front(O[oi][0]), number, rarity: RARITY[r], image: img(cid), eur: eur(price),
+        cards.set(key, { id: cid, name: front(O[oi][0]), number, rarity: RARITY[r], image: img(cid), eur: eur(price), type: O[oi][1], colors: O[oi][4] || "",
           qty: showAll ? qtyById.get(pi) || 0 : qtyByName.get(oi) || 0, variant: !!variant, basic: O[oi][1].startsWith("Basic"),
           order: cur ? cur.order : num(number) });
       }

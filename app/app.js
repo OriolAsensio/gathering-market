@@ -315,6 +315,7 @@ views.collection = async () => {
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
     <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">${ico("alter")}Alteradas</button></div>
+    ${sortSelect("col-sort", store("colSort") || "price", CARD_SORTS.slice(1))}
     <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">${ico("picture")}Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
@@ -342,7 +343,7 @@ views.collection = async () => {
     v.querySelectorAll("#col-kind button").forEach((b) => b.classList.toggle("on", b.dataset.k === kind));
     const kindOk = (c) => kind === "all" || (kind === "proxy" ? c.proxy > 0 : kind === "real" ? c.proxy < c.qty : !!c.alter);
     const shown = items.filter((c) => kindOk(c) && (!f || c.name.toLowerCase().includes(f) || c.decks.some((d) => d.toLowerCase().includes(f))));
-    const page = shown.slice(0, limit);
+    const page = sortCards(shown, store("colSort") || "price").slice(0, limit);
     const list = mode === "grid" ? `<div class="grid">${page.map((c) => tile(c, (c.foil || c.alter || c.lang !== "en" ? `<span class="num-tag">${[c.lang !== "en" ? esc(c.lang.toUpperCase()) : "", c.foil ? "Foil" : "", c.alter ? ico("alter") : ""].filter(Boolean).join(" ")}</span>` : "")
       + (c.proxy ? `<span class="proxy-tag">PROXY${c.proxy < c.qty ? ` ×${c.proxy}` : ""}</span>` : ""))).join("")}</div>`
       : `<div class="list">${page.map((c) => `
@@ -371,6 +372,7 @@ views.collection = async () => {
     paintSeg();
   };
   v.querySelectorAll("#col-kind button").forEach((b) => (b.onclick = () => { store("colKind", b.dataset.k); draw(); }));
+  $("#col-sort").onchange = (e) => { store("colSort", e.target.value); draw(); };
   v.querySelectorAll("#col-view button").forEach((b) => (b.onclick = () => {
     if (b.dataset.v === "select") return sel.set(!sel.on);
     sel.set(false);
@@ -843,6 +845,19 @@ async function deckSheet(id, keep = null) {
 }
 
 // ---------- Colecciones: ediciones, Lista Reservada y mazos preconstruidos ----------
+// Orden de las cartas (tu carpeta, colecciones que sigues o buscas). "Colección" = el orden en que vienen (número de la edición).
+const CARD_SORTS = [["set", "Orden de colección"], ["price", "Precio"], ["name", "Alfabético"], ["type", "Tipo"], ["color", "Color"]];
+const TYPE_ORDER = ["Creature", "Planeswalker", "Instant", "Sorcery", "Artifact", "Enchantment", "Battle", "Land"];
+const typeRank = (t = "") => { const i = TYPE_ORDER.findIndex((k) => t.includes(k)); return i < 0 ? 99 : i; };
+const colorRank = (c = "") => (c.length > 1 ? 5 : c ? "WUBRG".indexOf(c) : 6);  // blanco, azul, negro, rojo, verde, multicolor, incolora
+function sortCards(list, by) {
+  const name = (a, b) => a.name.localeCompare(b.name);
+  const cmp = { price: (a, b) => (b.eur || 0) - (a.eur || 0) || name(a, b), name,
+    type: (a, b) => typeRank(a.type) - typeRank(b.type) || name(a, b),
+    color: (a, b) => colorRank(a.colors) - colorRank(b.colors) || (a.colors || "").localeCompare(b.colors || "") || name(a, b) }[by];
+  return cmp ? [...list].sort(cmp) : list;
+}
+const sortSelect = (id, by, opts = CARD_SORTS) => `<label class="sub" style="display:block;margin-top:8px">Ordenar por <select class="lang-sel" id="${id}">${opts.map(([k, n]) => `<option value="${k}" ${k === by ? "selected" : ""}>${n}</option>`).join("")}</select></label>`;
 const RARITIES = [["common", "Común"], ["uncommon", "Infrecuente"], ["rare", "Rara"], ["mythic", "Mítica"]];
 const year = (d) => (d ? d.slice(0, 4) : "");
 const setIcon = (s, cls = "set-icon") => (s.icon ? `<img class="${cls}" src="${esc(s.icon)}" alt="">`
@@ -854,7 +869,7 @@ function setRow(s, withProgress = true) {
     <div class="item-main">
       <div class="item-title">${esc(s.name)}</div>
       ${s.via ? `<div class="item-meta"><span class="chip gold">🃏 ${esc(s.via)}</span></div>` : ""}
-      <div class="item-meta">${s.pinned ? '<span class="pin">${ico("pin")}Siguiendo</span>' : ""}<span>${s.code.startsWith("deck:") ? esc(s.type) : s.code === "reserved" ? "" : esc(s.code.toUpperCase())}${s.released ? ` · ${year(s.released)}` : ""} · ${s.total} cartas</span></div>
+      <div class="item-meta">${s.pinned ? `<span class="pin">${ico("pin")}Siguiendo</span>` : ""}<span>${s.code.startsWith("deck:") ? esc(s.type) : s.code === "reserved" ? "" : esc(s.code.toUpperCase())}${s.released ? ` · ${year(s.released)}` : ""} · ${s.total} cartas</span></div>
       ${withProgress ? `<div class="bar"><i style="width:${s.pct}%"></i></div>
         <div class="deck-foot"><span>Tienes ${s.owned} de ${s.total}</span><span>${s.pct}%</span></div>` : ""}
     </div></button>`;
@@ -979,7 +994,7 @@ async function setSheet(code, opts = {}) {
     const pct = d.total ? Math.round((100 * d.owned) / d.total) : 0;
     const qn = q.trim().toLowerCase();
     const lacks = (c) => c.qty < (c.need || 1);  // en un mazo: te faltan copias
-    const cards = d.cards.filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? lacks(c) : !lacks(c)))
+    const cards = sortCards(d.cards, store("setSort") || "set").filter((c) => (rarity === "all" || c.rarity === rarity) && (show === "all" || (show === "missing" ? lacks(c) : !lacks(c)))
       && (!qn || c.name.toLowerCase().includes(qn) || String(c.number).toLowerCase() === qn));
     const missing = d.cards.filter((c) => lacks(c) && !c.basic);
     body.innerHTML = `
@@ -1000,6 +1015,7 @@ async function setSheet(code, opts = {}) {
       <div class="seg" id="set-rarity"><button data-r="all">Cualquier rareza</button>${RARITIES.map(([k, n]) => `<button data-r="${k}">${n}</button>`).join("")}</div>
       <div class="hint">${d.special ? "Vale cualquier edición de cada carta." : all ? "Incluye promos, versiones sin borde, showcase…" : "Cartas normales de la colección; vale cualquier versión de la misma edición."}
         Toca una carta para añadirla.</div>
+      ${sortSelect("set-sort", store("setSort") || "set")}
       <button class="btn block" id="sel-toggle"></button>
       ${d.deck ? [[2, "Comandante"], [0, "Main deck"], [1, "Sideboard"]].map(([p, title]) => {
           const part = cards.filter((c) => (c.part || 0) === p);
@@ -1020,6 +1036,7 @@ async function setSheet(code, opts = {}) {
     body.querySelectorAll("#set-rarity button").forEach((b) => b.classList.toggle("on", b.dataset.r === rarity));
     body.querySelectorAll("#set-show button").forEach((b) => (b.onclick = () => { show = b.dataset.s; store("setShow", show); draw(); }));
     body.querySelectorAll("#set-rarity button").forEach((b) => (b.onclick = () => { rarity = b.dataset.r; draw(); }));
+    $("#set-sort", body).onchange = (e) => { store("setSort", e.target.value); draw(); };
     $("#set-cq", body).oninput = (e) => {
       q = e.target.value;
       clearTimeout(draw.t);
@@ -1151,7 +1168,7 @@ async function builderSheet(seeds, startFormat) {
         : `<div class="hint">No encuentro combos infinitos de dos cartas en estos colores y formato con tus cartas. Prueba otro formato (Casual o Commander tienen muchos más) u otros colores.</div>`}</div>` : ""}
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-buy" ${buy ? "checked" : ""}> Usar también cartas que no tengo (para comprar): las del meta o las que mejor encajan</label>
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-offmeta" ${offmeta ? "checked" : ""}> Cartas fuera del meta: legales en el formato y con sinergia, aunque no las juegue ninguna lista (para sorprender en torneo)</label>
-      ${d.template ? `<div class="warn">Basado en la lista ganadora de ${esc(d.template.archetype)}${d.template.player ? ` de ${esc(d.template.player)}` : ""}${d.template.event ? ` (${d.template.result === "1" ? "ganó" : `${esc(d.template.result)}º en`} ${esc(d.template.event)})` : ""}: sus cartas, sus tierras y su banquillo, como haría un jugador de torneo.${power == 6 ? " En World Champion entra entera: lo que no tienes sale en gris para comprar." : " En Competitivo, solo lo que tienes; el resto lo completa el constructor."}</div>` : ""}
+      ${d.template ? `<div class="warn"><span>Basado en la lista ganadora de ${esc(d.template.archetype)}${d.template.player ? ` de ${esc(d.template.player)}` : ""}${d.template.event ? ` (${d.template.result === "1" ? "ganó" : `${esc(d.template.result)}º en`} ${esc(d.template.event)})` : ""}: sus cartas, sus tierras y su banquillo, como haría un jugador de torneo.</span> <span>${power == 6 ? "En World Champion entra entera: lo que no tienes sale en gris para comprar." : "En Competitivo, solo lo que tienes; el resto lo completa el constructor."}</span></div>` : ""}
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-spoil" ${spoil ? "checked" : ""}> Spoilers: usar cartas anunciadas que aún no han salido y ver con cuáles hace sinergia el mazo</label>
       ${spoil ? `<h2>Spoilers que encajan con este mazo</h2>${d.spoilers.length ? `<div class="hint">Cartas anunciadas que aún no se pueden comprar. En dorado, las que ya he metido en el mazo.</div>
         <div class="grid">${d.spoilers.map((c) => `<div class="gcard ${c.in_deck ? "" : "missing"}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></div>`).join("")}</div>`
