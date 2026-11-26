@@ -1444,8 +1444,8 @@ const Engine = (() => {
   /** Por carta: partidas y victorias en tus "Mazos para probar" (cada carta cuenta los resultados de los mazos que la llevan). */
   function testedCardStats() {
     const m = new Map();
-    for (const d of user.decks || []) {
-      if (!d.test || !d.results?.length) continue;
+    for (const d of [...(user.decks || []), ...(user.reviewArchive || [])]) {
+      if (!d.results?.length) continue;
       // Endstep, torneos, MTGO y MTGA cuentan entero; en tienda (casual) un poco menos y lo casual, la mitad o menos
       const weight = (r) => (/tienda/i.test(r.where || "") ? 0.6 : /casual/i.test(r.where || "") ? 0.4 : 1);
       const games = d.results.reduce((n, r) => n + (r.games || 3) * weight(r), 0), wins = d.results.reduce((n, r) => n + (r.wins || 0) * weight(r), 0);
@@ -1494,7 +1494,17 @@ const Engine = (() => {
       saveUser();
       return { ok: true };
     }
+    if (body.keep) {  // tras probarlo, te gusta: pasa a "Mis mazos" (con sus resultados)
+      const d = user.decks.find((x) => x.id === body.keep);
+      if (!d) throw new Error("Ese mazo ya no existe");
+      d.test = false; d.reviewed = true;
+      saveUser();
+      return { ok: true };
+    }
     if (body.delete) {
+      // Si tenía reseñas, se guardan aparte: el constructor sigue aprendiendo de ellas aunque borres el mazo
+      const gone = user.decks.find((d) => d.id === body.delete);
+      if (gone?.results?.length) { (user.reviewArchive ||= []).unshift({ name: gone.name, cards: gone.cards, results: gone.results, built: gone.built || null }); user.reviewArchive = user.reviewArchive.slice(0, 150); }
       user.decks = user.decks.filter((d) => d.id !== body.delete);
       saveUser();
       return { ok: true };
@@ -2073,6 +2083,11 @@ const Engine = (() => {
       const rate = (d) => {
         const main = d.cards.filter(([, , side]) => !side);
         const hits = main.filter(([n]) => keys.has(norm(n))).length;
+        if (colors) {
+          const spells = main.map(([n, q]) => [oByNorm.get(norm(n)), q]).filter(([oi]) => oi != null && !/land/i.test(O[oi][1]));
+          const fitQ = spells.filter(([oi]) => [...(O[oi][4] || "")].every((col) => deckColors.has(col))).reduce((a, [, q]) => a + q, 0);
+          if (fitQ < 0.75 * spells.reduce((a, [, q]) => a + q, 0)) return -1;  // reseña: "no tiene consistencia, hechizos que no tienen nada que ver"
+        }
         return hits ? hits * 100 + main.reduce((a, [n, q]) => a + Math.min(q, ownedQ(norm(n))), 0) + (d.share || 0) : -1;
       };
       template = META.filter((d) => d.format === FORMAT_META[fmt]).map((d) => [d, rate(d)]).filter(([, r]) => r >= 0).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
@@ -2166,6 +2181,7 @@ const Engine = (() => {
         const k = norm(n), oi = oByNorm.get(k);
         if (side || oi == null || excluded.has(k) || chosen.some(([y]) => norm(y.name) === k)) continue;
         const x = pool.get(k) || mk(oi, 0);
+        if (!subset(x.colors, deckColors)) continue;  // de un color que no va en el mazo (p. ej. lo has quitado)
         if (x.is_land) { if (!BASICS.has(k)) templateLands.push([x, q]); continue; }
         const own = x.owned || 0, n2 = power === 6 || withBuy ? q : Math.min(q, own);
         if (n2 <= 0 || !legal(x)) continue;
@@ -2450,7 +2466,8 @@ const Engine = (() => {
       pool.delete(norm(x.name));  // que no se repita abajo
     }
     room = Math.max(0, room - lands.reduce((s, e) => s + e[1], 0));
-    for (const x of [...pool.values()].filter((x) => x.is_land && !/basic/i.test(x.type_line || "") && legal(x))
+    const gateDeck = chosen.some(([x]) => /\bgates?\b/i.test(x.oracle_text || "") && !/\bgate\b/i.test(x.type_line || ""));
+    for (const x of [...pool.values()].filter((x) => x.is_land && !/basic/i.test(x.type_line || "") && legal(x) && (gateDeck || !/\bgate\b/i.test(x.type_line || "")))
       .map((x) => [x, producedColors(x), fit(plan, x, LAND_NOISE)[0]]).sort((a, b) => b[2] - a[2])) {
       const [land, makes, s] = x;
       const useful = [...makes].filter((col) => deckColors.has(col) || (colorlessOnly && col === "C"));
@@ -2467,6 +2484,9 @@ const Engine = (() => {
         room -= n;
       }
     }
+    // Nieve: si alguna carta lo pide (Skred, Ice-Fang Coatl, Moon-Eating Dog…), las básicas son nevadas
+    const snowDeck = chosen.some(([x]) => /\bsnow\b/i.test(x.oracle_text || "") && !/^snow/i.test(x.type_line || ""));
+    if (snowDeck) warnings.push("Hay cartas que piden nieve: las tierras básicas son nevadas (Snow-Covered).");
     const pips = {};
     for (const [x, n] of chosen) for (const m of (x.mana_cost || "").matchAll(/\{([WUBRG])(?:\/([WUBRG]))?\}/g)) {
       for (const sym of m[2] ? [m[1], m[2]] : [m[1]]) if (deckColors.has(sym)) pips[sym] = (pips[sym] || 0) + n / (m[2] ? 2 : 1);
@@ -2492,6 +2512,22 @@ const Engine = (() => {
     const exact = Object.fromEntries(cols.map((x) => [x, basicsN * (0.5 * deficit[x] / totalDef + 0.5 * (totalPips ? (pips[x] || 0) / totalPips : 1 / cols.length))]));
     const rounded = Object.fromEntries(cols.map((x) => [x, Math.floor(exact[x])]));
     cols.slice().sort((a, b) => (exact[b] - rounded[b]) - (exact[a] - rounded[a])).slice(0, basicsN - Object.values(rounded).reduce((a, b) => a + b, 0)).forEach((x) => rounded[x]++);
+    // Fuentes mínimas (≈75 % de Karsten) para los colores con cartas: si caben, se garantizan; si no caben todas (p. ej. Exhume
+    // {1}{B} con Counterspell {U}{U} y 16 básicas), se reparten en proporción a lo que pide cada color (reseña: Exhume con 4 Swamps).
+    if (cols.length > 1 && basicsN > 0) {
+      const minOf = Object.fromEntries(cols.map((c) => [c, Math.max(0, Math.ceil((needSrc[c] || 0) * 0.75) - srcFrom(c))]));
+      const sumMin = Object.values(minOf).reduce((x, y) => x + y, 0);
+      if (sumMin > basicsN) {
+        let left = basicsN;
+        cols.forEach((c, k) => { const n = k === cols.length - 1 ? left : Math.round((basicsN * minOf[c]) / sumMin); rounded[c] = Math.max(0, Math.min(left, n)); left -= rounded[c]; });
+      } else {
+        for (const c of cols) while ((rounded[c] || 0) < minOf[c]) {
+          const donor = cols.filter((d) => d !== c && rounded[d] > minOf[d]).sort((x, y) => rounded[y] - minOf[y] - (rounded[x] - minOf[x]))[0];
+          if (!donor) break;
+          rounded[donor]--; rounded[c] = (rounded[c] || 0) + 1;
+        }
+      }
+    }
     // Las básicas de la lista ganadora se respetan como mínimo (p. ej. el Forest para lanzar el banquillo verde)
     if (template) {
       const BASIC_COLOR = { plains: "W", island: "U", swamp: "B", mountain: "R", forest: "G" };
@@ -2587,8 +2623,9 @@ const Engine = (() => {
     const landRows = lands.map(([x, n, why]) => out(x, n, "tierra", why));
     for (const col of cols) {
       if (!rounded[col]) continue;
-      const oi = oByNorm.get(norm(BASIC_FOR[col]));
-      landRows.push({ name: BASIC_FOR[col], qty: rounded[col], role: "tierra", reasons: ["tierra básica"], image: oi != null ? oImage(oi) : null,
+      const basicName = snowDeck ? `Snow-Covered ${BASIC_FOR[col]}` : BASIC_FOR[col];
+      const oi = oByNorm.get(norm(basicName));
+      landRows.push({ name: basicName, qty: rounded[col], role: "tierra", reasons: ["tierra básica"], image: oi != null ? oImage(oi) : null,
         eur: null, basic: true, cmc: 0, type: "Basic Land", owned: null });
     }
     const fullCurve = {};
@@ -2674,7 +2711,7 @@ const Engine = (() => {
           const ci = new Set(ois.flatMap((oi) => [...(O[oi][4] || "")]));
           // Que quepa en los colores del mazo; fuera de Commander se admite un color más (se avisa y, al elegirlo, el mazo lo suma)
           const extra = [...ci].filter((col) => !deckColors.has(col));
-          if (extra.length > (commander || size === 100 ? 0 : 1)) continue;
+          if (extra.length > (commander || size === 100 || colors ? 0 : 1)) continue;  // si eliges los colores, ninguno de fuera
           const deck = k.cards.map((n) => inDeck.has(norm(n))), own = k.cards.map((n) => has(norm(n)) || inDeck.has(norm(n)));
           if (deck[0] && deck[1]) continue;  // ya está en el mazo (sale abajo)
           const score = (deck[0] || deck[1] ? 100 : 0) + own.filter(Boolean).length * 40 + Math.min(20, (k.pop || 0) / 500) - extra.length * 15;  // lo que ya tienes, primero

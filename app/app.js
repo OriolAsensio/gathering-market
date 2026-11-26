@@ -824,6 +824,27 @@ function importDeckSheet() {
 // Dónde se jugó una prueba. Endstep, torneo, MTGO y MTGA pesan más al aprender (rivales de verdad); lo casual, menos.
 const PLAY_WHERE = ["Endstep", "En un torneo", "MTGO (Magic Online)", "MTGA (Magic Arena)", "En tu tienda (casual)", "Casual (casa de un amigo, feria…)"];
 
+/* Tras enviar la reseña de un mazo de prueba: sale de "Mazos para probar" y eliges qué hacer con él.
+ * Guardar → "Mis mazos". Rehacer → el constructor con sus cartas base y el nivel que elijas (más o menos potente); el viejo
+ * se borra (sus reseñas se quedan para que el constructor aprenda). Borrar → fuera (también se quedan las reseñas). */
+function afterReview(d, id) {
+  const b = d.built || {}, lvl = +b.power || 3;
+  const body = openSheet(`<h3>¿Qué hacemos con ${esc(d.archetype)}?</h3>
+    <div class="hint">Tu reseña ya está guardada: el creador de mazos aprende de ella aunque borres el mazo.</div>
+    <button class="btn block primary" id="ar-keep">${ico("folder")}Me gusta: guardarlo en Mis mazos</button>
+    ${b.seeds?.length ? `<h2>Rehacer el mazo</h2><div class="hint">Con las mismas cartas base y lo aprendido de tu reseña.</div>
+    <div class="row-btns" style="margin-top:0">${lvl > 1 ? `<button class="btn" data-lvl="${lvl - 1}">${ico("down")}Menos potente</button>` : ""}<button class="btn" data-lvl="${lvl}">Igual</button>${lvl < 6 ? `<button class="btn" data-lvl="${lvl + 1}">${ico("up")}Más potente</button>` : ""}</div>` : ""}
+    <button class="btn block" id="ar-del" style="margin-top:12px">No me gusta: borrarlo</button>`);
+  $("#ar-keep", body).onclick = async () => { await api("/api/mydecks", { keep: id }); store("deckTab", "mine"); toast("Guardado en Mis mazos"); closeSheet(); render(); };
+  $("#ar-del", body).onclick = async () => { await api("/api/mydecks", { delete: id }); toast("Mazo borrado (la reseña se queda)"); closeSheet(); render(); };
+  body.querySelectorAll("[data-lvl]").forEach((x) => (x.onclick = async () => {
+    await api("/api/mydecks", { delete: id });
+    store("buildPower", x.dataset.lvl);
+    if (b.archetype && !b.style_auto) store("buildStyle", b.archetype);
+    builderSheet(b.seeds, b.format || "pauper", { colors: b.colors || null });
+  }));
+}
+
 async function deckSheet(id, keep = null) {
   const body = keep ? $("#sheet-body") : openSheet(skeleton(3));
   const d = await api(`/api/deck?id=${encodeURIComponent(id)}`);
@@ -926,7 +947,7 @@ async function deckSheet(id, keep = null) {
     if (note.length < 5) return toast("Escribe una frase sobre cómo ha ido el gameplay");
     await api("/api/mydecks", { result: { id, wins, games, where: $("#tr-where", body).value, note } });
     toast("Resultado guardado");
-    redraw();
+    afterReview(d, id);
   });
   $("#deck-edit", body)?.addEventListener("click", () => {
     const listOf = (cs) => cs.map((c) => `${c.qty} ${c.name}`).join("\n");
@@ -1262,11 +1283,11 @@ const BRACKET_HINTS = { 1: "Temático y sin Game Changers, sin destruir tierras 
   3: "Hasta 3 Game Changers; sin destruir todas las tierras ni encadenar turnos extra.", 4: "Sin límites: Game Changers, destruir tierras y turnos extra permitidos.", 5: "Competitivo (cEDH): lo más fuerte que tengas, sin límites." };
 const manaIcon = (k, label = k) => `<img class="mana-icon" src="mana/${k}.svg" alt="${esc(label)}">`;
 
-async function builderSheet(seeds, startFormat) {
+async function builderSheet(seeds, startFormat, opts = {}) {
   if (!seeds || !seeds.length) return pickSeed();
   seeds = [].concat(seeds);
   const body = openSheet(`<h3>Mazo con ${esc(seeds.join(", "))}</h3><div id="b-body">${skeleton(4)}</div>`);
-  let colors = null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
+  let colors = opts.colors || null, format = startFormat || store("buildFormat") || "pauper", style = store("buildStyle") || "auto";
   let power = store("buildPower") || "3", bracket = store("buildBracket") || "3", focus = "", p9 = false, combo = store("buildCombo") === "1",
     buy = store("buildBuy") === "1", sbbuy = store("buildSbBuy") === "1", spoil = store("buildSpoil") === "1", offmeta = store("buildOffmeta") === "1";
   const excluded = [];  // cartas que has quitado del mazo
