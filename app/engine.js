@@ -989,10 +989,13 @@ const Engine = (() => {
         }
       }
       if (y < TITLE_ZONE) {
+        // Primero la línea entera; sin las palabras cortas (ruido del lector) solo si así no sale nada claro:
+        // "Lightning Bo It" sin "bo" e "it" se queda en "lightning", que se parece más a Blightning que a Lightning Bolt.
         const core = tokens.filter((t) => t.length > 2 || ["of", "the", "to", "a"].includes(t));
-        for (const cand of new Set([tokens.join(" "), core.join(" ")])) {
-          if (cand.length < 4) continue;
-          for (const k of closeMatches(cand, nameKeys, 3, 0.75)) bump(k, ratio(cand, k) - y * 0.5);
+        let bestFull = 0;
+        for (const cand of [tokens.join(" "), core.join(" ")]) {
+          if (cand.length < 4 || bestFull >= 0.85) continue;
+          for (const k of closeMatches(cand, nameKeys, 3, 0.75)) { const r = ratio(cand, k); bestFull = Math.max(bestFull, r); bump(k, r - y * 0.5); }
         }
       }
     }

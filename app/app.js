@@ -2008,14 +2008,15 @@ async function startScan() {
   const video = $("#scan-video");
   video.srcObject = S.stream;
   await video.play().catch(() => {});
-  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0, noText: 0, triedCams: new Set() });
+  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0, seen: [], triedCams: new Set(),
+    camSharp: {}, backToBest: false, blurSince: 0, sharpMax: 0, camSince: Date.now() });
   document.documentElement.classList.add("lock");
   status("Preparando el lector…");
-  Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6)])
+  Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6), getWorker(scanLang()[1], `whole:${scanLang()[1]}`, 11)])
     .then(() => status(canFocus(S.stream) ? "Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar"
       : "Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)")).catch((e) => status(e.message));
   setupCameraControls(video);
-  S.timer = setInterval(scanTick, 200);
+  S.timer = setInterval(() => { checkFocus(); scanTick(); }, 200);
 }
 
 // ---- Cámara: muchos Android abren por defecto la gran angular trasera, que NO enfoca de cerca.
@@ -2039,17 +2040,24 @@ async function autoNextCamera() {
   S.triedCams ||= new Set();
   const cur = S.stream?.getVideoTracks()[0].getSettings().deviceId;
   S.triedCams.add(cur);
-  const next = cams.find((d) => !S.triedCams.has(d.deviceId));
-  if (!next) return;  // ya se han probado todas
+  (S.camSharp ||= {})[cur] = Math.max(S.camSharp[cur] || 0, S.sharpMax || 0);
+  let next = cams.find((d) => !S.triedCams.has(d.deviceId));
+  if (!next) {  // ya se han probado todas: volver a la que se ha visto más nítida (si no es esta)
+    const bestId = Object.entries(S.camSharp).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!bestId || bestId === cur || S.backToBest) return;
+    S.backToBest = true;
+    next = cams.find((d) => d.deviceId === bestId);
+    if (!next) return;
+  }
   S.autoSwitching = true;
   try {
     stopStream(S.stream);
     S.stream = await navigator.mediaDevices.getUserMedia(camOpts(next.deviceId));
-    store("scanCam", next.deviceId);
     const video = $("#scan-video");
     video.srcObject = S.stream;
     await video.play().catch(() => {});
     setupCameraControls(video);
+    Object.assign(S, { blurSince: 0, sharpMax: 0, camSince: Date.now() });
     status("Probando otra cámara del móvil…");
   } catch { /* nada */ } finally { S.autoSwitching = false; }
 }
@@ -2096,15 +2104,18 @@ function setupCameraControls(video) {
   const caps = track.getCapabilities?.() || {};
   const modes = caps.focusMode || [];
   const apply = (c) => track.applyConstraints({ advanced: [c] }).catch(() => {});
+  // Cada cosa por separado: si el móvil no admite una (p. ej. el punto de enfoque), Android descarta el grupo entero
+  // y la cámara se quedaba sin enfoque continuo.
+  const point = (x, y) => (caps.pointsOfInterest ? apply({ pointsOfInterest: [{ x, y }] }) : Promise.resolve());
   // Reenfocar en un punto (por defecto, el centro del marco de la carta, no la mesa de detrás).
-  const focusAt = (x = 0.5, y = 0.42) => {
-    const c = { pointsOfInterest: [{ x, y }] };
-    if (modes.includes("single-shot")) c.focusMode = "single-shot";
-    else if (modes.includes("continuous")) c.focusMode = "continuous";
-    return apply(c).then(() => modes.includes("continuous") && setTimeout(() => apply({ focusMode: "continuous" }), 1500));
+  const focusAt = async (x = 0.5, y = 0.42) => {
+    await point(x, y);
+    if (modes.includes("single-shot")) await apply({ focusMode: "single-shot" });
+    else if (modes.includes("continuous") && modes.includes("manual")) { await apply({ focusMode: "manual" }); await apply({ focusMode: "continuous" }); }  // que vuelva a buscar
+    if (modes.includes("continuous")) setTimeout(() => apply({ focusMode: "continuous" }), 1500);
   };
   S.refocus = () => modes.length && focusAt();
-  if (modes.includes("continuous")) apply({ focusMode: "continuous", pointsOfInterest: [{ x: 0.5, y: 0.42 }] });
+  if (modes.includes("continuous")) apply({ focusMode: "continuous" }).then(() => point(0.5, 0.42));
   video.onclick = (e) => {
     const r = video.getBoundingClientRect();
     const ring = Object.assign(document.createElement("span"), { className: "focus-ring" });
@@ -2161,10 +2172,9 @@ function grabFrame() {
   const x = Math.max(0, (fr.left - vr.left - ox) / scale), y = Math.max(0, (fr.top - vr.top - oy) / scale);
   const w = Math.min(v.videoWidth - x, fr.width / scale), h = Math.min(v.videoHeight - y, fr.height / scale);
   return {
-    whole: toCanvas(v, 0, 0, v.videoWidth, v.videoHeight, 1100),
+    whole: toCanvas(v, 0, 0, v.videoWidth, v.videoHeight, 960),
     title: toCanvas(v, x + w * 0.02, y + h * 0.01, w * 0.9, h * 0.14, 700, true),
     bottom: toCanvas(v, x, y + h * 0.84, w * 0.72, h * 0.16, 560, true),
-    full: toCanvas(v, x, y, w, h, 820),
   };
 }
 const textLines = (r, y) => r.data.text.split("\n").filter((t) => t.trim()).map((t) => ({ text: t.trim(), y }));
@@ -2185,25 +2195,18 @@ async function scanTick() {
   try {
     const [lang, code] = scanLang();
     let lines;
-    if (S.n % 2 === 1) {
-      // Uno de cada dos intentos: TODA la imagen, buscando texto suelto (psm 11). Así la carta no tiene que estar dentro del
-      // marco: se lee esté donde esté de la pantalla, girada o pequeña.
-      const wc = lang === "auto" || lang === "en" ? "eng" : code;
-      const r = await (await getWorker(wc, `whole:${wc}`, 11)).recognize(strips.whole);
+    // Dos de cada tres intentos: las franjas del marco (título y línea inferior, rápidas). El otro: TODA la imagen buscando
+    // texto suelto (psm 11), para cuando la carta no está dentro del marco. En el móvil cada lectura tarda: nada de lectores
+    // de más (antes, en AUTO, también el japonés, que en el móvil tardaba muchísimo en cargar y bloqueaba el escáner).
+    const wc = lang === "auto" || lang === "en" ? "eng" : code;
+    const timeout = new Promise((_, no) => setTimeout(() => no(new Error("lento")), 12000));
+    if (S.n % 3 === 0) {
+      const r = await Promise.race([getWorker(wc, `whole:${wc}`, 11).then((w) => w.recognize(strips.whole)), timeout]);
       lines = ocrLines(r.data, strips.whole);
-    } else if (S.n % 6 === 0) {
-      // La carta entera dentro del marco: sirve si no llena el marco o está torcida.
-      const r = await (await getWorker("eng", "full")).recognize(strips.full);
-      lines = ocrLines(r.data, strips.full);
     } else {
-      // En AUTO, el título se lee con el lector latino y, uno de cada tres intentos, con el japonés.
-      const titleCode = lang === "auto" ? (S.n % 3 === 2 ? "jpn" : "eng") : code;
-      lines = await readStrips(await getWorker(titleCode, `title:${titleCode}`, 6), strips);
+      lines = await Promise.race([getWorker(wc, `title:${wc}`, 6).then((w) => readStrips(w, strips)), timeout]);
     }
     if (!S.running || S.paused) return;
-    // Sin texto durante un rato: puede que esta cámara no enfoque de cerca → probar la siguiente trasera (y recordarla)
-    S.noText = lines.some((l) => /[a-z]{3}/i.test(l.text)) ? 0 : (S.noText || 0) + 1;
-    if (S.noText >= 18 && !S.autoSwitching) { S.noText = 0; autoNextCamera(); }
     const m = await api("/api/match", { lines, lang });
     const top = m[0];
     if (top && top.name === S.justAdded) {
@@ -2211,11 +2214,18 @@ async function scanTick() {
     } else if (top && top.score >= 0.85) {
       S.justAdded = null;
       S.misses = 0;
-      S.hits = S.last === top.name ? S.hits + 1 : 1;
+      S.readAt = Date.now();  // esta cámara lee algo: no cambiarla
+      S.seen = [...(S.seen || []), top.name].slice(-4);
+      S.hits = S.seen.filter((n) => n === top.name).length;
       S.last = top.name;
       status(`Leyendo… ${top.name}`);
-      // Dos lecturas iguales seguidas, la edición exacta leída o un nombre leído sin dudas = reconocida.
-      if (S.hits >= 2 || top.best || top.score >= 1.15) showScanResult(m);
+      // Reconocida: la edición exacta leída, el nombre exacto en el título (≥ 1,05) o el mismo nombre en 2 de las 4 últimas
+      // lecturas (antes tenían que ser dos seguidas y una lectura a medias entre medio lo reiniciaba).
+      if (S.hits >= 2 || top.best || top.score >= 1.05) {
+        const cam = S.stream?.getVideoTracks()[0].getSettings().deviceId;
+        if (cam) store("scanCam", cam);  // esta cámara lee: la próxima vez se abre directamente
+        showScanResult(m);
+      }
     } else {
       S.justAdded = null;
       S.misses = (S.misses || 0) + 1;
@@ -2223,10 +2233,55 @@ async function scanTick() {
       status(S.misses > 12 ? "¿Borrosa? Aleja el móvil un palmo y usa el zoom" : "Apunta a la carta, con luz y sin reflejos");
     }
   } catch (err) {
-    status(err.message);
+    if (err.message === "lento") {  // un lector colgado: se descartan y se vuelven a crear
+      for (const k of Object.keys(ocrWorkers)) { ocrWorkers[k].then((w) => w.terminate()).catch(() => {}); delete ocrWorkers[k]; }
+      status("Preparando el lector…");
+    } else status(err.message);
   } finally {
     S.busy = false;
   }
+}
+
+// Nitidez de lo que hay en el marco (varianza del laplaciano en pequeño; no lee texto, es instantáneo).
+// En el vídeo de prueba: cámara desenfocada 130-400, enfocada 2.400-3.000.
+const BLUR = 500;
+function sharpness() {
+  const v = $("#scan-video"), f = $("#scan-frame");
+  if (!v?.videoWidth || !f) return null;
+  const vr = v.getBoundingClientRect(), fr = f.getBoundingClientRect();
+  const sc = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
+  const ox = (vr.width - v.videoWidth * sc) / 2, oy = (vr.height - v.videoHeight * sc) / 2;
+  const sx = Math.max(0, (fr.left - vr.left - ox) / sc), sy = Math.max(0, (fr.top - vr.top - oy) / sc);
+  const sw = Math.min(v.videoWidth - sx, fr.width / sc), sh = Math.min(v.videoHeight - sy, fr.height / sc);
+  if (sw < 8 || sh < 8) return null;
+  const W = 240, H = Math.max(3, Math.round((W * sh) / sw));
+  const c = (sharpness.c ||= document.createElement("canvas"));
+  c.width = W; c.height = H;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.filter = "grayscale(1)";
+  g.drawImage(v, sx, sy, sw, sh, 0, 0, W, H);
+  const d = g.getImageData(0, 0, W, H).data;
+  let s = 0, s2 = 0, n = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = (y * W + x) * 4, l = 4 * d[i] - d[i - 4] - d[i + 4] - d[i - W * 4] - d[i + W * 4];
+    s += l; s2 += l * l; n++;
+  }
+  return n ? s2 / n - (s / n) ** 2 : null;
+}
+// Si la imagen sigue borrosa: a los 2 s, reenfocar; a los 6 s, probar otra cámara trasera (muchos móviles abren una que
+// no enfoca de cerca). Antes esperaba a no leer nada 18 veces y, con lecturas lentas, eso era casi un minuto.
+function checkFocus() {
+  if (!S.running || S.paused || S.autoSwitching) return;
+  const sh = sharpness();
+  if (sh == null) return;
+  S.sharpMax = Math.max(S.sharpMax || 0, sh);
+  const now = Date.now();
+  if (sh >= BLUR) { S.blurSince = 0; S.refocused = false; return; }
+  S.blurSince ||= now;
+  const t = now - S.blurSince;
+  if (t > 2000 && !S.refocused) { S.refocused = true; S.refocus?.(); }
+  // shortcut: umbral sacado de un solo vídeo (una grabación de pantalla); si en otro móvil cambia de cámara sin motivo, subir o bajar BLUR
+  if (t > 6000 && now - (S.camSince || 0) > 6000 && now - (S.readAt || 0) > 6000 && (S.sharpMax || 0) < BLUR) { S.blurSince = 0; autoNextCamera(); }
 }
 
 function showScanResult(matches) {
@@ -2235,7 +2290,7 @@ function showScanResult(matches) {
   const box = $("#scan-result");
   box.hidden = false;
   const resume = (added) => {
-    box.hidden = true; box.innerHTML = ""; S.last = null; S.hits = 0; S.paused = false;
+    box.hidden = true; box.innerHTML = ""; S.last = null; S.hits = 0; S.seen = []; S.paused = false;
     S.justAdded = added ? matches[0].name : null;
     status(added ? "Añadida · Pon la siguiente carta" : "Coloca la siguiente carta");
   };
