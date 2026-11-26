@@ -1,5 +1,5 @@
 "use strict";
-/* Motor local de Gathering Market.
+/* Motor local de Gather in One.
  *
  * La app no depende de ningún servidor propio: descarga cada día un "paquete de datos"
  * (cartas, precios, ediciones, meta de Pauper, avisos) publicado en internet y hace aquí
@@ -2875,7 +2875,7 @@ const Engine = (() => {
   const exportUser = () => JSON.stringify(user);
   async function importUser(text) {
     const u = JSON.parse(text);
-    if (!u.binders || !u.cards) throw new Error("No es una copia de seguridad de Gathering Market");
+    if (!u.binders || !u.cards) throw new Error("No es una copia de seguridad de Gather in One");
     user = u;
     await saveUser();
   }

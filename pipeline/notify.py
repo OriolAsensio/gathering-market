@@ -43,7 +43,7 @@ def main(dry_run=False):
     if "--test" in sys.argv:
         if not topic:
             sys.exit(f"Falta ntfy_topic en {CONFIG}")
-        send(topic, "✅ Gathering Market conectado", "Las notificaciones de tu app de Magic funcionan.",
+        send(topic, "✅ Gather in One conectado", "Las notificaciones de tu app de Magic funcionan.",
              "white_check_mark", cfg.get("ntfy_server", "https://ntfy.sh"))
         print("Notificación de prueba enviada.")
         return

@@ -1,6 +1,6 @@
 {
-  "name": "Gathering Market",
-  "short_name": "Gathering",
+  "name": "Gather in One",
+  "short_name": "Gather in One",
   "description": "Precios de tus cartas de Magic, colecciones, meta de Pauper y constructor de mazos",
   "start_url": "./",
   "display": "standalone",

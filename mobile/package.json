@@ -2,7 +2,7 @@
   "name": "gathering-market",
   "version": "1.0.0",
   "private": true,
-  "description": "App de Android de Gathering Market (Capacitor)",
+  "description": "App de Android de Gather in One (Capacitor)",
   "scripts": {
     "web": "node scripts/build-web.mjs",
     "sync": "node scripts/build-web.mjs && npx cap sync android",

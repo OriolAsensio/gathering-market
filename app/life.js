@@ -1,171 +1,291 @@
 "use strict";
-/* Contador de vidas (pestaña "Vidas"), al estilo de LifeTap: perfiles con nombre, color y foto, partidas de 2 a 6 jugadores,
- * veneno, daño de comandante, dados y moneda. Los perfiles (con sus fotos) se guardan SOLO en este móvil (localStorage):
- * no van a la nube, para no gastar el espacio gratis de Supabase. Usa lo de app.js: views, $, esc, toast, store, openSheet. */
+/* Vidas: contador de vidas a pantalla completa, al estilo de LifeTap. Al entrar: "¿Iniciar una nueva partida?".
+ * En la mesa, una barra pequeña en el centro: ajustes (jugadores, vidas, cómo se reparte la mesa), dados, quién empieza,
+ * reiniciar y salir. Tocar el nombre de un jugador: su perfil (nombre, color e imagen: el arte de una carta de Magic, una foto
+ * hecha al momento o de la galería) y sus contadores (veneno, daño de comandante, energía, experiencia).
+ * Perfiles y partida se guardan SOLO en este móvil (localStorage), no en la nube: así no se gasta el espacio gratis de Supabase.
+ * Usa lo de app.js: $, esc, toast, store, api, openSheet, closeSheet, Sfx, views. */
 
 const Life = (() => {
-  const COLORS = ["#b8862b", "#2f6fb0", "#3c8c4a", "#a8322d", "#6b4aa0", "#2a2a2a", "#c25b8e", "#1f8a8a"];
-  const PRESETS = [["Estándar / Modern / Pauper", 20], ["Commander", 40], ["Duel Commander", 20], ["Brawl", 25], ["Two-Headed Giant", 30], ["Oathbreaker", 20]];
+  const COLORS = ["#b8862b", "#2f6fb0", "#3c8c4a", "#a8322d", "#6b4aa0", "#3a3a3a", "#c25b8e", "#1f8a8a"];
+  const LIVES = [20, 25, 30, 40];
+  const LAYOUTS = [["face", "Enfrentados"], ["side", "Alrededor"], ["same", "Todos hacia mí"]];
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { toast("No hay espacio en el móvil para guardar esto"); return false; } };
   const profiles = () => load("lifeProfiles", []);
-  let game = load("lifeGame", null);
-  let wake = null;
+  const rnd = (n) => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+  const settings = () => ({ n: 2, start: 20, layout: "face", ...load("lifeSettings", {}) });
+  let game = load("lifeGame", null), wake = null, el = null;
 
-  /** Foto del perfil: se reduce a 320 px (JPEG) para que ocupe poco. */
+  // ---- sonidos y vibración (cortos: se pulsan mucho)
+  const sfx = {
+    up() { Sfx.play([[880, 0, 0.05, "sine", 0.05]]); },
+    down() { Sfx.play([[440, 0, 0.06, "triangle", 0.06]]); Sfx.noise(0.04, 2400, 0.03); },
+    big(d) { Sfx.play(d > 0 ? [[660, 0, 0.08, "sine", 0.07], [990, 0.06, 0.12, "sine", 0.07]] : [[300, 0, 0.12, "sawtooth", 0.05], [200, 0.05, 0.18, "triangle", 0.06]]); },
+    dead() { Sfx.play([[220, 0, 0.3, "sawtooth", 0.06], [165, 0.2, 0.5, "sawtooth", 0.05], [110, 0.45, 0.8, "triangle", 0.07]]); },
+    dice() { for (let i = 0; i < 6; i++) setTimeout(() => Sfx.noise(0.05, 1800 + rnd(1500), 0.08, 3), i * 70); },
+    pick() { Sfx.play(Sfx.arp([523.3, 659.3, 784, 1046.5], 0.08, 0.4)); },
+  };
+  const buzz = (ms) => navigator.vibrate?.(ms);
+
+  /** Imagen de perfil: foto reducida a 360 px (JPEG) para que ocupe poco en el móvil. */
   const shrink = (file) => new Promise((ok, ko) => {
     const im = new Image();
     im.onload = () => {
-      const s = 320 / Math.max(im.width, im.height), c = document.createElement("canvas");
-      c.width = Math.round(im.width * Math.min(1, s)); c.height = Math.round(im.height * Math.min(1, s));
+      const s = Math.min(1, 360 / Math.max(im.width, im.height)), c = document.createElement("canvas");
+      c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
       c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-      ok(c.toDataURL("image/jpeg", 0.8));
-      URL.revokeObjectURL(im.src);
+      ok(c.toDataURL("image/jpeg", 0.8)); URL.revokeObjectURL(im.src);
     };
-    im.onerror = ko;
-    im.src = URL.createObjectURL(file);
+    im.onerror = ko; im.src = URL.createObjectURL(file);
   });
+  // Arte de una carta (Scryfall "art_crop": solo la ilustración)
+  const artOf = (img) => String(img || "").replace("/normal/", "/art_crop/").replace("/large/", "/art_crop/");
 
-  function view() {
-    const v = $("#view"), ps = profiles();
-    v.innerHTML = `<h2>❤️ Contador de vidas</h2>
-      ${game ? `<button class="btn block primary" id="lf-resume">▶️ Seguir la partida (${game.players.length} jugadores)</button>` : ""}
-      <h2>Nueva partida</h2>
-      <div class="field"><label>Jugadores</label><div class="seg" id="lf-n">${[2, 3, 4, 5, 6].map((n) => `<button data-n="${n}" class="${n === (+store("lifeN") || 2) ? "on" : ""}">${n}</button>`).join("")}</div></div>
-      <div class="field"><label>Vidas iniciales</label><div class="seg" id="lf-life">${PRESETS.map(([n, l], i) => `<button data-p="${i}" class="${i === (+store("lifePreset") || 0) ? "on" : ""}">${l} <span class="sub">${esc(n)}</span></button>`).join("")}</div></div>
-      <div class="field"><label>Quién juega</label><div id="lf-seats"></div></div>
-      <button class="btn block primary" id="lf-start">⚔️ Empezar</button>
-      <h2>Perfiles</h2>
-      <div class="hint">Tu nombre, tu color y tu foto (o la de tus amigos) para la mesa. Se guardan solo en este móvil.</div>
-      <div class="list">${ps.map((p) => `<button class="item" data-edit="${p.id}"><span class="lf-avatar" style="background:${p.color}${p.img ? `;background-image:url(${p.img})` : ""}"></span>
-        <div class="item-main"><div class="item-title">${esc(p.name)}</div><div class="item-meta">${p.wins || 0} victorias · ${p.games || 0} partidas</div></div></button>`).join("")}</div>
-      <button class="btn block" id="lf-new">➕ Nuevo perfil</button>
-      <h2>Herramientas</h2>
-      <div class="row-btns"><button class="btn" id="lf-d6">🎲 Dado de 6</button><button class="btn" id="lf-d20">🎲 Dado de 20</button><button class="btn" id="lf-coin">🪙 Moneda</button></div>
-      <div class="pf-mid" id="lf-roll"></div>`;
-    const n = () => +store("lifeN") || 2;
-    const seats = () => {
-      const sel = load("lifeSeats", []);
-      $("#lf-seats").innerHTML = Array.from({ length: n() }, (_, i) => `<select class="search deck-select" data-seat="${i}" style="margin-bottom:6px">
-        <option value="">Jugador ${i + 1}</option>${ps.map((p) => `<option value="${p.id}" ${sel[i] === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`).join("");
-      v.querySelectorAll("[data-seat]").forEach((s) => (s.onchange = () => { const a = load("lifeSeats", []); a[+s.dataset.seat] = s.value; save("lifeSeats", a); }));
-    };
-    seats();
-    v.querySelectorAll("#lf-n button").forEach((b) => (b.onclick = () => { store("lifeN", b.dataset.n); view(); }));
-    v.querySelectorAll("#lf-life button").forEach((b) => (b.onclick = () => { store("lifePreset", b.dataset.p); view(); }));
-    $("#lf-resume")?.addEventListener("click", table);
-    $("#lf-start").onclick = () => {
-      const sel = load("lifeSeats", []), start = PRESETS[+store("lifePreset") || 0][1];
-      game = { start, players: Array.from({ length: n() }, (_, i) => {
-        const p = ps.find((x) => x.id === sel[i]);
-        return { pid: p?.id || null, name: p?.name || `Jugador ${i + 1}`, color: p?.color || COLORS[i % COLORS.length], life: start, poison: 0, cmd: {}, delta: 0 };
-      }) };
-      save("lifeGame", game);
-      table();
-    };
-    $("#lf-new").onclick = () => editProfile(null);
-    v.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => editProfile(b.dataset.edit)));
-    const roll = (txt) => { $("#lf-roll").textContent = txt; navigator.vibrate?.(30); };
-    $("#lf-d6").onclick = () => roll(`🎲 ${1 + rnd(6)}`);
-    $("#lf-d20").onclick = () => roll(`🎲 ${1 + rnd(20)}`);
-    $("#lf-coin").onclick = () => roll(rnd(2) ? "🪙 Cara" : "🪙 Cruz");
+  function newGame(keepSeats = true) {
+    const s = settings(), ps = profiles(), old = game?.players || [];
+    game = { start: s.start, layout: s.layout, started: Date.now(), players: Array.from({ length: s.n }, (_, i) => {
+      const prev = keepSeats ? old[i] : null, p = ps.find((x) => x.id === prev?.pid);
+      return { pid: p?.id || null, name: p?.name || prev?.name || `Jugador ${i + 1}`, color: p?.color || prev?.color || COLORS[i % COLORS.length], img: p?.img || prev?.img || null,
+        life: s.start, poison: 0, energy: 0, exp: 0, cmd: {}, delta: 0 };
+    }) };
+    save("lifeGame", game);
   }
-  const rnd = (n) => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
 
-  function editProfile(id) {
-    const ps = profiles(), p = ps.find((x) => x.id === id) || { id: `p${Date.now()}`, name: "", color: COLORS[ps.length % COLORS.length], img: null };
-    const body = openSheet(`<h3>${id ? "Editar perfil" : "Nuevo perfil"}</h3>
-      <div class="lf-preview" id="lf-pv"></div>
-      <div class="field"><label>Nombre</label><input class="search" id="lf-name" maxlength="20" value="${esc(p.name)}" placeholder="Tu nombre de jugador"></div>
-      <div class="field"><label>Color</label><div class="seg">${COLORS.map((c) => `<button class="lf-swatch" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("")}</div></div>
-      <label class="btn block" for="lf-img">📷 Elegir foto</label><input type="file" id="lf-img" accept="image/*" hidden>
-      ${p.img ? `<button class="btn block" id="lf-noimg" style="margin-top:8px">Quitar la foto</button>` : ""}
-      <div class="row-btns"><button class="btn primary" id="lf-save">Guardar</button>${id ? `<button class="btn" id="lf-del">Borrar</button>` : ""}</div>`);
-    const paint = () => { $("#lf-pv", body).style.cssText = `background:${p.color};${p.img ? `background-image:url(${p.img})` : ""}`; $("#lf-pv", body).textContent = p.name || ""; };
+  // ---- al entrar en la pestaña
+  function view() {
+    $("#view").innerHTML = `<div class="lf-splash">❤️</div>`;
+    if (!game) { newGame(); return table(); }
+    const body = openSheet(`<div class="lf-ask"><div class="lf-ask-ico">❤️</div><h3>¿Iniciar una nueva partida?</h3>
+      <div class="sub">${game.players.length} jugadores · ${game.start} vidas</div>
+      <div class="row-btns"><button class="btn" id="lf-no">No, seguir la de antes</button><button class="btn primary" id="lf-yes">Sí, nueva partida</button></div></div>`);
+    $("#lf-yes", body).onclick = () => { closeSheet(); newGame(); table(); sfx.pick(); };
+    $("#lf-no", body).onclick = () => { closeSheet(); table(); };
+  }
+
+  // ---- la mesa
+  // Giro de cada asiento según la mesa: enfrentados (los de arriba, del revés; los del medio, de lado), alrededor (columnas de lado)
+  function rotations(n, layout) {
+    const cols = n === 2 && layout !== "side" ? 1 : 2, rows = Math.ceil(n / cols), odd = n % 2 === 1 && cols === 2;
+    return Array.from({ length: n }, (_, i) => {
+      if (layout === "same") return 0;
+      if (layout === "side") { if (odd && i === n - 1) return 0; return i % 2 === 0 ? 90 : 270; }
+      if (cols === 1) return i === 0 ? 180 : 0;
+      const row = odd ? (i === 0 ? 0 : 1 + Math.floor((i - 1) / 2)) : Math.floor(i / 2);
+      if (row === 0) return 180;
+      if (row === rows - 1) return 0;
+      return (odd ? i - 1 : i) % 2 === 0 ? 90 : 270;
+    });
+  }
+  function table() {
+    document.querySelector(".lf-table")?.remove();
+    el = document.createElement("div");
+    document.body.appendChild(el);
+    navigator.wakeLock?.request("screen").then((w) => (wake = w)).catch(() => {});
     paint();
-    $("#lf-name", body).oninput = (e) => { p.name = e.target.value; paint(); };
-    body.querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => { p.color = b.dataset.c; paint(); }));
-    $("#lf-img", body).onchange = async (e) => { const f = e.target.files[0]; if (f) { p.img = await shrink(f); paint(); } };
-    $("#lf-noimg", body)?.addEventListener("click", () => { p.img = null; paint(); });
+    addEventListener("resize", fit);
+  }
+  function fit() {  // los asientos de lado: el contenido gira 90° y se ajusta al hueco
+    el?.querySelectorAll(".lf-seat").forEach((seat) => {
+      const inner = seat.firstElementChild, r = +seat.dataset.rot, side = r === 90 || r === 270;
+      inner.style.width = `${side ? seat.clientHeight : seat.clientWidth}px`;
+      inner.style.height = `${side ? seat.clientWidth : seat.clientHeight}px`;
+      inner.style.transform = `translate(-50%, -50%) rotate(${r}deg)`;
+    });
+  }
+  function paint() {
+    const n = game.players.length, rot = rotations(n, game.layout), odd = n % 2 === 1 && n > 2;
+    el.className = `lf-table n${n} ${game.layout} ${odd ? "odd" : ""}`;
+    el.innerHTML = `${game.players.map((pl, i) => {
+      const dead = pl.life <= 0 || pl.poison >= 10 || Object.values(pl.cmd).some((v) => v >= 21);
+      const bg = pl.img ? `background-image:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.45)),url('${pl.img}')` : "";
+      const span = odd && ((game.layout === "face" && i === 0) || (game.layout !== "face" && i === n - 1));
+      return `<div class="lf-seat ${dead ? "dead" : ""} ${span ? "span" : ""}" data-rot="${rot[i]}" style="--c:${pl.color}">
+        <div class="lf-in" style="background-color:${pl.color};${bg}">
+          <button class="lf-tap up" data-i="${i}" data-d="1" aria-label="Más una vida"><span>+</span></button>
+          <button class="lf-tap down" data-i="${i}" data-d="-1" aria-label="Menos una vida"><span>−</span></button>
+          <button class="lf-name" data-who="${i}">${esc(pl.name)}</button>
+          <div class="lf-life" id="lf-life-${i}">${pl.life}</div>
+          <div class="lf-delta ${pl.delta > 0 ? "up" : "down"}" id="lf-delta-${i}" ${pl.delta ? "" : "hidden"}>${pl.delta > 0 ? "+" : ""}${pl.delta}</div>
+          <div class="lf-extra">${pl.poison ? `<span>☠️${pl.poison}</span>` : ""}${pl.energy ? `<span>⚡${pl.energy}</span>` : ""}${pl.exp ? `<span>✨${pl.exp}</span>` : ""}${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `<span style="--c:${game.players[+k]?.color}" class="cmd">⚔️${v}</span>`).join("")}</div>
+          ${dead ? `<div class="lf-skull">💀</div>` : ""}
+          <div class="lf-flash"></div>
+        </div></div>`;
+    }).join("")}
+    <div class="lf-bar">
+      <button data-act="exit" aria-label="Salir">✕</button><button data-act="set" aria-label="Ajustes">⚙️</button>
+      <button data-act="dice" aria-label="Dados">🎲</button><button data-act="first" aria-label="Quién empieza">👑</button><button data-act="reset" aria-label="Reiniciar">↺</button>
+    </div>
+    <div class="lf-panel" id="lf-panel" hidden></div>`;
+    el.querySelectorAll(".lf-tap").forEach(bindTap);
+    el.querySelectorAll("[data-who]").forEach((b) => (b.onclick = () => seatSheet(+b.dataset.who)));
+    el.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => act(b.dataset.act)));
+    fit();
+  }
+
+  // Tocar: ±1. Mantener: ±10 y sigue sumando mientras no sueltes (como LifeTap).
+  const timers = new Map();
+  function bindTap(b) {
+    const i = +b.dataset.i, d = +b.dataset.d;
+    let hold = null, held = false;
+    const stop = () => { clearTimeout(hold); clearInterval(hold); hold = null; };
+    b.onpointerdown = (e) => {
+      e.preventDefault(); held = false; stop();
+      hold = setTimeout(() => { held = true; change(i, d * 10); hold = setInterval(() => change(i, d * 10), 450); }, 420);
+    };
+    b.onpointerup = () => { if (hold && !held) change(i, d); stop(); };
+    b.onpointerleave = b.onpointercancel = stop;
+    b.oncontextmenu = (e) => e.preventDefault();
+  }
+  function change(i, d) {
+    const pl = game.players[i], was = pl.life;
+    pl.life += d; pl.delta += d;
+    const lifeEl = $(`#lf-life-${i}`, el), deltaEl = $(`#lf-delta-${i}`, el), seat = lifeEl.closest(".lf-in");
+    lifeEl.textContent = pl.life;
+    lifeEl.classList.remove("bump"); void lifeEl.offsetWidth; lifeEl.classList.add("bump");
+    deltaEl.hidden = false; deltaEl.textContent = `${pl.delta > 0 ? "+" : ""}${pl.delta}`; deltaEl.className = `lf-delta ${pl.delta > 0 ? "up" : "down"}`;
+    const flash = $(".lf-flash", seat); flash.className = `lf-flash ${d > 0 ? "up" : "down"}`; void flash.offsetWidth; flash.classList.add("go");
+    Math.abs(d) >= 5 ? sfx.big(d) : d > 0 ? sfx.up() : sfx.down();
+    buzz(Math.abs(d) >= 5 ? 25 : 8);
+    if (was > 0 && pl.life <= 0) { sfx.dead(); buzz([60, 40, 120]); setTimeout(paint, 300); }
+    if (was <= 0 && pl.life > 0) setTimeout(paint, 50);
+    clearTimeout(timers.get(i));
+    timers.set(i, setTimeout(() => { pl.delta = 0; deltaEl.hidden = true; save("lifeGame", game); }, 2000));  // el "-3" se junta y luego se va
+    save("lifeGame", game);
+  }
+
+  // ---- la barra del centro
+  function act(a) {
+    const panel = $("#lf-panel", el);
+    if (a === "exit") { el.remove(); el = null; wake?.release?.().catch(() => {}); wake = null; location.hash = store("lastTab") || "collection"; return; }
+    if (!panel.hidden && panel.dataset.k === a) { panel.hidden = true; return; }
+    panel.dataset.k = a; panel.hidden = false;
+    if (a === "set") {
+      const s = settings();
+      panel.innerHTML = `<div class="lf-row"><span>Jugadores</span>${[2, 3, 4, 5, 6].map((n) => `<button data-n="${n}" class="${n === game.players.length ? "on" : ""}">${n}</button>`).join("")}</div>
+        <div class="lf-row"><span>Vidas</span>${LIVES.map((l) => `<button data-l="${l}" class="${l === game.start ? "on" : ""}">${l}</button>`).join("")}<input type="number" id="lf-custom" min="1" max="999" placeholder="…" value="${LIVES.includes(game.start) ? "" : game.start}"></div>
+        <div class="lf-row"><span>Mesa</span>${LAYOUTS.map(([k, n]) => `<button data-lay="${k}" class="${k === game.layout ? "on" : ""}">${n}</button>`).join("")}</div>
+        <div class="lf-row"><button data-shuffle="1">🔀 Sortear asientos</button><button data-sound="1">${store("sounds") === "0" ? "🔇 Sonido" : "🔊 Sonido"}</button></div>`;
+      const apply = (patch) => { save("lifeSettings", { ...s, n: game.players.length, start: game.start, layout: game.layout, ...patch }); newGame(); paint(); act("set"); };
+      panel.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => apply({ n: +b.dataset.n })));
+      panel.querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => apply({ start: +b.dataset.l })));
+      $("#lf-custom", panel).onchange = (e) => { const v = Math.max(1, Math.min(999, +e.target.value || 20)); apply({ start: v }); };
+      panel.querySelectorAll("[data-lay]").forEach((b) => (b.onclick = () => { game.layout = b.dataset.lay; save("lifeSettings", { ...s, layout: game.layout }); save("lifeGame", game); paint(); act("set"); }));
+      $("[data-shuffle]", panel).onclick = () => { for (let i = game.players.length - 1; i > 0; i--) { const j = rnd(i + 1); [game.players[i], game.players[j]] = [game.players[j], game.players[i]]; } save("lifeGame", game); sfx.dice(); paint(); };
+      $("[data-sound]", panel).onclick = () => { store("sounds", store("sounds") === "0" ? "1" : "0"); panel.hidden = true; act("set"); };
+    } else if (a === "dice") {
+      panel.innerHTML = `<div class="lf-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">🪙</button></div><div class="lf-roll" id="lf-roll">🎲</div>`;
+      panel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => {
+        const out = $("#lf-roll", panel), coin = b.dataset.d === "coin", faces = coin ? 2 : +b.dataset.d;
+        sfx.dice(); let k = 0;
+        const spin = setInterval(() => { out.textContent = coin ? (k++ % 2 ? "Cara" : "Cruz") : 1 + rnd(faces); out.classList.toggle("spin"); }, 70);
+        setTimeout(() => { clearInterval(spin); const r = rnd(faces); out.textContent = coin ? (r ? "🪙 Cara" : "🪙 Cruz") : `🎲 ${1 + r}`; out.classList.add("land"); setTimeout(() => out.classList.remove("land"), 400); buzz(30); sfx.pick(); }, 700);
+      }));
+    } else if (a === "first") {
+      // Ruleta: el brillo pasa de asiento en asiento, cada vez más despacio, y se para en uno al azar
+      panel.hidden = true;
+      const seats = [...el.querySelectorAll(".lf-seat")], n = seats.length, win = rnd(n), steps = n * 3 + win;
+      let k = 0;
+      const tick = () => {
+        seats.forEach((s, i) => s.classList.toggle("pick", i === k % n));
+        Sfx.play([[600 + (k % n) * 80, 0, 0.05, "square", 0.03]]);
+        if (k < steps) { k++; setTimeout(tick, 70 + k * 14); }
+        else { sfx.pick(); buzz(40); toast(`Empieza ${game.players[win].name}`); setTimeout(() => seats.forEach((s) => s.classList.remove("pick")), 2400); }
+      };
+      tick();
+    } else if (a === "reset") {
+      panel.innerHTML = `<div class="lf-row"><span>¿Empezar otra partida?</span><button data-ok="1" class="on">Sí</button><button data-no="1">No</button></div>`;
+      $("[data-ok]", panel).onclick = () => {
+        // Estadísticas de los perfiles: partidas y quién ha ganado (si solo queda uno vivo)
+        const all = profiles(), alive = game.players.filter((p) => p.life > 0 && p.poison < 10);
+        for (const p of game.players) { const x = all.find((y) => y.id === p.pid); if (x) x.games = (x.games || 0) + 1; }
+        if (alive.length === 1) { const w = all.find((x) => x.id === alive[0].pid); if (w) w.wins = (w.wins || 0) + 1; }
+        save("lifeProfiles", all); newGame(); paint(); sfx.pick();
+      };
+      $("[data-no]", panel).onclick = () => (panel.hidden = true);
+    }
+  }
+
+  // ---- un asiento: perfil y contadores
+  function seatSheet(i) {
+    const pl = game.players[i], ps = profiles();
+    const body = openSheet(`<h3>${esc(pl.name)}</h3>
+      <h2>Perfil</h2>
+      <div class="lf-profiles">${ps.map((p) => `<button class="lf-prof ${p.id === pl.pid ? "on" : ""}" data-pid="${p.id}"><span class="lf-avatar" style="background-color:${p.color}${p.img ? `;background-image:url('${p.img}')` : ""}"></span><span>${esc(p.name)}</span></button>`).join("")}
+        <button class="lf-prof" data-pid="new"><span class="lf-avatar add">＋</span><span>Nuevo</span></button></div>
+      ${pl.pid ? `<button class="btn block" id="lf-edit">✏️ Editar este perfil</button>` : ""}
+      <h2>Contadores</h2>
+      <div class="lf-counters">
+        ${[["poison", "☠️ Veneno"], ["energy", "⚡ Energía"], ["exp", "✨ Experiencia"]].map(([k, n]) => `<div class="lf-step"><span>${n}</span><button data-k="${k}" data-d="-1">−</button><b>${pl[k]}</b><button data-k="${k}" data-d="1">+</button></div>`).join("")}
+      </div>
+      ${game.players.length > 1 ? `<h2>Daño de comandante recibido</h2><div class="lf-counters">${game.players.map((o, j) => (j === i ? "" : `<div class="lf-step"><span><i class="lf-dot" style="background:${o.color}"></i>${esc(o.name)}</span><button data-k="cmd" data-j="${j}" data-d="-1">−</button><b>${pl.cmd[j] || 0}</b><button data-k="cmd" data-j="${j}" data-d="1">+</button></div>`)).join("")}</div>
+        <div class="hint">El daño de comandante también quita vidas. Con 21 de un mismo comandante, pierde.</div>` : ""}`);
+    body.querySelectorAll("[data-pid]").forEach((b) => (b.onclick = () => {
+      if (b.dataset.pid === "new") return editProfile(null, i);
+      const p = ps.find((x) => x.id === b.dataset.pid);
+      Object.assign(pl, { pid: p.id, name: p.name, color: p.color, img: p.img });
+      save("lifeGame", game); paint(); seatSheet(i); sfx.up();
+    }));
+    $("#lf-edit", body)?.addEventListener("click", () => editProfile(pl.pid, i));
+    body.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => {
+      const d = +b.dataset.d;
+      if (b.dataset.k === "cmd") { const j = b.dataset.j, old = pl.cmd[j] || 0, nv = Math.max(0, old + d); pl.life -= nv - old; pl.cmd[j] = nv; }
+      else pl[b.dataset.k] = Math.max(0, pl[b.dataset.k] + d);
+      d > 0 ? sfx.up() : sfx.down();
+      save("lifeGame", game); paint(); seatSheet(i);
+    }));
+  }
+
+  function editProfile(id, seat) {
+    const p = profiles().find((x) => x.id === id) || { id: `p${Date.now()}`, name: "", color: COLORS[profiles().length % COLORS.length], img: null, wins: 0, games: 0 };
+    const body = openSheet(`<h3>${id ? "Editar perfil" : "Nuevo perfil"}</h3>
+      <div class="lf-preview" id="lf-pv"><b></b><span class="sub"></span></div>
+      <div class="field"><label>Nombre</label><input class="search" id="lf-name" maxlength="20" value="${esc(p.name)}" placeholder="Tu nombre de jugador"></div>
+      <div class="field"><label>Color</label><div class="lf-swatches">${COLORS.map((c) => `<button class="lf-swatch" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("")}</div></div>
+      <div class="field"><label>Imagen</label><div class="row-btns" style="margin-top:0">
+        <button class="btn" id="lf-card">🃏 Carta de Magic</button>
+        <label class="btn" for="lf-cam">📷 Hacer foto</label><label class="btn" for="lf-gal">🖼️ Galería</label></div>
+        <input type="file" id="lf-cam" accept="image/*" capture="user" hidden><input type="file" id="lf-gal" accept="image/*" hidden></div>
+      <div id="lf-cardpick" hidden><input class="search" id="lf-cq" placeholder="Busca una carta por su nombre…"><div class="lf-arts" id="lf-arts"></div></div>
+      ${p.img ? `<button class="btn block" id="lf-noimg">Quitar la imagen</button>` : ""}
+      <div class="row-btns"><button class="btn primary" id="lf-save">Guardar</button>${id ? `<button class="btn" id="lf-del">Borrar</button>` : ""}</div>`);
+    const paintPv = () => {
+      const pv = $("#lf-pv", body);
+      pv.style.cssText = `background-color:${p.color};${p.img ? `background-image:linear-gradient(rgba(0,0,0,.2),rgba(0,0,0,.45)),url('${p.img}')` : ""}`;
+      $("b", pv).textContent = p.name || "…"; $(".sub", pv).textContent = id ? `${p.wins || 0} victorias · ${p.games || 0} partidas` : "";
+      body.querySelectorAll("[data-c]").forEach((b) => b.classList.toggle("on", b.dataset.c === p.color));
+    };
+    paintPv();
+    $("#lf-name", body).oninput = (e) => { p.name = e.target.value; paintPv(); };
+    body.querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => { p.color = b.dataset.c; paintPv(); }));
+    for (const inp of ["#lf-cam", "#lf-gal"]) $(inp, body).onchange = async (e) => { const f = e.target.files[0]; if (f) { p.img = await shrink(f); paintPv(); } };
+    $("#lf-card", body).onclick = () => { $("#lf-cardpick", body).hidden = false; $("#lf-cq", body).focus(); };
+    let tq;
+    $("#lf-cq", body).oninput = (e) => {
+      clearTimeout(tq);
+      tq = setTimeout(async () => {
+        const q = e.target.value.trim(), box = $("#lf-arts", body);
+        if (q.length < 2) { box.innerHTML = ""; return; }
+        const res = await api(`/api/search?q=${encodeURIComponent(q)}`);
+        box.innerHTML = res.slice(0, 9).filter((r) => r.image).map((r) => `<button class="lf-art" data-img="${esc(artOf(r.image))}"><img src="${esc(artOf(r.image))}" alt="${esc(r.name)}" loading="lazy"><span>${esc(r.name)}</span></button>`).join("") || `<div class="hint">No la encuentro.</div>`;
+        box.querySelectorAll("[data-img]").forEach((b) => (b.onclick = () => { p.img = b.dataset.img; paintPv(); sfx.up(); }));
+      }, 250);
+    };
+    $("#lf-noimg", body)?.addEventListener("click", () => { p.img = null; paintPv(); });
     $("#lf-save", body).onclick = () => {
       p.name = p.name.trim() || "Jugador";
-      const all = profiles().filter((x) => x.id !== p.id);
-      if (save("lifeProfiles", [...all, p])) { closeSheet(); view(); }
+      if (!save("lifeProfiles", [...profiles().filter((x) => x.id !== p.id), p])) return;
+      if (seat != null) Object.assign(game.players[seat], { pid: p.id, name: p.name, color: p.color, img: p.img });
+      for (const pl of game.players) if (pl.pid === p.id) Object.assign(pl, { name: p.name, color: p.color, img: p.img });
+      save("lifeGame", game); paint(); sfx.pick();
+      seat != null ? seatSheet(seat) : closeSheet();
     };
     $("#lf-del", body)?.addEventListener("click", () => {
       if (!confirm(t(`¿Borrar el perfil de ${p.name}?`))) return;
-      save("lifeProfiles", profiles().filter((x) => x.id !== p.id)); closeSheet(); view();
+      save("lifeProfiles", profiles().filter((x) => x.id !== p.id));
+      for (const pl of game.players) if (pl.pid === p.id) pl.pid = null;
+      save("lifeGame", game); closeSheet(); paint();
     });
-  }
-
-  // ---- la mesa: pantalla completa, un panel por jugador (los de enfrente, girados)
-  function table() {
-    document.querySelector(".lf-table")?.remove();
-    const ps = profiles(), n = game.players.length;
-    const el = document.createElement("div");
-    el.className = `lf-table n${n}`;
-    document.body.appendChild(el);
-    navigator.wakeLock?.request("screen").then((w) => (wake = w)).catch(() => {});
-    const timers = new Map();
-    const paint = () => {
-      el.innerHTML = `${game.players.map((pl, i) => {
-        const prof = ps.find((x) => x.id === pl.pid), img = prof?.img;
-        const flip = n === 2 ? i === 0 : n >= 3 && i < Math.ceil(n / 2);
-        const dead = pl.life <= 0 || pl.poison >= 10 || Object.values(pl.cmd).some((v) => v >= 21);
-        return `<div class="lf-seat ${flip ? "flip" : ""} ${dead ? "dead" : ""}" style="background-color:${pl.color};${img ? `background-image:linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)),url(${img})` : ""}">
-          <button class="lf-tap up" data-i="${i}" data-d="1" aria-label="Más una vida">+</button>
-          <button class="lf-tap down" data-i="${i}" data-d="-1" aria-label="Menos una vida">−</button>
-          <div class="lf-name">${esc(pl.name)}</div>
-          <div class="lf-life">${pl.life}</div>
-          ${pl.delta ? `<div class="lf-delta">${pl.delta > 0 ? "+" : ""}${pl.delta}</div>` : ""}
-          <div class="lf-extra">${pl.poison ? `☠️ ${pl.poison}` : ""} ${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `⚔️${esc(game.players[+k]?.name.slice(0, 6) || "")} ${v}`).join(" ")}</div>
-          <button class="lf-more" data-more="${i}" aria-label="Más contadores">⋯</button>
-        </div>`;
-      }).join("")}
-      <div class="lf-bar"><button data-act="exit" aria-label="Salir">✕</button><button data-act="d20" aria-label="Dado">🎲</button><button data-act="first" aria-label="Quién empieza">👆</button><button data-act="reset" aria-label="Reiniciar">↺</button></div>`;
-      el.querySelectorAll(".lf-tap").forEach((b) => (b.onclick = () => change(+b.dataset.i, +b.dataset.d)));
-      el.querySelectorAll("[data-more]").forEach((b) => (b.onclick = () => counters(+b.dataset.more)));
-      el.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => act(b.dataset.act)));
-    };
-    const change = (i, d) => {
-      const pl = game.players[i];
-      pl.life += d; pl.delta += d;
-      clearTimeout(timers.get(i));
-      timers.set(i, setTimeout(() => { pl.delta = 0; save("lifeGame", game); paint(); }, 1800));  // el "-3" se junta y desaparece
-      navigator.vibrate?.(8);
-      save("lifeGame", game); paint();
-    };
-    const act = (a) => {
-      if (a === "exit") { el.remove(); wake?.release?.().catch(() => {}); wake = null; view(); return; }
-      if (a === "d20") return toast(`🎲 ${1 + rnd(20)}`);
-      if (a === "first") return toast(`Empieza ${game.players[rnd(game.players.length)].name}`);
-      if (a === "reset") {
-        const alive = game.players.filter((p) => p.life > 0 && p.poison < 10);
-        if (!confirm(t("¿Empezar otra partida con los mismos jugadores?"))) return;
-        // Se apunta quién ha ganado (si solo queda uno) en su perfil
-        if (alive.length === 1 && alive[0].pid) { const all = profiles(); const w = all.find((x) => x.id === alive[0].pid); if (w) w.wins = (w.wins || 0) + 1; save("lifeProfiles", all); }
-        const all = profiles();
-        for (const p of game.players) { const x = all.find((y) => y.id === p.pid); if (x) x.games = (x.games || 0) + 1; }
-        save("lifeProfiles", all);
-        for (const p of game.players) Object.assign(p, { life: game.start, poison: 0, cmd: {}, delta: 0 });
-        save("lifeGame", game); paint();
-      }
-    };
-    const counters = (i) => {
-      const pl = game.players[i];
-      const body = openSheet(`<h3>${esc(pl.name)}</h3>
-        <div class="field"><label>☠️ Veneno (10 = pierde)</label><div class="lf-step"><button data-k="poison" data-d="-1">−</button><b>${pl.poison}</b><button data-k="poison" data-d="1">+</button></div></div>
-        ${game.players.map((o, j) => (j === i ? "" : `<div class="field"><label>⚔️ Daño de comandante de ${esc(o.name)} (21 = pierde)</label><div class="lf-step"><button data-k="cmd" data-j="${j}" data-d="-1">−</button><b>${pl.cmd[j] || 0}</b><button data-k="cmd" data-j="${j}" data-d="1">+</button></div></div>`)).join("")}
-        <div class="field"><label>Vidas</label><div class="lf-step"><button data-k="life" data-d="-5">−5</button><b>${pl.life}</b><button data-k="life" data-d="5">+5</button></div></div>`);
-      body.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => {
-        const d = +b.dataset.d;
-        if (b.dataset.k === "poison") pl.poison = Math.max(0, pl.poison + d);
-        else if (b.dataset.k === "cmd") { const j = b.dataset.j; pl.cmd[j] = Math.max(0, (pl.cmd[j] || 0) + d); pl.life -= d; }  // el daño de comandante también quita vidas
-        else pl.life += d;
-        save("lifeGame", game); paint(); counters(i);
-      }));
-    };
-    paint();
   }
 
   return { view };

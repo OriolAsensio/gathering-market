@@ -109,7 +109,7 @@ else {
   $("#share-btn").innerHTML = ico("share");
   $("#share-btn").onclick = async () => {
     const url = location.origin + location.pathname;
-    try { if (navigator.share) return await navigator.share({ title: "Gathering Market", text: t("Precios, colecciones y mazos de Magic"), url }); }
+    try { if (navigator.share) return await navigator.share({ title: "Gather in One", text: t("Precios, colecciones y mazos de Magic"), url }); }
     catch (e) { if (/abort|cancel/i.test(String(e?.name || e))) return; }
     copy(url, t("Enlace copiado: pásaselo a quien quieras"));
   };
@@ -235,7 +235,21 @@ const Sfx = (() => {
     } catch { /* sin audio */ }
   };
   const arp = (fs, step, last = 0.35) => fs.map((f, i) => [f, i * step, i === fs.length - 1 ? last : step * 1.6]);
+  // Ruido filtrado (golpes, barajar, deslizar): para la mesa de juego y el contador de vidas
+  const noise = (dur = 0.15, freq = 1200, vol = 0.18, q = 1) => {
+    if (store("sounds") === "0") return;
+    try {
+      ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume?.();
+      const n = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 2;
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = buf; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q; g.gain.value = vol;
+      src.connect(f).connect(g).connect(ctx.destination); src.start();
+    } catch { /* sin audio */ }
+  };
   return {
+    play, noise, arp,
     card(v) {
       v = v || 0;
       if (v < 1) play([[987.8, 0, 0.07], [1318.5, 0.06, 0.2]]);                       // moneda
@@ -326,7 +340,7 @@ async function shareDeckImage(d, main, side) {
   g.fillStyle = "#16110c"; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = "#d6a84e"; g.font = "bold 28px Georgia, serif"; g.fillText(d.archetype, PAD, 42);
   g.font = "16px Georgia, serif"; g.fillStyle = "#bfae90";
-  g.fillText(`${main.reduce((a, c) => a + c.qty, 0)} cartas${side.length ? ` · banquillo ${side.reduce((a, c) => a + c.qty, 0)}` : ""} · Gathering Market`, PAD, 62);
+  g.fillText(`${main.reduce((a, c) => a + c.qty, 0)} cartas${side.length ? ` · banquillo ${side.reduce((a, c) => a + c.qty, 0)}` : ""} · Gather in One`, PAD, 62);
   const load = (src) => new Promise((ok) => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; });
   const imgs = await Promise.all(list.map((c) => load(c.image)));
   list.forEach((c, i) => {
@@ -370,6 +384,10 @@ let state = { collectionFilter: "", deckSort: store("deckSort") || "meta", marke
 
 function render() {
   const tab = (location.hash || "#collection").slice(1);
+  document.body.classList.toggle("immersive", tab === "life" || tab === "versus");  // sin la cabecera del valor de tus cartas
+  if (tab !== "life" && tab !== "versus") store("lastTab", tab);
+  if (tab !== "life") document.querySelector(".lf-table")?.remove();  // al salir (botón atrás de Android): fuera la mesa
+  if (tab !== "versus") document.querySelector(".vs-board")?.remove();
   document.querySelectorAll(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   $("#col-bar")?.remove();
   (views[tab] || views.collection)();
@@ -839,7 +857,7 @@ async function deckSheet(id, keep = null) {
     <button class="btn block" id="dk-cm" style="margin-top:8px" ${missing.length ? "" : "disabled"}>🛒 Comprar lo que falta en Cardmarket</button>
     <h2>Probar el mazo</h2>
     <div class="row-btns"><button class="btn" id="dk-hand">🃏 Mano de prueba</button><button class="btn" id="dk-prob">🎲 Probabilidades</button></div>
-    <button class="btn block primary" id="dk-play" style="margin-top:8px">⚔️ Partida contra ${esc(BOTS[0].name)}</button>
+    <button class="btn block primary" id="dk-play" style="margin-top:8px">⚔️ Jugar contra un bot</button>
     <h2>Compartir el mazo</h2>
     <div class="row-btns"><button class="btn" id="dk-img">🖼️ Como imagen</button><button class="btn" id="dk-link">🔗 Como enlace</button></div>
     ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
@@ -893,7 +911,7 @@ async function deckSheet(id, keep = null) {
   };
   $("#dk-hand", body).onclick = () => Play.handSheet(d);
   $("#dk-prob", body).onclick = () => Play.probSheet(d);
-  $("#dk-play", body).onclick = () => Play.gameSheet(d);
+  $("#dk-play", body).onclick = () => { store("vsDeck", String(d.id)); closeSheet(); location.hash = "versus"; };
   $("#dk-img", body).onclick = () => shareDeckImage(d, main, side);
   $("#dk-link", body).onclick = async () => shareText(d.archetype, `${d.archetype}: ${await deckLink(d, main, side)}`);
   $("#deck-all", body).onclick = async () => {
@@ -2222,17 +2240,17 @@ async function profileSheet() {
   $("#pf-csv", body).onclick = async () => {
     const r = await api("/api/exportcsv");
     if (!r.rows) return toast("Aún no tienes cartas");
-    saveFile(`gathering-market-${day}.csv`, r.csv, "text/csv");
+    saveFile(`gather-in-one-${day}.csv`, r.csv, "text/csv");
   };
   for (const [btn, fmt, how] of [["#pf-mox", "moxfield", "En Moxfield: Collection → Import → CSV."], ["#pf-mana", "manabox", "En ManaBox: Collection → Import → CSV."]]) {
     $(btn, body).onclick = async () => {
       const r = await api(`/api/exportcsv?fmt=${fmt}`);
       if (!r.rows) return toast("Aún no tienes cartas");
-      saveFile(`gathering-market-${fmt}-${day}.csv`, r.csv, "text/csv");
+      saveFile(`gather-in-one-${fmt}-${day}.csv`, r.csv, "text/csv");
       toast(how);
     };
   }
-  $("#pf-json", body).onclick = () => saveFile(`gathering-market-copia-${day}.json`, Engine.exportUser(), "application/json");
+  $("#pf-json", body).onclick = () => saveFile(`gather-in-one-copia-${day}.json`, Engine.exportUser(), "application/json");
   $("#pf-restore", body).onchange = async (e) => {
     const f = e.target.files[0];
     if (!f || !confirm(t("¿Reemplazar todo lo de este móvil (cartas, carpetas, mazos y perfil) por la copia?"))) return;
@@ -2368,7 +2386,7 @@ async function unlock() {
     // Un <form>: Intro envía, y el navegador (y los gestores de contraseñas) lo tratan como un inicio de sesión normal.
     document.body.insertAdjacentHTML("beforeend", `<div class="lock-screen" id="lock">
       <svg class="crest" viewBox="0 0 64 64"><use href="#i-crest"/></svg>
-      <h3>${esc(p.name ? `Hola, ${p.name}` : "Gathering Market")}</h3>
+      <h3>${esc(p.name ? `Hola, ${p.name}` : "Gather in One")}</h3>
       <form id="lock-form" class="lock-form" autocomplete="on">
         <input type="text" name="username" autocomplete="username" value="${esc(p.name || "")}" hidden>
         <div class="lock-row"><input class="search" id="lock-pass" name="password" type="password" autocomplete="current-password" placeholder="Contraseña" autofocus>
@@ -2460,7 +2478,7 @@ function creditsSheet() {
       ${item(link("https://supabase.com/", "Supabase"), "Cuentas en la nube.")}
       ${item(link("https://fonts.google.com/specimen/Cinzel", "Cinzel"), "y EB Garamond: tipografías.")}
     </div>
-    <div class="hint" style="margin-top:12px">Gathering Market es contenido no oficial permitido por la Fan Content Policy de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Partes de los materiales usados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.</div>`);
+    <div class="hint" style="margin-top:12px">Gather in One es contenido no oficial permitido por la Fan Content Policy de Wizards of the Coast. No está aprobado ni respaldado por Wizards. Partes de los materiales usados son propiedad de Wizards of the Coast. ©Wizards of the Coast LLC.</div>`);
 }
 
 // ---------- resumen del día: al abrir la app (una vez por día de precios), qué cartas tuyas subieron y bajaron ----------
