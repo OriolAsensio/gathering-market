@@ -285,7 +285,8 @@ const Engine = (() => {
     const day = new Date().toLocaleDateString("sv"), log = (user.added ||= []), f = foil ? 1 : 0;
     let e = null;
     for (const x of log) { if (x[0] !== day) break; if (x[1] === c && x[2] === id && x[3] === f) { e = x; break; } }
-    if (e) e[4] += n; else log.unshift([day, c, id, f, n]);
+    const pi = byId.get(id), cents = pi == null ? null : priceOf(pi, foil);  // precio de ese momento (para las estadísticas)
+    if (e) e[4] += n; else log.unshift([day, c, id, f, n, cents]);
     if (log.length > 3000) log.length = 3000;  // shortcut: guarda las 3.000 últimas; si se queda corto, subir el límite
   }
   function added({ c }) {
@@ -337,7 +338,7 @@ const Engine = (() => {
     // Lista de deseos: la carta ha bajado de tu precio objetivo (se avisa una vez; si vuelve a subir, se rearma)
     const cheapNow = cheapest().price, hit = (user.targetHit ||= {});
     for (const [n, cents] of Object.entries(user.targets || {})) {
-      const oi = oByNorm.get(norm(n)), now = oi == null ? null : cheapNow[oi];
+      const oi = oByNorm.get(norm(n)), now = oi == null || cheapNow[oi] == null ? null : cheapNow[oi] * wishFactor();
       if (!now) continue;
       if (now <= cents && !hit[n]) {
         const e = addEvent(PR.day, "wish", `🎯 ${n} a ${(now / 100).toFixed(2)} €`, `Ha bajado de tu precio objetivo (${(cents / 100).toFixed(2)} €). Es la edición más barata en Cardmarket.`);
@@ -439,6 +440,54 @@ const Engine = (() => {
       const o = O[oi];
       return { name: front(o[0]), type: o[1], cost: o[2], cmc: o[3] || 0, text: o[5] || "", colors: o[4] || "", image: oImage(oi) };
     });
+  }
+
+  /** Repetidas: copias de más de cada carta (más de 4, o más de las que usa tu mazo que más lleva), sin básicas ni proxies.
+   *  Para vender o cambiar: cuánto valen las que sobran (la edición más barata que tienes). */
+  function duplicates({ c }) {
+    const id = binderOf(c) || 1, have = new Map();
+    for (const [pi, foil, qty] of entries(id)) {
+      const real = qty - proxyOf(id, `${P[pi][0]}|${foil ? 1 : 0}`, qty);
+      if (real <= 0) continue;
+      const oi = P[pi][1], k = norm(O[oi][0]), price = priceOf(pi, foil);
+      const r = have.get(k) || { oi, qty: 0, eur: null, pi };
+      r.qty += real;
+      if (price != null && (r.eur == null || price < r.eur)) { r.eur = price; r.pi = pi; }
+      have.set(k, r);
+    }
+    const used = new Map();
+    for (const d of user.decks || []) {
+      const per = new Map();
+      for (const [n, q] of d.cards || []) per.set(norm(n), (per.get(norm(n)) || 0) + q);
+      for (const [k, q] of per) used.set(k, Math.max(used.get(k) || 0, q));
+    }
+    const items = [];
+    for (const [k, r] of have) {
+      if (BASICS.has(k) || /^basic/i.test(O[r.oi][1])) continue;
+      const keep = Math.max(4, used.get(k) || 0), extra = r.qty - keep;
+      if (extra <= 0) continue;
+      items.push({ name: front(O[r.oi][0]), image: img(P[r.pi][0]), qty: r.qty, used: used.get(k) || 0, keep, extra, eur: eur(r.eur), value: r.eur ? Math.round(extra * r.eur) / 100 : 0 });
+    }
+    items.sort((a, b) => b.value - a.value || b.extra - a.extra);
+    return { items, copies: items.reduce((a, x) => a + x.extra, 0), value: Math.round(items.reduce((a, x) => a + x.value, 0) * 100) / 100 };
+  }
+  /** Estadísticas por mes: cartas añadidas, lo que te costaron (precio del día en que las añadiste; las de antes de guardarlo,
+   *  al precio de hoy) y cómo ha ido el valor de tu colección ese mes. */
+  async function monthStats({ c }) {
+    const id = binderOf(c) || 1, months = new Map();
+    const mo = (d) => d.slice(0, 7), get = (m) => months.get(m) || months.set(m, { month: m, cards: 0, spent: 0, guessed: false }).get(m);
+    for (const [day, b, cid, foil, n, cents] of user.added || []) {
+      if (b !== id) continue;
+      const pi = byId.get(cid), m = get(mo(day));
+      m.cards += n;
+      const unit = cents ?? (pi == null ? 0 : priceOf(pi, !!foil) || 0);
+      if (cents == null) m.guessed = true;
+      m.spent += n * unit;
+    }
+    const h = await valueHistory({ c: id });
+    h.days.forEach((d, i) => { const m = get(mo(d)); if (m.start == null) m.start = h.eur[i]; m.end = h.eur[i]; });
+    return [...months.values()].sort((a, b) => b.month.localeCompare(a.month)).map((m) => ({ ...m, spent: Math.round(m.spent) / 100,
+      change: m.start != null && m.end != null ? Math.round((m.end - m.start) * 100) / 100 : null, pct: m.start ? Math.round(((m.end - m.start) * 1000) / m.start) / 10 : null }));
   }
 
   function collectionsList() {
@@ -1075,6 +1124,10 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- cartas que sigues (precio y cambios a 1, 7 y 30 días)
+  // Idioma en que buscas las cartas (Mercado → Sigo): los precios y los avisos de la lista de deseos se ajustan
+  // con el mismo factor que el valor de tu colección (una carta en español suele valer ~85 % de la inglesa).
+  const wishLang = () => user.prefs?.collectLang || "en";
+  const wishFactor = () => LANG_FACTOR[wishLang()] || 1;
   function watchList({ c }) {
     const owned = ownedByName(binderOf(c) || 1);
     const now = cheapest().price;
@@ -1084,13 +1137,14 @@ const Engine = (() => {
     return (user.watch || []).map((name) => {
       const oi = oByNorm.get(norm(name));
       if (oi == null) return null;
-      const target = user.targets?.[front(O[oi][0])];
-      return { name: front(O[oi][0]), image: oImage(oi), eur: eur(now[oi]), d1: change(oi, 1), d7: change(oi, 7), d30: change(oi, 30),
-        owned: owned.get(norm(name)) || 0, target: target ? eur(target) : null, reached: !!(target && now[oi] && now[oi] <= target) };
+      const target = user.targets?.[front(O[oi][0])], f = wishFactor();
+      return { name: front(O[oi][0]), image: oImage(oi), eur: eur(now[oi] == null ? null : now[oi] * f), lang: wishLang(), d1: change(oi, 1), d7: change(oi, 7), d30: change(oi, 30),
+        owned: owned.get(norm(name)) || 0, target: target ? eur(target) : null, reached: !!(target && now[oi] && now[oi] * f <= target) };
     }).filter(Boolean);
   }
-  function watchPost({ c, add, remove, top, target, price }) {
+  function watchPost({ c, add, remove, top, target, price, lang }) {
     const list = (user.watch ||= []);
+    if (lang && CARD_LANGS[lang]) { (user.prefs ||= {}).collectLang = lang; saveUser(); return { lang }; }
     if (target) {  // lista de deseos: avisar cuando la edición más barata baje de este precio (0 o vacío = quitar)
       const oi = oByNorm.get(norm(target));
       if (oi == null) throw new Error("No conozco esa carta");
@@ -1167,7 +1221,7 @@ const Engine = (() => {
     }
     const wishes = Object.entries(user.targets || {}).map(([n, cents]) => {
       const oi = oByNorm.get(norm(n));
-      return oi == null ? null : { name: n, target: cents, pis: printsOf[oi].filter((pi) => !P[pi][5]) };
+      return oi == null ? null : { name: n, target: Math.round(cents / wishFactor()), pis: printsOf[oi].filter((pi) => !P[pi][5]) };  // la tarea compara precios en inglés
     }).filter(Boolean);
     return { ids, names, wishes, cardsVersion: PR.cards_version, day: PR.day, lastEvent: Math.max(0, ...PACK_EVENTS.map((e) => +e.id || 0)) };
   }
@@ -2943,7 +2997,7 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- rutas
-  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/cardinfo": cardInfo, "/api/valuehistory": valueHistory, "/api/added": added,
+  const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/duplicates": duplicates, "/api/monthstats": monthStats, "/api/cardinfo": cardInfo, "/api/valuehistory": valueHistory, "/api/added": added,
     "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/hot": hotCards, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,

@@ -15,6 +15,24 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Repetidas", "Duplicates", "Repetides"],
+  ["Por meses", "By month", "Per mesos"],
+  ["Copias de más: por encima de 4 (o de las que usa tu mazo que más lleva). Sin tierras básicas ni proxies. Para vender o cambiar.", "Extra copies: above 4 (or above what your deck that uses most of them needs). No basic lands or proxies. To sell or trade.", "Còpies de més: per sobre de 4 (o de les que fa servir la baralla que més en porta). Sense terres bàsiques ni proxies. Per vendre o canviar."],
+  ["Copias de más", "Extra copies", "Còpies de més"],
+  ["Valen", "Worth", "Valen"],
+  ["Copiar lista", "Copy list", "Copiar llista"],
+  ["Compartir", "Share", "Compartir"],
+  ["No te sobra nada", "Nothing extra", "No et sobra res"],
+  ["Ninguna carta pasa de 4 copias (ni de lo que usan tus mazos).", "No card goes over 4 copies (or what your decks use).", "Cap carta passa de 4 còpies (ni del que fan servir les teves baralles)."],
+  ["Mis cartas repetidas", "My duplicate cards", "Les meves cartes repetides"],
+  ["Lo que has gastado es el precio de Cardmarket del día en que añadiste cada carta (las de antes del 27 de noviembre de 2026, al precio de hoy). El valor es el de toda tu colección.", "Spent is the Cardmarket price on the day you added each card (cards added before 27 November 2026 use today's price). The value is your whole collection's.", "El que has gastat és el preu de Cardmarket del dia que vas afegir cada carta (les d'abans del 27 de novembre de 2026, al preu d'avui). El valor és el de tota la teva col·lecció."],
+  ["Cartas añadidas", "Cards added", "Cartes afegides"],
+  ["Gastado", "Spent", "Gastat"],
+  ["Valor al final", "Value at the end", "Valor al final"],
+  ["Aún no hay datos", "No data yet", "Encara no hi ha dades"],
+  ["Añade cartas y vuelve en unos días.", "Add cards and come back in a few days.", "Afegeix cartes i torna d'aquí a uns dies."],
+  ["Precios para cartas en", "Prices for cards in", "Preus per a cartes en"],
+  ["Precios y avisos ajustados a ese idioma", "Prices and alerts adjusted to that language", "Preus i avisos ajustats a aquest idioma"],
   ["Tu reseña ya está guardada: el creador de mazos aprende de ella aunque borres el mazo.", "Your review is saved: the deck builder learns from it even if you delete the deck.", "La teva ressenya ja està desada: el creador de baralles n'aprèn encara que esborris la baralla."],
   ["Me gusta: guardarlo en Mis mazos", "I like it: save it in My decks", "M'agrada: desar-la a Les meves baralles"],
   ["Rehacer el mazo", "Rebuild the deck", "Refer la baralla"],
@@ -1034,6 +1052,8 @@ const RULES = [
     "From $1 to $2. Cardmarket doesn't publish how many copies sell, so here are the ones in highest demand: rising this week (not falling yesterday) and heavily played in some format's meta or in Commander.",
     "Del $1 al $2. Cardmarket no publica quantes còpies es venen, així que aquí hi ha les que tenen més demanda: pugen aquesta setmana (sense baixar ahir) i es juguen molt al meta d'algun format o a Commander."],
   [/^en (\d+) mazos? del meta \((.+)\)$/, "in $1 meta deck(s) ($2)", "en $1 baralla(es) del meta ($2)"],
+  [/^Tienes (\d+)( · tu mazo usa (\d+))? · sobran (\d+)$/, (m) => `You have ${m[1]}${m[2] ? ` · your deck uses ${m[3]}` : ""} · ${m[4]} extra`, (m) => `En tens ${m[1]}${m[2] ? ` · la baralla en fa servir ${m[3]}` : ""} · en sobren ${m[4]}`],
+  [/^(.+) c\/u$/, "$1 each", "$1 c/u"],
 ];
 
 const COL = { en: 1, ca: 2 };

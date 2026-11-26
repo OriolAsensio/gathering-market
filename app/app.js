@@ -405,6 +405,7 @@ views.collection = async () => {
   let mode = store("colView") || "grid";
   v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
     <button class="btn block" id="col-added" style="margin-top:8px">${ico("clock")}Últimas añadidas</button>
+    <div class="row-btns" style="margin-top:8px"><button class="btn" id="col-dups">${ico("list")}Repetidas</button><button class="btn" id="col-stats">${ico("calendar")}Por meses</button></div>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
     <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">${ico("alter")}Alteradas</button></div>
@@ -416,6 +417,8 @@ views.collection = async () => {
   $("#col-import").onclick = importSheet;
   $("#col-build").onclick = () => builderSheet();
   $("#col-added").onclick = addedSheet;
+  $("#col-dups").onclick = duplicatesSheet;
+  $("#col-stats").onclick = statsSheet;
   const items = await api("/api/collection");
   items.forEach((c) => (c.key = c.row_id));
   const box = $("#col-list");
@@ -1110,6 +1113,36 @@ async function preconSheet() {
 }
 
 // opts: filtros y posición a recuperar al volver (para no saltar arriba después de añadir).
+// Repetidas: lo que te sobra (más de 4 copias, o más de las que usa tu mazo que más lleva) y lo que vale, para vender o cambiar
+async function duplicatesSheet() {
+  const body = openSheet(`<h3>Repetidas</h3>${skeleton(3)}`);
+  const r = await api("/api/duplicates");
+  const text = r.items.map((x) => `${x.extra} ${x.name}`).join("\n");
+  body.innerHTML = `<h3>Repetidas</h3>
+    <div class="hint">Copias de más: por encima de 4 (o de las que usa tu mazo que más lleva). Sin tierras básicas ni proxies. Para vender o cambiar.</div>
+    <div class="stats"><div class="stat"><b>${r.copies}</b><span>Copias de más</span></div><div class="stat"><b>${euro(r.value)}</b><span>Valen</span></div></div>
+    ${r.items.length ? `<div class="row-btns"><button class="btn" id="dp-copy">${ico("list")}Copiar lista</button><button class="btn primary" id="dp-share">${ico("share")}Compartir</button></div>
+      <div class="list">${r.items.map((x) => `<button class="item" data-name="${esc(x.name)}"><img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="item-meta">Tienes ${x.qty}${x.used ? ` · tu mazo usa ${x.used}` : ""} · sobran ${x.extra}</div></div>
+        <div class="item-side"><div class="price">${euro(x.value)}</div><div class="sub">${euro(x.eur)} c/u</div></div></button>`).join("")}</div>`
+      : `<div class="empty"><strong>No te sobra nada</strong>Ninguna carta pasa de 4 copias (ni de lo que usan tus mazos).</div>`}`;
+  $("#dp-copy", body)?.addEventListener("click", () => copy(text, "Lista copiada"));
+  $("#dp-share", body)?.addEventListener("click", () => shareText("Mis cartas repetidas", text));
+  body.querySelectorAll("[data-name]").forEach((b) => (b.onclick = () => synergySheet(b.dataset.name)));
+}
+// Por meses: cartas añadidas, lo que costaron y cómo ha ido el valor de tu colección
+async function statsSheet() {
+  const body = openSheet(`<h3>Por meses</h3>${skeleton(3)}`);
+  const rows = await api("/api/monthstats");
+  const name = (m) => new Date(`${m}-15T12:00`).toLocaleDateString(document.documentElement.lang || "es", { month: "long", year: "numeric" });
+  body.innerHTML = `<h3>Por meses</h3>
+    <div class="hint">Lo que has gastado es el precio de Cardmarket del día en que añadiste cada carta (las de antes del 27 de noviembre de 2026, al precio de hoy). El valor es el de toda tu colección.</div>
+    ${rows.length ? rows.map((m) => `<div class="month-card"><div class="month-head"><b>${esc(name(m.month))}</b>${m.pct != null ? `<span class="${m.change >= 0 ? "up" : "down"}">${m.change >= 0 ? "+" : ""}${euro(m.change)} (${pct(m.pct)})</span>` : ""}</div>
+      <div class="stats"><div class="stat"><b>${m.cards}</b><span>Cartas añadidas</span></div><div class="stat"><b>${m.guessed ? "≈ " : ""}${euro(m.spent)}</b><span>Gastado</span></div>
+        <div class="stat"><b>${m.end != null ? euro(m.end) : "—"}</b><span>Valor al final</span></div></div></div>`).join("")
+      : `<div class="empty"><strong>Aún no hay datos</strong>Añade cartas y vuelve en unos días.</div>`}`;
+}
+
 // Historial: las cartas que has añadido a la carpeta, por días
 async function addedSheet() {
   const body = openSheet(`<h3>Últimas añadidas</h3>${skeleton(3)}`);
@@ -1693,6 +1726,7 @@ async function hotView(box) {
 // Cartas que sigues: precio de Cardmarket y cuánto ha subido o bajado en 1, 7 y 30 días.
 async function watchView(box) {
   box.innerHTML = `<div class="hint">Sigue cartas concretas (tuyas o no) y mira cómo cambia su precio. Con ${ico("target")}pones un precio objetivo (lista de deseos): te aviso cuando baje de ahí. Toca una para verla; ${ico("close")}para dejar de seguirla.</div>
+    <label class="sub" style="display:block;margin:4px 0 8px">Precios para cartas en <select class="lang-sel" id="w-lang">${Object.entries(CARD_LANG_NAMES).map(([k, n]) => `<option value="${k}">${n}</option>`).join("")}</select></label>
     <input class="search" id="w-q" placeholder="Buscar una carta para seguirla…">
     <div class="list" id="w-search"></div>
     <button class="btn block" id="w-top" style="margin-top:8px">${ico("follow")}Seguir mis 20 cartas más valiosas</button>
@@ -1700,6 +1734,7 @@ async function watchView(box) {
   const chg = (v, label) => `<span class="chip ${v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : ""}">${label} ${v == null ? "—" : pct(v)}</span>`;
   const draw = async () => {
     const rows = await api("/api/watch");
+    if (rows[0]?.lang && $("#w-lang", box)) $("#w-lang", box).value = rows[0].lang;
     $("#w-list", box).innerHTML = rows.length ? `<div class="list">${rows.map((c) => `
       <div class="item watch" data-name="${esc(c.name)}"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ` <span class="chip gold">La tienes ×${c.owned}</span>` : ""}</div>
@@ -1736,6 +1771,7 @@ async function watchView(box) {
       }));
     }, 250);
   };
+  $("#w-lang", box).onchange = async (e) => { await api("/api/watch", { lang: e.target.value }); syncRunner?.(); toast("Precios y avisos ajustados a ese idioma"); draw(); };
   $("#w-top", box).onclick = async () => { await api("/api/watch", { top: 20 }); toast("Siguiendo tus cartas más valiosas"); draw(); };
   draw();
 }
