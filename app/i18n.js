@@ -15,6 +15,8 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Suben más los artistas que ya no firman o que han muerto, y los alteristas conocidos.", "Artists who no longer sign or have died, and well-known alterists, go higher.", "Pugen més els artistes que ja no signen o que han mort, i els alteristes coneguts."],
+  ["En Cardmarket hay que ponerla con foto real.", "On Cardmarket it must be listed with a real photo.", "A Cardmarket s'ha de posar amb foto real."],
   ["¿Alterada?", "Altered?", "Alterada?"],
   ["Repetidas", "Duplicates", "Repetides"],
   ["Por meses", "By month", "Per mesos"],
@@ -1056,6 +1058,12 @@ const RULES = [
   [/^en (\d+) mazos? del meta \((.+)\)$/, "in $1 meta deck(s) ($2)", "en $1 baralla(es) del meta ($2)"],
   [/^Tienes (\d+)( · tu mazo usa (\d+))? · sobran (\d+)$/, (m) => `You have ${m[1]}${m[2] ? ` · your deck uses ${m[3]}` : ""} · ${m[4]} extra`, (m) => `En tens ${m[1]}${m[2] ? ` · la baralla en fa servir ${m[3]}` : ""} · en sobren ${m[4]}`],
   [/^(.+) c\/u$/, "$1 each", "$1 c/u"],
+  [/^(.+): lo que pagaría una tienda o un jugador de torneo \(para ellos (la firma|el alter) cuenta como carta tocada, como SP o HP\)\.$/,
+    (m) => `${m[1]}: what a store or tournament player would pay (to them ${m[2] === "la firma" ? "the signature" : "the alter"} counts as a played card, like SP or HP).`,
+    (m) => `${m[1]}: el que pagaria una botiga o un jugador de torneig (per a ells ${m[2] === "la firma" ? "la signatura" : "l'alter"} compta com a carta tocada, com SP o HP).`],
+  [/^(.+): lo que pagaría un fan de Commander o un coleccionista que busca (esa firma|ese alter)\.$/,
+    (m) => `${m[1]}: what a Commander fan or a collector looking for ${m[2] === "esa firma" ? "that signature" : "that alter"} would pay.`,
+    (m) => `${m[1]}: el que pagaria un fan de Commander o un col·leccionista que busca ${m[2] === "esa firma" ? "aquesta signatura" : "aquest alter"}.`],
 ];
 
 const COL = { en: 1, ca: 2 };

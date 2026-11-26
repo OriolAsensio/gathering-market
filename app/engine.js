@@ -621,15 +621,16 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- cartas alteradas (firma del artista, arte propio)
-  /* Estimación orientativa del mercado de segunda mano: una firma suele sumar entre un 25 y un 75 % (mínimo unos 3-10 €);
-   * un "alter" pintado a mano añade sobre todo el trabajo del artista (unos 20-100 €) más una parte del valor de la carta. */
+  /* Rango [bajo, alto] según quién compre (investigado 2026-11-27: MTGPrice, StarCityGames, Commander's Herald, normas de Cardmarket,
+   * tarifas de artistas y alteristas). Bajo = tienda o jugador competitivo: firma o alter cuentan como carta tocada (≈ SP/HP).
+   * Alto = fan de Commander o coleccionista que busca esa firma o ese alter. Firmar cuesta 3-15 € al artista; un alter, 25-500 €. */
   const ALTER_NAMES = { firma: "Firmada", arte: "Arte propio", ambas: "Firmada y con arte propio" };
   function alterEstimate(base, kind) {
     const b = base || 0;
-    const firma = [b + Math.max(3, b * 0.25), b + Math.max(10, b * 0.75)];
-    const arte = [b * 1.1 + 20, b * 1.3 + 100];
-    const r = kind === "firma" ? firma : kind === "arte" ? arte : [arte[0] + firma[0] - b, arte[1] + firma[1] - b];
-    return r.map((x) => Math.round(x));
+    const r = kind === "firma" ? (b < 1 ? [b * 0.5, 3] : b < 10 ? [b * 0.8, b * 1.2 + 2] : b < 50 ? [b * 0.7, b * 1.2] : [b * 0.6, b * 1.1])
+      : kind === "arte" ? (b < 1 ? [2, 30] : b < 10 ? [b * 0.7, b + 30] : b < 50 ? [b * 0.6, b + 40] : [b * 0.5, b + 50])
+      : [Math.max(b, 3), b * 2 + 80];  // firmada y alterada (sobre todo si es del artista original)
+    return r.map((x) => Math.round(x * 100) / 100);
   }
   function alterOf(id, key, base, qty) {
     const a = user.alters?.[id]?.[key];

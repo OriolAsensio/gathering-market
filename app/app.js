@@ -594,7 +594,9 @@ function alterBox(btn, x) {
     const est = await api(`/api/alterestimate?card_id=${encodeURIComponent(x.id)}&foil=${x.foil ? 1 : 0}&kind=${kind}`);
     box.innerHTML = `<div class="seg" id="al-kind"><button data-k="firma">${ico("alter")}Firmada</button><button data-k="arte">${ico("palette")}Arte propio</button><button data-k="ambas">Las dos</button></div>
       <div class="hint">Precio normal ${euro(x.eur)}. ${kind === "firma" ? "Con firma del artista" : kind === "arte" ? "Con arte pintado a mano (alter)" : "Firmada y con arte propio"} podría venderse por unos
-        <b>${euro(est[0])}–${euro(est[1])}</b></div><div class="hint">Es orientativo: depende del artista, de la calidad y de quién la compre.</div>
+        <b>${euro(est[0])}–${euro(est[1])}</b></div>
+      <div class="hint">${euro(est[0])}: lo que pagaría una tienda o un jugador de torneo (para ellos ${kind === "firma" ? "la firma" : "el alter"} cuenta como carta tocada, como SP o HP).
+        ${euro(est[1])}: lo que pagaría un fan de Commander o un coleccionista que busca ${kind === "firma" ? "esa firma" : "ese alter"}. Suben más los artistas que ya no firman o que han muerto, y los alteristas conocidos. En Cardmarket hay que ponerla con foto real.</div>
       <div class="field" style="flex-direction:row;justify-content:space-between;align-items:center"><span class="sub">Copias alteradas</span>
         <div class="stepper"><button data-q="-1">−</button><b class="num">${qty}</b><button data-q="1">+</button></div></div>
       <input class="search" id="al-note" maxlength="80" placeholder="Nota (opcional): artista, firma en el arte…" value="${esc(x.alter?.note || "")}">
