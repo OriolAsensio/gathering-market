@@ -617,12 +617,13 @@ function alterBox(btn, x) {
   draw();
 }
 
+const ALTER_LABELS = { firma: "Firmada", arte: "Arte propio", ambas: "Firmada y con arte propio" };
 // Elegir carta, arte (con imágenes), foil y cantidad, y añadir.
 async function addSheet(candidates, opts = {}) {
   const body = opts.into || openSheet(`<h3>Añadir carta</h3><div id="add-body">${skeleton(1)}</div>`);
   if (opts.into) body.innerHTML = `<div id="add-body">${skeleton(1)}</div>`;
   const cands = await Promise.all(candidates.map(async (c) => ({ ...c, printings: c.printings || (await api(`/api/printings?name=${encodeURIComponent(c.name)}`)) })));
-  let ci = 0, qty = 1, foil = false, proxy = false, lang = store("addLang") || "en";  // idioma: se recuerda el último
+  let ci = 0, qty = 1, foil = false, proxy = false, alter = "", lang = store("addLang") || "en";  // idioma: se recuerda el último
   const added = [];  // lo añadido en esta ventana (varios artes / foil seguidos)
   // Sin edición detectada, propone la normal más barata (la más común en colecciones).
   const defaultPrint = (c) => c.best || [...c.printings].filter((p) => p.eur != null)
@@ -636,11 +637,11 @@ async function addSheet(candidates, opts = {}) {
         <button class="cand ${i === ci ? "on" : ""}" data-ci="${i}"><img src="${esc(x.printings[0]?.image)}" alt=""><span>${esc(x.name)}</span></button>`).join("")}</div>` : ""}
       ${opts.compact ? "" : `<img class="card-big" src="${esc(p.image)}" alt="${esc(c.name)}">`}
       <div class="field"><label>Arte y edición: ${esc(p.set_name)} #${esc(p.number)} (${c.printings.length} versiones)</label>${artStrip(c.printings, p.id)}</div>
-      <div class="field" style="flex-direction:row;justify-content:space-between;align-items:center">
-        <span><label class="toggle"><input type="checkbox" id="add-foil" ${foil ? "checked" : ""}> Foil</label>
-        <label class="toggle"><input type="checkbox" id="add-proxy" ${proxy ? "checked" : ""}> Proxy</label></span>
-        <div class="stepper"><button data-q="-1">−</button><b class="num">${qty}</b><button data-q="1">+</button></div>
-      </div>
+      <div class="big-togs"><button class="big-tog ${foil ? "on" : ""}" id="add-foil" aria-pressed="${foil}">${ico("sparkle")}Foil</button>
+        <button class="big-tog ${proxy ? "on" : ""}" id="add-proxy" aria-pressed="${proxy}">${ico("file")}Proxy</button>
+        <div class="stepper"><button data-q="-1">−</button><b class="num">${qty}</b><button data-q="1">+</button></div></div>
+      <div class="field"><label>¿Alterada?</label><div class="big-togs" id="add-alter">${[["", "Normal"], ["firma", "Firmada"], ["arte", "Arte propio"], ["ambas", "Las dos"]]
+        .map(([k, n]) => `<button class="big-tog ${alter === k ? "on" : ""}" data-alt="${k}" aria-pressed="${alter === k}">${n}</button>`).join("")}</div></div>
       <div class="field" style="flex-direction:row;align-items:center;gap:8px"><label for="add-lang">Idioma de la carta</label>
         <select class="lang-sel" id="add-lang">${Object.entries(CARD_LANG_NAMES).map(([k, n]) => `<option value="${k}" ${k === lang ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       <div class="stats"><div class="stat"><b>${euro(foil ? p.eur_foil : p.eur)}</b><span>Precio unidad</span></div>
@@ -655,19 +656,21 @@ async function addSheet(candidates, opts = {}) {
     $(".art.on", body)?.scrollIntoView({ inline: "center", block: "nearest" });
     body.querySelectorAll("[data-ci]").forEach((b) => (b.onclick = () => { ci = +b.dataset.ci; pid = defaultPrint(cands[ci]); draw(); }));
     body.querySelectorAll("[data-pid]").forEach((b) => (b.onclick = () => { pid = b.dataset.pid; draw(); }));
-    $("#add-foil", body).onchange = (e) => { foil = e.target.checked; draw(); };
-    $("#add-proxy", body).onchange = (e) => { proxy = e.target.checked; };
+    $("#add-foil", body).onclick = () => { foil = !foil; draw(); };
+    $("#add-proxy", body).onclick = () => { proxy = !proxy; draw(); };
+    body.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => { alter = b.dataset.alt; draw(); }));
     $("#add-lang", body).onchange = (e) => { lang = e.target.value; store("addLang", lang); };
     body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { qty = Math.max(1, qty + +b.dataset.q); draw(); }));
     $("#add-ok", body).onclick = async () => {
       const r = await api("/api/collection", { card_id: p.id, foil, qty });
       await api("/api/lang", { card_id: p.id, foil, lang });
+      if (alter) await api("/api/alter", { card_id: p.id, foil, kind: alter, qty, add: true });
       if (proxy) await api("/api/proxy", { card_id: p.id, foil, delta: qty, collect: confirm(t("¿Quieres que este proxy cuente para la colección? (completar colecciones y número de cartas). Aceptar = sí, Cancelar = no")) });
-      toast(`${qty}× ${c.name} añadida${proxy ? " (proxy)" : ""}`);
+      toast(`${qty}× ${c.name} añadida${proxy ? " (proxy)" : ""}${alter ? ` (${ALTER_LABELS[alter]})` : ""}`);
       if (!proxy) celebrate(r);
       loadSummary();
       if (opts.onDone) { opts.onDone(); refresh(); return; }
-      added.push(`${qty}× ${p.set.toUpperCase()} #${p.number}${foil ? " foil" : ""}${lang !== "en" ? ` (${lang.toUpperCase()})` : ""}`);
+      added.push(`${qty}× ${p.set.toUpperCase()} #${p.number}${foil ? " foil" : ""}${alter ? ` ${ALTER_LABELS[alter].toLowerCase()}` : ""}${lang !== "en" ? ` (${lang.toUpperCase()})` : ""}`);
       closeSheet.dirty = true;
       qty = 1;
       draw();

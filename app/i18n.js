@@ -15,6 +15,7 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["¿Alterada?", "Altered?", "Alterada?"],
   ["Repetidas", "Duplicates", "Repetides"],
   ["Por meses", "By month", "Per mesos"],
   ["Copias de más: por encima de 4 (o de las que usa tu mazo que más lleva). Sin tierras básicas ni proxies. Para vender o cambiar.", "Extra copies: above 4 (or above what your deck that uses most of them needs). No basic lands or proxies. To sell or trade.", "Còpies de més: per sobre de 4 (o de les que fa servir la baralla que més en porta). Sense terres bàsiques ni proxies. Per vendre o canviar."],
@@ -887,6 +888,7 @@ const RULES = [
   [/^Añadir 1 de cada \((\d+)\)$/, "Add 1 of each ($1)", "Afegir 1 de cada ($1)"],
   [/^(\d+) cartas? añadidas?( \(foil\))?$/, "$1 cards added$2", "$1 cartes afegides$2"],
   [/^(\d+)× (.+) añadida$/, "$1× $2 added", "$1× $2 afegida"],
+  [/^(\d+)× (.+) añadida \((.+)\)$/, "$1× $2 added ($3)", "$1× $2 afegida ($3)"],
   [/^(\d+) cartas importadas$/, "$1 cards imported", "$1 cartes importades"],
   [/^(\d+) elegidas?$/, "$1 picked", "$1 triades"],
   [/^Ver más \((\d+)\)$/, "See more ($1)", "Veure'n més ($1)"],

@@ -644,7 +644,8 @@ const Engine = (() => {
     const key = `${body.card_id}|${body.foil ? 1 : 0}`;
     const map = ((user.alters ||= {})[id] ||= {});
     if (!ALTER_NAMES[body.kind]) delete map[key];
-    else map[key] = { kind: body.kind, qty: Math.max(1, +body.qty || 1), note: String(body.note || "").slice(0, 80) };
+    else map[key] = { kind: body.kind, qty: Math.max(1, (body.add ? map[key]?.qty || 0 : 0) + (+body.qty || 1)),  // add: al añadir copias nuevas, suma
+      note: String(body.note ?? map[key]?.note ?? "").slice(0, 80) };
     saveUser();
     return { ok: true, estimate: ALTER_NAMES[body.kind] ? alterEstimate(eur(priceOf(byId.get(body.card_id), !!body.foil)), body.kind) : null };
   }
