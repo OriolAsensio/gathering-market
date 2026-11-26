@@ -17,6 +17,16 @@ FEATURED = [
     (1, lambda name, place: bool(re.search(r"super", name, re.I) and re.search(r"ingenio|bcn", name + " " + place, re.I)), ["Edición Super"]),
     (2, lambda name, place: bool(re.search(r"paupergeddon", name, re.I) and re.search(r"main event", name, re.I)), ["Main Event", "Paupergeddon"]),
 ]
+# Ediciones del Super Pauper (inGenio BCN) encontradas en MTGTop8 (2026-11-27). El buscador de MTGTop8 devuelve muy pocos
+# resultados por búsqueda, así que se guardan aquí y cada día solo se buscan las siguientes ediciones ("46º Edición"…).
+KNOWN_SUPER = {56993: "Super Pauper BCN 16 Edition @ Ingenio BCN Games (Barcelona)", 73163: "30ª Edición Superpauper @ Ingeniobcn (Barcelona)",
+               74448: "31ª Edición Super Pauper @ Ingeniobcn (Barcelona)", 75379: "32ª Edición Super Pauper @ inGenio (Barcelona)",
+               77256: "33ª Edición Super Ingenio @ Ingeniobcn (Barcelona)", 78239: "34ª Edición Super Pauper Ingenio @ inGenio (Barcelona)",
+               79570: "35º Edición Super Ingenio @ inGenio (Barcelona)", 80905: "36º Edición Super Ingenio @ Ingeniobcn (Barcelona)",
+               82290: "37º Edición Super Pauper Ingenio @ inGenio (Barcelona)", 84236: "38º Edición Super Ingenio @ Ingeniobcn (Barcelona)",
+               85318: "39º Edición Super @ inGenio (Barcelona)", 86431: "40º Edición Super @ Ingeniobcn (Barcelona)",
+               88830: "41ª Edición Super Event @ Ingeniobcn (Barcelona)", 90254: "42º Edición Super PauperBlast @ Ingeniobcn (Barcelona)",
+               90850: "43º Edición Super Ingenio @ Ingeniobcn (Barcelona)", 94308: "45º Edición Super @ inGenio BCN Games (Barcelona)"}
 RECENT = 12          # torneos recientes que se miran
 FEATURED_TOP = 8     # listas que se bajan de cada destacado
 SCHEMA = """
@@ -57,8 +67,13 @@ def main(fmt="PAU"):
             events.append((eid, m.group(3).strip(), m.group(4).strip(), f"20{m.group(7)}-{m.group(6)}-{m.group(5)}"))
     # Ediciones del destacado (también las que ya no salen en la portada)
     found = set()
-    for _, _, searches in FEATURED:
-        for q in searches:
+    found |= {(str(k), v) for k, v in KNOWN_SUPER.items()}
+    # siguientes ediciones del Super Pauper: a partir del número más alto que tenemos
+    names = list(KNOWN_SUPER.values()) + [r[0] for r in conn.execute("SELECT name FROM tournaments WHERE featured = 1")]
+    last = max([int(m.group(1)) for n in names for m in [re.match(r"(\d+)", n)] if m] or [45])
+    super_q = [f"{n}{o} Edición" for n in range(last + 1, last + 3) for o in ("º", "ª")]
+    for n, _, searches in FEATURED:
+        for q in searches + (super_q if n == 1 else []):
             found |= set(re.findall(r"<a href=event\?e=(\d+)[^>]*>([^<]*@[^<]*)</a>",
                                     get(f"search?format={fmt}&event_titre=" + urllib.parse.quote(q.encode("cp1252")))))
     for eid, title in sorted(found):

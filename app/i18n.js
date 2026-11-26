@@ -15,6 +15,54 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Tu reseña ya está guardada: el creador de mazos aprende de ella aunque borres el mazo.", "Your review is saved: the deck builder learns from it even if you delete the deck.", "La teva ressenya ja està desada: el creador de baralles n'aprèn encara que esborris la baralla."],
+  ["Me gusta: guardarlo en Mis mazos", "I like it: save it in My decks", "M'agrada: desar-la a Les meves baralles"],
+  ["Rehacer el mazo", "Rebuild the deck", "Refer la baralla"],
+  ["Con las mismas cartas base y lo aprendido de tu reseña.", "With the same base cards and what was learned from your review.", "Amb les mateixes cartes base i el que s'ha après de la teva ressenya."],
+  ["Menos potente", "Weaker", "Menys potent"],
+  ["Igual", "Same", "Igual"],
+  ["Más potente", "Stronger", "Més potent"],
+  ["No me gusta: borrarlo", "I don't like it: delete it", "No m'agrada: esborrar-la"],
+  ["Guardado en Mis mazos", "Saved in My decks", "Desada a Les meves baralles"],
+  ["Mazo borrado (la reseña se queda)", "Deck deleted (the review stays)", "Baralla esborrada (la ressenya es queda)"],
+  ["Hot", "Hot", "Hot"],
+  ["Cartas hot de la semana", "Hot cards of the week", "Cartes hot de la setmana"],
+  ["Aún no hay cartas hot", "No hot cards yet", "Encara no hi ha cartes hot"],
+  ["Hace falta una semana de precios para verlas.", "It takes a week of prices to see them.", "Cal una setmana de preus per veure-les."],
+  ["muy jugada en Commander", "heavily played in Commander", "molt jugada a Commander"],
+  ["Probando otra cámara del móvil…", "Trying another phone camera…", "Provant una altra càmera del mòbil…"],
+  ["Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar", "Point at the card (no need to fit it in the frame) · tap to focus", "Apunta a la carta (no cal encaixar-la al marc) · toca per enfocar"],
+  ["Apunta a la carta, con luz y sin reflejos", "Point at the card, with light and no glare", "Apunta a la carta, amb llum i sense reflexos"],
+  ["Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)", "This camera doesn't focus: try «Camera» or «Photo» (uses the phone's focus)", "Aquesta càmera no enfoca: prova «Càmera» o «Foto» (fa servir l'enfocament del mòbil)"],
+  ["Añadida · Pon la siguiente carta", "Added · Next card", "Afegida · Posa la següent carta"],
+  ["¿Borrosa? Aleja el móvil un palmo y usa el zoom", "Blurry? Move the phone back a bit and use zoom", "Borrosa? Allunya el mòbil un pam i fes servir el zoom"],
+  ["Hay cartas que piden nieve: las tierras básicas son nevadas (Snow-Covered).", "Some cards want snow: basic lands are Snow-Covered.", "Hi ha cartes que demanen neu: les terres bàsiques són nevades (Snow-Covered)."],
+  ["Colecciones nuevas", "New sets", "Col·leccions noves"],
+  ["Ver evolución", "See history", "Veure l'evolució"],
+  ["Últimas añadidas", "Recently added", "Darreres afegides"],
+  ["Valor añadido ese día:", "Value added that day:", "Valor afegit aquell dia:"],
+  ["Mano de prueba", "Sample hand", "Mà de prova"],
+  ["Probabilidades", "Probabilities", "Probabilitats"],
+  ["Como imagen", "As an image", "Com a imatge"],
+  ["Como enlace", "As a link", "Com a enllaç"],
+  ["Comprar lo que falta en Cardmarket", "Buy what's missing on Cardmarket", "Comprar el que falta a Cardmarket"],
+  ["Para Moxfield", "For Moxfield", "Per a Moxfield"],
+  ["Para ManaBox", "For ManaBox", "Per a ManaBox"],
+  ["Hacer foto", "Take photo", "Fer foto"],
+  ["Galería", "Gallery", "Galeria"],
+  ["Carta de Magic", "Magic card", "Carta de Magic"],
+  ["Sortear asientos", "Shuffle seats", "Sortejar seients"],
+  ["Sonido", "Sound", "So"],
+  ["Veneno", "Poison", "Verí"],
+  ["Energía", "Energy", "Energia"],
+  ["Experiencia", "Experience", "Experiència"],
+  ["Editar este perfil", "Edit this profile", "Editar aquest perfil"],
+  ["Meme", "Meme", "Meme"],
+  ["Muy casual", "Very casual", "Molt casual"],
+  ["Equilibrado", "Balanced", "Equilibrat"],
+  ["Optimizado", "Optimized", "Optimitzat"],
+  ["Competitivo", "Competitive", "Competitiu"],
+  ["World Champion", "World Champion", "World Champion"],
   ["Enderezar", "Untap", "Redreçar"],
   ["Mantenimiento", "Upkeep", "Manteniment"],
   ["Robar", "Draw", "Robar"],
@@ -981,10 +1029,17 @@ const RULES = [
   [/^Regla de leyendas: ([^.]+) va al cementerio\.$/, "Legend rule: $1 goes to the graveyard.", "Regla de llegendes: $1 va al cementiri."], [/^([^.]+) recibe ([^.]+)\.$/, "$1 gets $2.", "$1 rep $2."],
   [/^([^.]+) se gira\.$/, "$1 becomes tapped.", "$1 es gira."], [/^([^.]+) bloquea con (\d+) criaturas?\.$/, "$1 blocks with $2 creature(s).", "$1 bloqueja amb $2 criatura(es)."],
   [/^Error del motor: (.+)$/, "Engine error: $1", "Error del motor: $1"],
+  [/^¿Qué hacemos con (.+)\?$/, "What do we do with $1?", "Què fem amb $1?"], [/^Ediciones anteriores \((\d+)\)$/, "Previous editions ($1)", "Edicions anteriors ($1)"],
+  [/^Del (\S+) al (\S+)\. Cardmarket no publica cuántas copias se venden, así que aquí están las que más demanda tienen: suben esta semana \(sin bajar ayer\) y se juegan mucho en el meta de algún formato o en Commander\.$/,
+    "From $1 to $2. Cardmarket doesn't publish how many copies sell, so here are the ones in highest demand: rising this week (not falling yesterday) and heavily played in some format's meta or in Commander.",
+    "Del $1 al $2. Cardmarket no publica quantes còpies es venen, així que aquí hi ha les que tenen més demanda: pugen aquesta setmana (sense baixar ahir) i es juguen molt al meta d'algun format o a Commander."],
+  [/^en (\d+) mazos? del meta \((.+)\)$/, "in $1 meta deck(s) ($2)", "en $1 baralla(es) del meta ($2)"],
 ];
 
 const COL = { en: 1, ca: 2 };
 const EXACT_MAP = new Map(EXACT.map((r) => [r[0], r[COL[LANG]] || r[0]]));
+// Los textos ya no llevan emoji (ahora son iconos): cada frase con un emoji delante también vale sin él
+for (const r of EXACT) { const m = /^\P{L}+?\s(.+)$/u.exec(r[0]); if (m && /\p{Extended_Pictographic}/u.test(r[0].slice(0, 3)) && !EXACT_MAP.has(m[1])) EXACT_MAP.set(m[1], (r[COL[LANG]] || r[0]).replace(/^\P{L}+?\s/u, "")); }
 const WORD_MAP = new Map(THEME_WORDS.map((r) => [r[0], r[COL[LANG]] || r[0]]));
 /** Traduce una lista de temas/colores separados por comas ("fichas, sacrificio"). */
 function words(s, lang = LANG) {

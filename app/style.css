@@ -591,3 +591,17 @@ body.immersive header.top { display: none; }
 .lf-art { position: relative; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: none; aspect-ratio: 4 / 3; }
 .lf-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lf-art span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; background: rgba(0,0,0,.6); color: #fff; padding: 2px 4px; }
+
+.hot-rank { flex: none; width: 26px; text-align: center; font: 800 16px var(--display); color: var(--gold); }
+.item.hot .up { color: #7fdc8a; font-weight: 700; font-size: 13px; }
+
+/* Iconos de línea (SVG): mismo tamaño que las máscaras PNG */
+svg.ico.svg { background: none !important; -webkit-mask: none !important; mask: none !important; display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-right: .4em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.lf-splash svg.ico, .lf-ask-ico svg.ico { width: 64px; height: 64px; margin: 0; color: #e2614a; }
+.lf-skull svg.ico { width: 60px; height: 60px; margin: 0; }
+.lf-bar svg.ico, .lf-extra svg.ico, .sheet-close svg.ico, .x-card svg.ico, .w-del svg.ico, .check svg.ico { margin: 0; }
+.lf-roll svg.ico { width: 44px; height: 44px; margin: 0; }
+.medal svg.ico { width: 26px; height: 26px; margin: 0; }
+
+.added-sum { margin: -4px 0 8px; font-size: 13px; color: var(--muted, #bfae90); }
+.added-sum b { color: var(--gold); font-size: 15px; }

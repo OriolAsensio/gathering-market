@@ -16,9 +16,9 @@ TOP_N = 60          # arquetipos que seguimos (en la práctica, todos)
 META = 145          # periodo de MTGTop8: últimos 2 meses (más arquetipos que "2 semanas")
 DELAY = 5           # segundos entre peticiones
 # Otros formatos: código de MTGTop8, nombre y cuántos arquetipos (los más jugados, en su periodo por defecto).
-OTHER = [("ST", "Estándar", 20), ("MO", "Modern", 20), ("PI", "Pioneer", 15), ("LE", "Legacy", 15), ("VI", "Vintage", 10),
-         ("PREM", "Premodern", 12), ("PEA", "Peasant", 10), ("EDH", "Duel Commander", 12, "DC"), ("cEDH", "cEDH", 12),
-         ("HIGH", "Highlander", 8), ("CHL", "Canadian Highlander", 8), ("EXP", "Explorer", 10), ("HI", "Historic", 10)]
+OTHER = [("ST", "Estándar", 30), ("MO", "Modern", 30), ("PI", "Pioneer", 25), ("LE", "Legacy", 25), ("VI", "Vintage", 18),
+         ("PREM", "Premodern", 20), ("PEA", "Peasant", 15), ("EDH", "Duel Commander", 20, "DC"), ("cEDH", "cEDH", 20),
+         ("HIGH", "Highlander", 12), ("CHL", "Canadian Highlander", 12), ("EXP", "Explorer", 15), ("HI", "Historic", 15)]
 # Listas extra por arquetipo (las más recientes) para calcular los staples, y tope de listas nuevas por ejecución
 # (cada una son 5 s; lo que no quepa hoy se baja en las siguientes vueltas: las ya guardadas no se repiten).
 EXTRA = {"PAU": 4}
@@ -137,7 +137,7 @@ def scrape(conn, today, f, archetypes, code=None):
 # Formatos de Commander (Duel Commander, cEDH): MTGTop8 no da arquetipos, solo torneos. El "meta" sale de los tops de los
 # últimos torneos: cada comandante es un arquetipo, su cuota es cuántas veces sale en los tops y su lista, la mejor clasificada.
 EVENTS_META = {"EDH", "cEDH"}
-EVENTS_N = 10
+EVENTS_N = 16
 
 
 def scrape_events(conn, today, f, top, code):

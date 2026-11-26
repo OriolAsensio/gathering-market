@@ -108,7 +108,8 @@ def main(out=None):
         n, o = now.get(p[0], (None, None)), back[1].get(p[0], (None, None))
         for i, suffix in ((0, ""), (1, "f")):
             a, b = o[i], n[i]
-            if a and b and abs(b - a) >= 50 and abs(b - a) / a >= 0.10:
+            # (céntimos que se multiplican por 10 de golpe suelen ser un error del precio medio de Cardmarket: no se avisa)
+            if a and b and a >= 10 and not (b > a * 10 and a < 100) and abs(b - a) >= 50 and abs(b - a) / a >= 0.10:
                 changes[p[0] + suffix] = [a, b]
     dump(out / "changes.json", {"day": day, "base": days[1], "c": changes})
 

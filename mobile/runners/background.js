@@ -33,7 +33,7 @@ addEventListener("checkPrices", async (resolve, reject) => {
       const events = await (await fetch(PACK + "events.json?v=" + version.live_version)).json();
       const last = +kv("lastEvent") || 0;
       const fresh = events.filter((e) => e.id > last && e.kind !== "price").slice(0, 5);
-      if (last) for (const e of fresh.reverse()) notify(e.title, e.body || "");
+      if (last) for (const e of fresh.reverse()) notify(String(e.title).replace(/^\p{Extended_Pictographic}️?\s*/u, ""), e.body || "");
       if (events.length) CapacitorKV.set("lastEvent", String(Math.max(last, ...events.map((e) => e.id))));
       CapacitorKV.set("lastLive", version.live_version);
     }
@@ -48,10 +48,10 @@ addEventListener("checkPrices", async (resolve, reject) => {
         }).sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
         const line = (h) => `${h.name} ${h.pct > 0 ? "+" : ""}${h.pct}% (${euro(h.old)} → ${euro(h.now)})`;
         if (hits.length && hits.length <= 3) {
-          for (const h of hits) notify(`${h.pct > 0 ? "📈 Sube" : "📉 Baja"} ${h.name}`, line(h));
+          for (const h of hits) notify(`${h.pct > 0 ? "Sube" : "Baja"} ${h.name}`, line(h));
         } else if (hits.length) {
           const up = hits.filter((h) => h.pct > 0).length, down = hits.length - up;
-          notify(`${up ? `📈 ${up} suben` : ""}${up && down ? " · " : ""}${down ? `📉 ${down} bajan` : ""} en tu colección`,
+          notify(`${up ? `${up} suben` : ""}${up && down ? " · " : ""}${down ? `${down} bajan` : ""} en tu colección`,
             hits.slice(0, 5).map(line).join("\n"));
         }
       }
@@ -62,7 +62,7 @@ addEventListener("checkPrices", async (resolve, reject) => {
         for (const w of wishes) {
           const now = Math.min(...w.pis.map((i) => pr.eur[i]).filter((v) => v != null));
           if (!Number.isFinite(now)) continue;
-          if (now <= w.target && !hit[w.name]) { notify(`🎯 ${w.name} a ${euro(now)}`, `Ha bajado de tu precio objetivo (${euro(w.target)}).`); hit[w.name] = version.day; }
+          if (now <= w.target && !hit[w.name]) { notify(`${w.name} a ${euro(now)}`, `Ha bajado de tu precio objetivo (${euro(w.target)}).`); hit[w.name] = version.day; }
           else if (now > w.target) delete hit[w.name];
         }
         CapacitorKV.set("wishHit", JSON.stringify(hit));

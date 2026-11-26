@@ -54,9 +54,9 @@ const Life = (() => {
 
   // ---- al entrar en la pestaña
   function view() {
-    $("#view").innerHTML = `<div class="lf-splash">❤️</div>`;
+    $("#view").innerHTML = `<div class="lf-splash">${ico("heart")}</div>`;
     if (!game) { newGame(); return table(); }
-    const body = openSheet(`<div class="lf-ask"><div class="lf-ask-ico">❤️</div><h3>¿Iniciar una nueva partida?</h3>
+    const body = openSheet(`<div class="lf-ask"><div class="lf-ask-ico">${ico("heart")}</div><h3>¿Iniciar una nueva partida?</h3>
       <div class="sub">${game.players.length} jugadores · ${game.start} vidas</div>
       <div class="row-btns"><button class="btn" id="lf-no">No, seguir la de antes</button><button class="btn primary" id="lf-yes">Sí, nueva partida</button></div></div>`);
     $("#lf-yes", body).onclick = () => { closeSheet(); newGame(); table(); sfx.pick(); };
@@ -107,14 +107,14 @@ const Life = (() => {
           <button class="lf-name" data-who="${i}">${esc(pl.name)}</button>
           <div class="lf-life" id="lf-life-${i}">${pl.life}</div>
           <div class="lf-delta ${pl.delta > 0 ? "up" : "down"}" id="lf-delta-${i}" ${pl.delta ? "" : "hidden"}>${pl.delta > 0 ? "+" : ""}${pl.delta}</div>
-          <div class="lf-extra">${pl.poison ? `<span>☠️${pl.poison}</span>` : ""}${pl.energy ? `<span>⚡${pl.energy}</span>` : ""}${pl.exp ? `<span>✨${pl.exp}</span>` : ""}${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `<span style="--c:${game.players[+k]?.color}" class="cmd">⚔️${v}</span>`).join("")}</div>
-          ${dead ? `<div class="lf-skull">💀</div>` : ""}
+          <div class="lf-extra">${pl.poison ? `<span>${ico("skull")}${pl.poison}</span>` : ""}${pl.energy ? `<span>${ico("bolt")}${pl.energy}</span>` : ""}${pl.exp ? `<span>${ico("sparkle")}${pl.exp}</span>` : ""}${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `<span style="--c:${game.players[+k]?.color}" class="cmd">${ico("sword")}${v}</span>`).join("")}</div>
+          ${dead ? `<div class="lf-skull">${ico("skull")}</div>` : ""}
           <div class="lf-flash"></div>
         </div></div>`;
     }).join("")}
     <div class="lf-bar">
-      <button data-act="exit" aria-label="Salir">✕</button><button data-act="set" aria-label="Ajustes">⚙️</button>
-      <button data-act="dice" aria-label="Dados">🎲</button><button data-act="first" aria-label="Quién empieza">👑</button><button data-act="reset" aria-label="Reiniciar">↺</button>
+      <button data-act="exit" aria-label="Salir">${ico("close")}</button><button data-act="set" aria-label="Ajustes">${ico("gear")}</button>
+      <button data-act="dice" aria-label="Dados">${ico("dice")}</button><button data-act="first" aria-label="Quién empieza">${ico("crown")}</button><button data-act="reset" aria-label="Reiniciar">${ico("reset")}</button>
     </div>
     <div class="lf-panel" id="lf-panel" hidden></div>`;
     el.querySelectorAll(".lf-tap").forEach(bindTap);
@@ -165,7 +165,7 @@ const Life = (() => {
       panel.innerHTML = `<div class="lf-row"><span>Jugadores</span>${[2, 3, 4, 5, 6].map((n) => `<button data-n="${n}" class="${n === game.players.length ? "on" : ""}">${n}</button>`).join("")}</div>
         <div class="lf-row"><span>Vidas</span>${LIVES.map((l) => `<button data-l="${l}" class="${l === game.start ? "on" : ""}">${l}</button>`).join("")}<input type="number" id="lf-custom" min="1" max="999" placeholder="…" value="${LIVES.includes(game.start) ? "" : game.start}"></div>
         <div class="lf-row"><span>Mesa</span>${LAYOUTS.map(([k, n]) => `<button data-lay="${k}" class="${k === game.layout ? "on" : ""}">${n}</button>`).join("")}</div>
-        <div class="lf-row"><button data-shuffle="1">🔀 Sortear asientos</button><button data-sound="1">${store("sounds") === "0" ? "🔇 Sonido" : "🔊 Sonido"}</button></div>`;
+        <div class="lf-row"><button data-shuffle="1">${ico("shuffle")}Sortear asientos</button><button data-sound="1">${store("sounds") === "0" ? `${ico("mute")}Sonido` : `${ico("sound")}Sonido`}</button></div>`;
       const apply = (patch) => { save("lifeSettings", { ...s, n: game.players.length, start: game.start, layout: game.layout, ...patch }); newGame(); paint(); act("set"); };
       panel.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => apply({ n: +b.dataset.n })));
       panel.querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => apply({ start: +b.dataset.l })));
@@ -174,12 +174,12 @@ const Life = (() => {
       $("[data-shuffle]", panel).onclick = () => { for (let i = game.players.length - 1; i > 0; i--) { const j = rnd(i + 1); [game.players[i], game.players[j]] = [game.players[j], game.players[i]]; } save("lifeGame", game); sfx.dice(); paint(); };
       $("[data-sound]", panel).onclick = () => { store("sounds", store("sounds") === "0" ? "1" : "0"); panel.hidden = true; act("set"); };
     } else if (a === "dice") {
-      panel.innerHTML = `<div class="lf-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">🪙</button></div><div class="lf-roll" id="lf-roll">🎲</div>`;
+      panel.innerHTML = `<div class="lf-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">${ico("coin")}</button></div><div class="lf-roll" id="lf-roll">${ico("dice")}</div>`;
       panel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => {
         const out = $("#lf-roll", panel), coin = b.dataset.d === "coin", faces = coin ? 2 : +b.dataset.d;
         sfx.dice(); let k = 0;
         const spin = setInterval(() => { out.textContent = coin ? (k++ % 2 ? "Cara" : "Cruz") : 1 + rnd(faces); out.classList.toggle("spin"); }, 70);
-        setTimeout(() => { clearInterval(spin); const r = rnd(faces); out.textContent = coin ? (r ? "🪙 Cara" : "🪙 Cruz") : `🎲 ${1 + r}`; out.classList.add("land"); setTimeout(() => out.classList.remove("land"), 400); buzz(30); sfx.pick(); }, 700);
+        setTimeout(() => { clearInterval(spin); const r = rnd(faces); out.textContent = coin ? (r ? "Cara" : "Cruz") : `${1 + r}`; out.classList.add("land"); setTimeout(() => out.classList.remove("land"), 400); buzz(30); sfx.pick(); }, 700);
       }));
     } else if (a === "first") {
       // Ruleta: el brillo pasa de asiento en asiento, cada vez más despacio, y se para en uno al azar
@@ -213,10 +213,10 @@ const Life = (() => {
       <h2>Perfil</h2>
       <div class="lf-profiles">${ps.map((p) => `<button class="lf-prof ${p.id === pl.pid ? "on" : ""}" data-pid="${p.id}"><span class="lf-avatar" style="background-color:${p.color}${p.img ? `;background-image:url('${p.img}')` : ""}"></span><span>${esc(p.name)}</span></button>`).join("")}
         <button class="lf-prof" data-pid="new"><span class="lf-avatar add">＋</span><span>Nuevo</span></button></div>
-      ${pl.pid ? `<button class="btn block" id="lf-edit">✏️ Editar este perfil</button>` : ""}
+      ${pl.pid ? `<button class="btn block" id="lf-edit">${ico("edit")}Editar este perfil</button>` : ""}
       <h2>Contadores</h2>
       <div class="lf-counters">
-        ${[["poison", "☠️ Veneno"], ["energy", "⚡ Energía"], ["exp", "✨ Experiencia"]].map(([k, n]) => `<div class="lf-step"><span>${n}</span><button data-k="${k}" data-d="-1">−</button><b>${pl[k]}</b><button data-k="${k}" data-d="1">+</button></div>`).join("")}
+        ${[["poison", "skull", "Veneno"], ["energy", "bolt", "Energía"], ["exp", "sparkle", "Experiencia"]].map(([k, ic, n]) => `<div class="lf-step"><span>${ico(ic)}${n}</span><button data-k="${k}" data-d="-1">−</button><b>${pl[k]}</b><button data-k="${k}" data-d="1">+</button></div>`).join("")}
       </div>
       ${game.players.length > 1 ? `<h2>Daño de comandante recibido</h2><div class="lf-counters">${game.players.map((o, j) => (j === i ? "" : `<div class="lf-step"><span><i class="lf-dot" style="background:${o.color}"></i>${esc(o.name)}</span><button data-k="cmd" data-j="${j}" data-d="-1">−</button><b>${pl.cmd[j] || 0}</b><button data-k="cmd" data-j="${j}" data-d="1">+</button></div>`)).join("")}</div>
         <div class="hint">El daño de comandante también quita vidas. Con 21 de un mismo comandante, pierde.</div>` : ""}`);
@@ -243,8 +243,8 @@ const Life = (() => {
       <div class="field"><label>Nombre</label><input class="search" id="lf-name" maxlength="20" value="${esc(p.name)}" placeholder="Tu nombre de jugador"></div>
       <div class="field"><label>Color</label><div class="lf-swatches">${COLORS.map((c) => `<button class="lf-swatch" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join("")}</div></div>
       <div class="field"><label>Imagen</label><div class="row-btns" style="margin-top:0">
-        <button class="btn" id="lf-card">🃏 Carta de Magic</button>
-        <label class="btn" for="lf-cam">📷 Hacer foto</label><label class="btn" for="lf-gal">🖼️ Galería</label></div>
+        <button class="btn" id="lf-card">${ico("cards")}Carta de Magic</button>
+        <label class="btn" for="lf-cam">${ico("cam")}Hacer foto</label><label class="btn" for="lf-gal">${ico("image")}Galería</label></div>
         <input type="file" id="lf-cam" accept="image/*" capture="user" hidden><input type="file" id="lf-gal" accept="image/*" hidden></div>
       <div id="lf-cardpick" hidden><input class="search" id="lf-cq" placeholder="Busca una carta por su nombre…"><div class="lf-arts" id="lf-arts"></div></div>
       ${p.img ? `<button class="btn block" id="lf-noimg">Quitar la imagen</button>` : ""}

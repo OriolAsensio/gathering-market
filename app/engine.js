@@ -195,6 +195,27 @@ const Engine = (() => {
     cheapCache.set(col, res);
     return res;
   }
+  /** Subidas y bajadas de una carta comparando LA MISMA impresión en los dos días (la más barata de las que tienen precio
+   *  los dos días). Antes se comparaba la más barata de hoy con la más barata de entonces: si la barata dejaba de tener precio,
+   *  salía un +5.200 % que no existía (Nog, Ambitious Cadet). */
+  const pairedCache = new Map();
+  function paired(col) {
+    if (pairedCache.day !== PR.day) { pairedCache.clear(); pairedCache.day = PR.day; }  // precios nuevos: se recalcula
+    if (pairedCache.has(col)) return pairedCache.get(col);
+    const now = new Array(O.length).fill(null), old = new Array(O.length).fill(null), alt = new Array(O.length).fill(null);
+    for (let i = 0; i < P.length; i++) {
+      const a = PR.eur[i], b = PR[col]?.[i], o = P[i][1];
+      if (a == null || b == null || P[i][5]) continue;  // sin las variantes (promos, sin borde…): muy pocas ventas
+      if (now[o] == null || a < now[o]) { alt[o] = now[o] != null ? [now[o], old[o]] : alt[o]; now[o] = a; old[o] = b; }
+    }
+    // el absurdo de Cardmarket (una impresión a céntimos que no es real): si la más barata vale menos de 1/5 de la siguiente, la siguiente
+    for (let o = 0; o < O.length; o++) if (alt[o] && now[o] < alt[o][0] * 0.2) { now[o] = alt[o][0]; old[o] = alt[o][1]; }
+    const res = { now, old };
+    pairedCache.set(col, res);
+    return res;
+  }
+  /** ¿Es creíble el cambio? Céntimos que se multiplican por 10 de golpe suelen ser un error del precio medio. */
+  const believable = (old, now) => old >= 10 && !(now > old * 10 && old < 100);
   const oImage = (oi) => { const p = cheapest().pick[oi]; return p >= 0 ? img(P[p][0]) : null; };
   const priceOf = (pi, foil) => (foil ? PR.eur_foil[pi] : PR.eur[pi]);
 
@@ -278,7 +299,8 @@ const Engine = (() => {
       const r = printingRow(pi);
       days.get(day).push({ id: cid, name: front(r.name), image: r.image, set: r.set, number: r.number, qty: n, foil: !!foil, eur: eur(priceOf(pi, !!foil)) });
     }
-    return [...days].map(([day, cards]) => ({ day, cards, count: cards.reduce((a, x) => a + x.qty, 0) }));
+    return [...days].map(([day, cards]) => ({ day, cards, count: cards.reduce((a, x) => a + x.qty, 0),
+      value: Math.round(cards.reduce((a, x) => a + (x.eur || 0) * x.qty, 0) * 100) / 100 }));  // lo que vale hoy lo que añadiste ese día
   }
   function addEvent(day, kind, title, body = "") {
     if (user.events.some((e) => e.day === day && e.kind === kind && e.title === title)) return null;
@@ -377,20 +399,25 @@ const Engine = (() => {
       return [pi, foil, (qty - proxyOf(id, key, qty)) * (LANG_FACTOR[langOf(id, key)] || 1)];
     }).filter((r) => r[2] > 0);
     const byDay = new Map();
-    const shards = new Set(rows.map(([pi]) => P[pi][0].slice(0, 2)));
-    if (rows.length && shards.size <= 64) {  // shortcut: hasta 64 ficheros (~4 MB); con colecciones grandes, solo los 4 puntos
+    // Las cartas que más valen primero: con su historial completo (hasta 64 ficheros, ~4 MB) se cubre casi todo el valor;
+    // el resto se estima con la misma evolución. Antes, con colecciones grandes, solo salían 4 puntos.
+    const nowOf = ([pi, foil, n]) => n * ((foil ? PR.eur_foil[pi] : PR.eur[pi]) || 0);
+    const sorted = rows.slice().sort((x, y) => nowOf(y) - nowOf(x)), shards = new Set(), top = [];
+    for (const r of sorted) { const sh = P[r[0]][0].slice(0, 2); if (!shards.has(sh) && shards.size >= 64) continue; shards.add(sh); top.push(r); }
+    const topSet = new Set(top), restNow = sorted.filter((r) => !topSet.has(r)).reduce((t, r) => t + nowOf(r), 0), topNow = top.reduce((t, r) => t + nowOf(r), 0);
+    if (top.length) {
       for (const sh of shards) if (!historyShards.has(sh)) historyShards.set(sh, fetchText(`history/${sh}.json?d=${PR.day}`).then(JSON.parse).catch(() => null));
       const files = new Map(await Promise.all([...shards].map(async (sh) => [sh, await historyShards.get(sh)])));
       const days = [...new Set([...files.values()].flatMap((h) => h?.days || []))].sort();
       for (const d of days) {
         let total = 0;
-        for (const [pi, foil, n] of rows) {
+        for (const [pi, foil, n] of top) {
           const h = files.get(P[pi][0].slice(0, 2)), vals = h?.c?.[P[pi][0]];
           let v = null;
           if (vals) { const k = h.days.indexOf(d); for (let i = k; i >= 0 && v == null; i--) v = vals[i]; }  // el último precio conocido
           total += n * (v ?? (foil ? PR.eur_foil[pi] : PR.eur[pi]) ?? 0);
         }
-        byDay.set(d, total);
+        byDay.set(d, total + (topNow ? (restNow * total) / topNow : restNow));  // el resto, con la misma evolución
       }
     } else {
       for (const [k, col] of [["30", "d30"], ["7", "d7"], ["1", "d1"]]) {
@@ -404,7 +431,7 @@ const Engine = (() => {
     return { name: "Tu colección", set: "", days, eur: days.map((d) => eur(byDay.get(d))) };
   }
 
-  /** Datos de juego de unas cartas (mano de prueba, probabilidades, partida contra el bot). */
+  /** Datos de juego de unas cartas (mano de prueba y probabilidades). */
   function cardInfo({ names = "" }) {
     return String(names).split("|").filter(Boolean).map((n) => {
       const oi = oByNorm.get(norm(n));
@@ -1053,7 +1080,7 @@ const Engine = (() => {
     const now = cheapest().price;
     const past = { 1: cheapest("d1").price, 7: cheapest("d7").price, 30: cheapest("d30").price };
     const has = (k) => PR.days && PR.days[k] && PR.days[k] !== PR.day;
-    const change = (oi, k) => (has(k) && past[k][oi] && now[oi] ? Math.round(((now[oi] - past[k][oi]) * 1000) / past[k][oi]) / 10 : null);
+    const change = (oi, k) => { const p = paired(`d${k}`), a = p.old[oi], b = p.now[oi]; return has(k) && a && b && believable(a, b) ? Math.round(((b - a) * 1000) / a) / 10 : null; };
     return (user.watch || []).map((name) => {
       const oi = oByNorm.get(norm(name));
       if (oi == null) return null;
@@ -1094,13 +1121,13 @@ const Engine = (() => {
     if (scope === "collection") {
       for (const [pi] of entries(binderOf(c) || 1)) {
         const o = PR[col][pi], n = PR.eur[pi];
-        if (o && n) items.push({ id: P[pi][0], name: O[P[pi][1]][0], set: P[pi][2], image: img(P[pi][0]), old: eur(o), new: eur(n) });
+        if (o && n && believable(o, n)) items.push({ id: P[pi][0], name: O[P[pi][1]][0], set: P[pi][2], image: img(P[pi][0]), old: eur(o), new: eur(n) });
       }
     } else {
-      const now = cheapest().price, old = cheapest(col).price;
+      const { now, old } = paired(col);
       for (let oi = 0; oi < O.length; oi++) {
         if (scope === "pauper" && O[oi][6] !== 1) continue;
-        if (now[oi] && old[oi]) items.push({ name: front(O[oi][0]), set: null, image: null, old: eur(old[oi]), new: eur(now[oi]) });
+        if (now[oi] && old[oi] && believable(old[oi], now[oi])) items.push({ name: front(O[oi][0]), set: null, image: null, old: eur(old[oi]), new: eur(now[oi]) });
       }
     }
     items = items.filter((i) => Math.max(i.old, i.new) >= +min && i.old > 0);
@@ -2768,6 +2795,31 @@ const Engine = (() => {
       x.subtypes.forEach((t) => push(BY_SUB, t, oi));
     });
   }
+  /** Cartas hot de la semana: Cardmarket no publica cuántas copias se venden, así que "hot" = suben esta semana (y no
+   *  bajaron ayer) y además se juegan mucho (en mazos del meta de cualquier formato y en EDHREC): las que más demanda tienen. */
+  function hotCards({ c }) {
+    const w = paired("d7"), y = paired("d1"), owned = ownedByName(binderOf(c) || 1);
+    if (!PR.days?.["7"] || PR.days["7"] === PR.day) return { items: [], base: PR.day, latest: PR.day };
+    const plays = new Map(), fmts = new Map();
+    for (const d of META) for (const [n] of d.cards) { const k = norm(n); plays.set(k, (plays.get(k) || 0) + 1); (fmts.get(k) || fmts.set(k, new Set()).get(k)).add(d.format); }
+    const items = [];
+    for (let oi = 0; oi < O.length; oi++) {
+      const now = w.now[oi], old = w.old[oi];
+      if (!now || !old || now < 50 || !believable(old, now) || BASICS.has(norm(O[oi][0]))) continue;
+      const pct = ((now - old) * 100) / old;
+      if (pct < 8) continue;
+      if (y.old[oi] && y.now[oi] && y.now[oi] < y.old[oi] * 0.97) continue;  // ayer ya bajaba: no está caliente
+      const k = norm(O[oi][0]), meta = plays.get(k) || 0, rank = O[oi][7] || 0;
+      const pop = meta * 0.6 + (rank && rank < 1000 ? 3 : rank && rank < 3000 ? 2 : rank && rank < 10000 ? 1 : 0);
+      if (pop < 1) continue;  // que se juegue: si no, una subida no es demanda
+      const why = [];
+      if (meta) why.push(`en ${meta} mazo${meta > 1 ? "s" : ""} del meta (${[...fmts.get(k)].slice(0, 3).join(", ")})`);
+      if (rank && rank < 3000) why.push("muy jugada en Commander");
+      items.push({ name: front(O[oi][0]), image: oImage(oi), eur: eur(now), pct: Math.round(pct * 10) / 10, score: pct * (1 + pop), why, owned: owned.get(k) || 0 });
+    }
+    items.sort((a, b) => b.score - a.score);
+    return { items: items.slice(0, 24), base: PR.days["7"], latest: PR.day };
+  }
   const metaCount = () => { const m = new Map(); for (const d of META) if (d.format === "PAU") for (const [n] of d.cards) m.set(norm(n), (m.get(norm(n)) || 0) + 1); return m; };
   const card = (oi, extra) => ({ name: front(O[oi][0]), image: oImage(oi), eur: eur(cheapest().price[oi]), ...extra });
 
@@ -2892,7 +2944,7 @@ const Engine = (() => {
 
   // ---------------------------------------------------------------- rutas
   const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/cardinfo": cardInfo, "/api/valuehistory": valueHistory, "/api/added": added,
-    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
+    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/hot": hotCards, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };

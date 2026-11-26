@@ -6,7 +6,9 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const euro = (v) => (v == null ? "—" : v.toLocaleString("es-ES", { style: "currency", currency: "EUR" }));
 const pct = (v) => `${v > 0 ? "+" : ""}${v.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
 // Iconos propios (app/icons/*.png, pintados con el color del tema).
-const ico = (name) => `<i class="ico ico-${name}" aria-hidden="true"></i>`;
+// Iconos: los de línea del sprite de index.html (SVG) o las máscaras PNG de Flaticon (app/icons). Nada de emojis.
+const SVG_ICONS = new Set(["crest", "camera", "cards", "tome", "swords", "scales", "horn", "heart", "clock", "file", "list", "select", "check", "close", "trash", "hammer", "scroll", "cart", "palette", "dice", "image", "link", "edit", "mask", "mug", "scale", "target", "globe", "sparkle", "bolt", "warn", "book", "save", "crown", "search", "calendar", "medal", "cloud", "bell", "lock", "eye", "export", "refresh", "skull", "sword", "gear", "reset", "shuffle", "sound", "mute", "coin", "cam", "torch", "fire", "undo", "plus2", "chart"]);
+const ico = (name) => (SVG_ICONS.has(name) ? `<svg class="ico svg" aria-hidden="true"><use href="#i-${name}"/></svg>` : `<i class="ico ico-${name}" aria-hidden="true"></i>`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 // Todos los precios son de Cardmarket (en euros), vía Scryfall.
 const cardmarketUrl = (name) => `https://www.cardmarket.com/es/Magic/Products/Search?searchString=${encodeURIComponent(String(name).split(" // ")[0])}`;
@@ -67,7 +69,7 @@ async function loadSummary() {
     const d = s.value - s.prev_value;
     sub = `<span class="${d >= 0 ? "up" : "down"}">${d >= 0 ? "▲" : "▼"} ${euro(Math.abs(d))} desde ayer</span> · ${sub}`;
   }
-  $("#top-sub").innerHTML = `${sub} · <span class="link">📈 Ver evolución</span>`;
+  $("#top-sub").innerHTML = `${sub} · <span class="link">${ico("chart")}Ver evolución</span>`;
   return s;
 }
 
@@ -79,9 +81,9 @@ async function collectionsSheet() {
     <div class="hint">Ahora solo hay una carpeta: tu colección. Estas son de antes; puedes abrirlas o borrarlas.</div>
     <div class="list">${list.map((c) => `
       <div class="item ${c.id === cid ? "on" : ""}" data-cid="${c.id}">
-        <div class="item-main"><div class="item-title">${c.id === cid ? "✓ " : ""}${esc(c.name)}</div>
+        <div class="item-main"><div class="item-title">${c.id === cid ? ico("check") : ""}${esc(c.name)}</div>
           <div class="item-meta">${plural(c.cards, "carta", "cartas")}</div></div>
-        ${c.id !== 1 ? `<button class="btn" data-del="${c.id}" aria-label="Borrar ${esc(c.name)}">🗑</button>` : ""}
+        ${c.id !== 1 ? `<button class="btn" data-del="${c.id}" aria-label="Borrar ${esc(c.name)}">${ico("trash")}</button>` : ""}
       </div>`).join("")}</div>`);
   const use = (id) => { cid = id; store("cid", String(id)); closeSheet(); refresh(); };
   body.querySelectorAll("[data-cid]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del]")) use(+el.dataset.cid); }));
@@ -116,7 +118,7 @@ else {
 }
 $("#lang-btn").onclick = () => {
   const body = openSheet(`<h3>Idioma · Language · Idioma</h3><div class="list">${Object.entries(LANGS).map(([k, n]) => `
-    <button class="item ${k === LANG ? "on" : ""}" data-lang="${k}"><div class="item-main"><div class="item-title">${k === LANG ? "✓ " : ""}${n}</div></div></button>`).join("")}</div>`);
+    <button class="item ${k === LANG ? "on" : ""}" data-lang="${k}"><div class="item-main"><div class="item-title">${k === LANG ? ico("check") : ""}${n}</div></div></button>`).join("")}</div>`);
   body.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { store("lang", b.dataset.lang); location.reload(); }));
 };
 
@@ -125,7 +127,7 @@ function importSheet() {
   const body = openSheet(`
     <h3>Importar cartas</h3>
     <div class="hint">Exporta tus cartas como <b>CSV</b> desde tu otra app (ManaBox, Moxfield, Deckbox, Dragon Shield, TCGplayer, Archidekt, MTGGoldfish, Delver Lens…) y elige el archivo aquí: se respetan la edición, el número y el foil. También vale una lista de texto tipo <code>4 Lightning Bolt</code>.</div>
-    <label class="btn block" for="import-file">📄 Elegir archivo (.csv o .txt)</label>
+    <label class="btn block" for="import-file">${ico("file")}Elegir archivo (.csv o .txt)</label>
     <input type="file" id="import-file" accept=".csv,.txt,text/csv,text/plain" hidden>
     <div class="field"><label>O pega aquí la lista</label><textarea class="search" id="import-text" rows="4" placeholder="4 Lightning Bolt&#10;2 Counterspell (MH2) 267"></textarea></div>
     <div class="seg" id="import-mode" style="margin-top:12px"><button data-m="add" class="on">Sumar a lo que hay</button><button data-m="replace">Reemplazar la carpeta</button></div>
@@ -206,7 +208,7 @@ function gridSelect(root, { onTap, onChange }) {
 
 const tile = (c, extra = "") => `<button class="gcard ${c.qty ? "" : "missing"}" data-id="${esc(c.key || c.id)}">
     <img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
-    ${c.qty ? `<span class="badge full">×${c.qty}</span>` : ""}<span class="check" aria-hidden="true">✓</span>${extra}
+    ${c.qty ? `<span class="badge full">×${c.qty}</span>` : ""}<span class="check" aria-hidden="true">${ico("check")}</span>${extra}
     <div class="why">${esc(c.name)} · ${c.proxy && c.proxy >= c.qty ? "proxy" : euro(c.eur)}</div>
   </button>`;
 
@@ -270,7 +272,7 @@ function celebrate(r) {
   if (r?.completed?.length) {
     Sfx.complete();
     navigator.vibrate?.([80, 60, 80, 60, 200]);
-    setTimeout(() => toast(`🏆 ¡Colección completa: ${r.completed.join(", ")}!`), 50);
+    setTimeout(() => toast(`¡Colección completa: ${r.completed.join(", ")}!`), 50);
   } else Sfx.card(r?.eur);
 }
 
@@ -402,15 +404,15 @@ views.collection = async () => {
   const v = $("#view");
   let mode = store("colView") || "grid";
   v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
-    <button class="btn block" id="col-added" style="margin-top:8px">🕘 Últimas añadidas</button>
+    <button class="btn block" id="col-added" style="margin-top:8px">${ico("clock")}Últimas añadidas</button>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
     <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">${ico("alter")}Alteradas</button></div>
     ${sortSelect("col-sort", store("colSort") || "price", CARD_SORTS.filter(([k]) => k !== "set" && k !== "name"))}<div id="col-pips"></div>
-    <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">${ico("picture")}Imágenes</button><button data-v="list">☰ Lista</button><button data-v="select">☑ Seleccionar</button></div>
+    <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">${ico("picture")}Imágenes</button><button data-v="list">${ico("list")}Lista</button><button data-v="select">${ico("select")}Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
-    <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">🗑 Quitar</button><button class="btn primary" id="col-go">🔨 Crear mazo</button></div>`);
+    <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">${ico("trash")}Quitar</button><button class="btn primary" id="col-go">${ico("hammer")}Crear mazo</button></div>`);
   $("#col-import").onclick = importSheet;
   $("#col-build").onclick = () => builderSheet();
   $("#col-added").onclick = addedSheet;
@@ -529,13 +531,13 @@ function cardSheet(c) {
     <div id="price-chart"></div>
     ${c.decks.length ? `<h2>La juegan en Pauper</h2><div class="item-meta">${c.decks.map((d) => `<span class="chip gold">${esc(d)}</span>`).join("")}</div>` : ""}
     ${/land/i.test(c.type || "") ? "" : `<button class="btn block" id="build-from" style="margin-top:12px">${ico("plus")}Crear un mazo con esta carta${/legendary.*creature/i.test(c.type || "") ? " (o de Commander)" : ""}</button>`}
-    <button class="btn block" id="open-set" style="margin-top:8px">📜 Ver la colección ${esc(c.set_name)}</button>
+    <button class="btn block" id="open-set" style="margin-top:8px">${ico("scroll")}Ver la colección ${esc(c.set_name)}</button>
     <button class="btn block" id="follow" style="margin-top:8px">${ico("follow")}Seguir su precio en Mercado</button>
     <button class="btn block" id="open-syn" style="margin-top:8px">${ico("synergy")}Cartas que combinan con esta</button>
     <a class="btn block" style="margin-top:8px;text-decoration:none" target="_blank" rel="noopener"
-       href="${cardmarketUrl(c.name)}">🛒 Ver en Cardmarket</a>
+       href="${cardmarketUrl(c.name)}">${ico("cart")}Ver en Cardmarket</a>
     <h2>Tus versiones</h2><div class="list" id="versions">${skeleton(1)}</div>
-    <button class="btn block primary" id="add-version" style="margin-top:10px">➕ Añadir otro arte o foil</button>`);
+    <button class="btn block primary" id="add-version" style="margin-top:10px">${ico("plus")}Añadir otro arte o foil</button>`);
   $("#build-from", body)?.addEventListener("click", () => pickSeed([c.name], /legendary.*creature/i.test(c.type || "") ? "commander" : null));
   $("#open-set", body).onclick = () => setSheet(c.set);
   priceChart($("#price-chart", body), { id: c.id });
@@ -587,7 +589,7 @@ function alterBox(btn, x) {
   let kind = x.alter?.kind || "firma", qty = x.alter?.qty || 1;
   const draw = async () => {
     const est = await api(`/api/alterestimate?card_id=${encodeURIComponent(x.id)}&foil=${x.foil ? 1 : 0}&kind=${kind}`);
-    box.innerHTML = `<div class="seg" id="al-kind"><button data-k="firma">${ico("alter")}Firmada</button><button data-k="arte">🎨 Arte propio</button><button data-k="ambas">Las dos</button></div>
+    box.innerHTML = `<div class="seg" id="al-kind"><button data-k="firma">${ico("alter")}Firmada</button><button data-k="arte">${ico("palette")}Arte propio</button><button data-k="ambas">Las dos</button></div>
       <div class="hint">Precio normal ${euro(x.eur)}. ${kind === "firma" ? "Con firma del artista" : kind === "arte" ? "Con arte pintado a mano (alter)" : "Firmada y con arte propio"} podría venderse por unos
         <b>${euro(est[0])}–${euro(est[1])}</b></div><div class="hint">Es orientativo: depende del artista, de la calidad y de quién la compre.</div>
       <div class="field" style="flex-direction:row;justify-content:space-between;align-items:center"><span class="sub">Copias alteradas</span>
@@ -641,7 +643,7 @@ async function addSheet(candidates, opts = {}) {
       <div class="stats"><div class="stat"><b>${euro(foil ? p.eur_foil : p.eur)}</b><span>Precio unidad</span></div>
         <div class="stat"><b>${euro((foil ? p.eur_foil : p.eur) * qty || null)}</b><span>Total</span></div>
         <div class="stat"><b>${p.pauper === "legal" ? "Sí" : p.pauper === "banned" ? "Ban" : "No"}</b><span>Legal Pauper</span></div></div>
-      ${added.length ? `<div class="warn">✓ Añadidas: ${added.map(esc).join(" · ")}<br>Elige otro arte o foil y vuelve a pulsar Añadir, o pulsa Listo.</div>` : ""}
+      ${added.length ? `<div class="warn">${ico("check")}Añadidas: ${added.map(esc).join(" · ")}<br>Elige otro arte o foil y vuelve a pulsar Añadir, o pulsa Listo.</div>` : ""}
       <div class="row-btns">
         ${opts.onSkip ? `<button class="btn" id="add-skip">No es esta</button>` : ""}
         ${added.length && !opts.onDone ? `<button class="btn" id="add-done">Listo</button>` : ""}
@@ -778,8 +780,11 @@ async function winnersView(box) {
   const tourCard = (t) => `<div class="tour-card featured"><div class="tour-head"><b>${esc(t.name)}</b><span class="sub">${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</span></div>
         <div class="list">${t.top.slice(0, 8).map(deckRow).join("")}</div></div>`;
   box.innerHTML = `${SERIES.map(([n, title, hint]) => {
-      const ts = tours.filter((t) => t.featured === n);
-      return ts.length ? `<h2>${ico("trophy")}${title}</h2><div class="hint">${hint}</div>${ts.map(tourCard).join("")}` : "";
+      // La última edición, abierta; las anteriores, en una lista (cada una se abre con su top)
+      const ts = tours.filter((t) => t.featured === n).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || b.id - a.id);
+      return ts.length ? `<h2>${ico("trophy")}${title}</h2><div class="hint">${hint}</div>${tourCard(ts[0])}
+        ${ts.length > 1 ? `<details class="guide"><summary>Ediciones anteriores (${ts.length - 1})</summary><div class="list">${ts.slice(1).map((t) => `<button class="item tour-open" data-t="${t.id}"><div class="item-main"><div class="item-title">${esc(t.name)}</div>
+          <div class="item-meta">${fdate(t.date)}${t.players ? ` · ${t.players} jugadores` : ""}</div>${t.top[0] ? `<div class="item-meta"><span class="chip gold">${ico("trophy")}${esc(t.top[0].archetype)}</span>${esc(t.top[0].player)}</div>` : ""}</div></button>`).join("")}</div></details>` : ""}` : "";
     }).join("")}
     <h2>Últimos torneos</h2><div class="hint">El mazo ganador de los últimos torneos de Pauper en MTGTop8. Toca un torneo para ver su top.</div>
     <div class="list">${recent.map((t) => {
@@ -803,7 +808,7 @@ function importDeckSheet() {
     <div class="hint">Pega la lista (de MTGTop8, Moxfield, Arena…): una carta por línea, <code>4 Lightning Bolt</code>. Lo que vaya tras "Sideboard" cuenta como banquillo.</div>
     <div class="field"><label>Nombre del mazo</label><input class="search" id="dk-name" placeholder="Ej.: Mi Mono White Convoke"></div>
     <div class="field"><label>Lista</label><textarea class="search" id="dk-text" rows="8" placeholder="4 Kor Skyfisher&#10;4 Battle Screech&#10;…&#10;Sideboard&#10;2 Prismatic Strands"></textarea></div>
-    <label class="btn block" for="dk-file" style="margin-top:8px">📄 O elige un archivo .txt</label><input type="file" id="dk-file" accept=".txt,.dec,.dek,text/plain" hidden>
+    <label class="btn block" for="dk-file" style="margin-top:8px">${ico("file")}O elige un archivo .txt</label><input type="file" id="dk-file" accept=".txt,.dec,.dek,text/plain" hidden>
     <div class="row-btns"><button class="btn primary" id="dk-ok">Guardar en Mis mazos</button></div><div id="dk-result"></div>`);
   $("#dk-file", body).onchange = async (e) => { const f = e.target.files[0]; if (f) { $("#dk-text", body).value = await f.text(); $("#dk-name", body).value ||= f.name.replace(/\.\w+$/, ""); } };
   $("#dk-ok", body).onclick = async () => {
@@ -867,20 +872,20 @@ async function deckSheet(id, keep = null) {
       <div class="stat"><b>${euro(d.missing_cost)}</b><span>Te falta</span></div>
     </div>
     <div class="seg" id="deck-view"><button data-v="img">Imágenes</button><button data-v="list">Lista</button></div>
-    <button class="btn block" id="deck-all" ${missing.length ? "" : "disabled"}>${missing.length ? "✅ Ya tengo todo el mazo" : "✅ Tienes todas las cartas"}</button>
+    <button class="btn block" id="deck-all" ${missing.length ? "" : "disabled"}>${ico("check")}${missing.length ? "Ya tengo todo el mazo" : "Tienes todas las cartas"}</button>
     <div class="hint" id="deck-hint"></div>
     <div id="deck-cards"></div>
     <div class="row-btns">
       <button class="btn" id="copy-all">Copiar lista</button>
       <button class="btn primary" id="share-missing" ${missing.length ? "" : "disabled"}>Compartir lo que falta</button>
     </div>
-    <button class="btn block" id="dk-cm" style="margin-top:8px" ${missing.length ? "" : "disabled"}>🛒 Comprar lo que falta en Cardmarket</button>
+    <button class="btn block" id="dk-cm" style="margin-top:8px" ${missing.length ? "" : "disabled"}>${ico("cart")}Comprar lo que falta en Cardmarket</button>
     <h2>Probar el mazo</h2>
-    <div class="row-btns"><button class="btn" id="dk-hand">🃏 Mano de prueba</button><button class="btn" id="dk-prob">🎲 Probabilidades</button></div>
+    <div class="row-btns"><button class="btn" id="dk-hand">${ico("cards")}Mano de prueba</button><button class="btn" id="dk-prob">${ico("dice")}Probabilidades</button></div>
     <h2>Compartir el mazo</h2>
-    <div class="row-btns"><button class="btn" id="dk-img">🖼️ Como imagen</button><button class="btn" id="dk-link">🔗 Como enlace</button></div>
+    <div class="row-btns"><button class="btn" id="dk-img">${ico("image")}Como imagen</button><button class="btn" id="dk-link">${ico("link")}Como enlace</button></div>
     ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
-      ${d.built?.level ? `<div class="item-meta">Creado con: <span class="chip gold">${esc(d.built.level)}</span><span class="chip">${esc(d.built.archetype || "")}</span>${d.built.combo ? '<span class="chip">combo</span>' : ""}</div>` : ""}
+      ${d.built?.level ? `<div class="item-meta">Creado con: <span class="chip gold">${esc(String(d.built.level).replace(/^[^\p{L}]+/u, ""))}</span><span class="chip">${esc(d.built.archetype || "")}</span>${d.built.combo ? '<span class="chip">combo</span>' : ""}</div>` : ""}
       <div class="hint">Juégalo 3 partidas como mínimo (las que quieras) y apunta cuántas has jugado, cuántas has ganado y una frase sobre cómo ha ido el gameplay. El creador de mazos aprende de estas reseñas.</div>
       <div class="field" style="flex-direction:row;gap:8px;align-items:center;flex-wrap:wrap"><span>Jugadas</span>
         <input class="search" type="number" id="tr-games" min="3" max="50" value="3" style="width:70px"><span>Ganadas</span>
@@ -890,8 +895,8 @@ async function deckSheet(id, keep = null) {
       <button class="btn block primary" id="tr-save" style="margin-top:6px">Guardar resultado</button>
       ${d.results.length ? `<div class="list" style="margin-top:8px">${d.results.map((r) => `<div class="item"><div class="item-main"><div class="item-title">${r.wins}/${r.games} ganadas${r.where ? ` · ${esc(r.where)}` : ""}</div>
         <div class="item-meta">${esc(r.day)}${r.note ? ` · ${esc(r.note)}` : ""}</div></div></div>`).join("")}</div>` : ""}` : ""}
-    ${d.mine ? `<button class="btn block" id="deck-edit" style="margin-top:8px">✏️ Editar la lista</button>` : ""}
-    <button class="btn block" id="deck-keep" style="margin-top:8px">${d.mine ? "🗑 Borrar de Mis mazos" : "⭐ Guardar en Mis mazos"}</button>`;
+    ${d.mine ? `<button class="btn block" id="deck-edit" style="margin-top:8px">${ico("edit")}Editar la lista</button>` : ""}
+    <button class="btn block" id="deck-keep" style="margin-top:8px">${d.mine ? `${ico("trash")}Borrar de Mis mazos` : `${ico("star")}Guardar en Mis mazos`}</button>`;
   const tileD = (c) => {
     const missingN = c.basic ? 0 : c.qty - c.have;
     return `<div class="gcard ${missingN === c.qty ? "missing" : ""}">
@@ -1008,7 +1013,7 @@ function setRow(s, withProgress = true) {
     ${setIcon(s)}
     <div class="item-main">
       <div class="item-title">${esc(s.name)}</div>
-      ${s.via ? `<div class="item-meta"><span class="chip gold">🃏 ${esc(s.via)}</span></div>` : ""}
+      ${s.via ? `<div class="item-meta"><span class="chip gold">${ico("cards")}${esc(s.via)}</span></div>` : ""}
       <div class="item-meta">${s.pinned ? `<span class="pin">${ico("pin")}Siguiendo</span>` : ""}<span>${s.code.startsWith("deck:") ? esc(s.type) : s.code === "reserved" ? "" : esc(s.code.toUpperCase())}${s.released ? ` · ${year(s.released)}` : ""} · ${s.total} cartas</span></div>
       ${withProgress ? `<div class="bar"><i style="width:${s.pct}%"></i></div>
         <div class="deck-foot"><span>Tienes ${s.owned} de ${s.total}</span><span>${s.pct}%</span></div>` : ""}
@@ -1112,6 +1117,7 @@ async function addedSheet() {
   const fecha = (d) => new Date(`${d}T12:00`).toLocaleDateString(document.documentElement.lang || "es", { weekday: "long", day: "numeric", month: "long" });
   const hoy = new Date().toLocaleDateString("sv"), ayer = new Date(Date.now() - 864e5).toLocaleDateString("sv");
   body.innerHTML = `<h3>Últimas añadidas</h3>${days.length ? days.map((g) => `<h2>${g.day === hoy ? "Hoy" : g.day === ayer ? "Ayer" : esc(fecha(g.day))} · ${plural(g.count, "carta", "cartas")}</h2>
+    <div class="added-sum">${ico("chart")}Valor añadido ese día: <b>${euro(g.value)}</b></div>
     <div class="grid">${g.cards.map((c) => tile(c, c.foil ? `<span class="num-tag">Foil</span>` : "")).join("")}</div>`).join("")
     : `<div class="empty"><strong>Aún no hay historial</strong>Las cartas que añadas a partir de ahora saldrán aquí, por días.</div>`}`;
   body.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => {
@@ -1131,7 +1137,7 @@ async function setSheet(code, opts = {}) {
     $("#sel-add", body).textContent = s.ids.size ? `Añadir 1 de cada (${s.ids.size})` : "Toca las cartas que quieras";
     $("#sel-add", body).disabled = !s.ids.size;
     $("#sel-del", body).disabled = !s.ids.size;
-    $("#sel-toggle", body).textContent = s.on ? "✓ Seleccionando… (toca para salir)" : "☑ Seleccionar varias (o mantén pulsada una carta)";
+    $("#sel-toggle", body).innerHTML = s.on ? `${ico("check")}Seleccionando… (toca para salir)` : `${ico("select")}Seleccionar varias (o mantén pulsada una carta)`;
     $("#sel-toggle", body).classList.toggle("primary", s.on);
   };
   const back = () => ({ all, rarity, show, q, scroll: sheet.scrollTop });
@@ -1186,7 +1192,7 @@ async function setSheet(code, opts = {}) {
       <div class="sel-bar" id="sel-bar" hidden>
         <label class="toggle"><input type="checkbox" id="sel-foil" ${foil ? "checked" : ""}> Foil</label>
         <button class="btn" id="sel-all">Todas las visibles</button>
-        <button class="btn" id="sel-del" disabled aria-label="Quitar las elegidas">🗑</button>
+        <button class="btn" id="sel-del" disabled aria-label="Quitar las elegidas">${ico("trash")}</button>
         <button class="btn primary" id="sel-add" disabled>Toca las cartas que quieras</button>
       </div>`;
     body.querySelectorAll("#set-show button").forEach((b) => b.classList.toggle("on", b.dataset.s === show));
@@ -1273,7 +1279,8 @@ const COMBO_FORMATS = { pauper: "Pauper", commander: "Commander", standard: "Est
 const CMD_FORMATS = new Set(["commander", "cedh", "duel", "paupercommander", "predh", "brawl", "standardbrawl", "oathbreaker"]);
 const formatSelect = (id, on) => `<select class="search deck-select" id="${id}">${Object.entries(FORMAT_NAMES).map(([k, n]) => `<option value="${k}" ${k === on ? "selected" : ""}>${n}</option>`).join("")}</select>`;
 const STYLE_NAMES = { auto: "Auto", aggro: "Agresivo", midrange: "Medio rango", control: "Control" };
-const POWER_LABELS = { 1: "🤡 Meme", 2: "🍺 Muy casual", 3: "⚖️ Equilibrado", 4: "🎯 Optimizado", 5: "🏆 Competitivo", 6: "🌍 World Champion" };
+const POWER_LABELS = { 1: "Meme", 2: "Muy casual", 3: "Equilibrado", 4: "Optimizado", 5: "Competitivo", 6: "World Champion" };
+const POWER_ICONS = { 1: "mask", 2: "mug", 3: "scale", 4: "target", 5: "trophy", 6: "globe" };
 const FOCUS_LABELS = { rampa: "Rampa y bichos grandes", grandes: "Bichos grandes", robo: "Robo de cartas", control: "Control", aggro: "Agresivo",
   tierras: "Landfall", fichas: "Fichas", sacrificio: "Sacrificio", cementerio: "Cementerio", descarte: "Descarte", hechizos: "Hechizos",
   vuelo: "Voladores", vida: "Ganar vida", contadores: "Contadores +1/+1", artefactos: "Artefactos", encantamientos: "Encantamientos",
@@ -1307,7 +1314,7 @@ async function builderSheet(seeds, startFormat, opts = {}) {
     const maxCurve = Math.max(1, ...Object.values(s.curve));
     // Cada carta: ✕ para quitarla (el mazo se rehace sin ella); las cartas base no se quitan aquí.
     const t = (c) => `<div class="gcard ${c.owned === 0 ? "missing" : ""}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
-      <span class="badge full">${c.qty}</span>${c.reasons[0]?.startsWith("carta base") || c.role === "comandante" ? "" : `<button class="x-card" data-out="${esc(c.name)}" aria-label="Quitar del mazo">✕</button>`}
+      <span class="badge full">${c.qty}</span>${c.reasons[0]?.startsWith("carta base") || c.role === "comandante" ? "" : `<button class="x-card" data-out="${esc(c.name)}" aria-label="Quitar del mazo">${ico("close")}</button>`}
       <div class="why">${esc(c.reasons.slice(0, 2).join(" · "))}</div></div>`;
     const group = (title, cards) => cards.length ? `<h2>${title} (${cards.reduce((n, c) => n + c.qty, 0)})</h2>
       <div class="grid">${cards.map(t).join("")}</div>` : "";
@@ -1317,9 +1324,9 @@ async function builderSheet(seeds, startFormat, opts = {}) {
     $("#b-body", body).innerHTML = `
       ${formatSelect("b-format", format)}
       <div class="seg" id="b-style">${Object.entries(STYLE_NAMES).map(([k, n]) => `<button data-s="${k}" class="${style === k ? "on" : ""}">${k === "auto" && style === "auto" ? `Auto (${STYLE_NAMES[d.style].toLowerCase()})` : n}</button>`).join("")}</div>
-      <div class="field"><label>Enfoque del mazo</label><div class="seg" id="b-focus"><button data-fo="" class="${focus ? "" : "on"}">✨ Automático</button>${d.focus_options.map((o) => `<button data-fo="${esc(o.key)}" class="${focus === o.key ? "on" : ""}">${o.rec ? "★ " : ""}${esc(FOCUS_LABELS[o.key] || o.key)} (${o.count})</button>`).join("")}</div>
-        <div class="hint">★ = lo que mejor hace este color. Entre paréntesis, cuántas cartas de ese tipo tienes que valgan.</div></div>
-      <div class="field"><label>Nivel del mazo</label><div class="seg" id="b-power">${Object.entries(POWER_LABELS).map(([k, n]) => `<button data-p="${k}" class="${power === k ? "on" : ""}">${n}</button>`).join("")}</div></div>
+      <div class="field"><label>Enfoque del mazo</label><div class="seg" id="b-focus"><button data-fo="" class="${focus ? "" : "on"}">${ico("sparkle")}Automático</button>${d.focus_options.map((o) => `<button data-fo="${esc(o.key)}" class="${focus === o.key ? "on" : ""}">${o.rec ? ico("star") : ""}${esc(FOCUS_LABELS[o.key] || o.key)} (${o.count})</button>`).join("")}</div>
+        <div class="hint">${ico("star")}= lo que mejor hace este color. Entre paréntesis, cuántas cartas de ese tipo tienes que valgan.</div></div>
+      <div class="field"><label>Nivel del mazo</label><div class="seg" id="b-power">${Object.entries(POWER_LABELS).map(([k, n]) => `<button data-p="${k}" class="${power === k ? "on" : ""}">${ico(POWER_ICONS[k])}${n}</button>`).join("")}</div></div>
       ${format === "commander" ? `<div class="field"><label>Bracket de Commander</label><div class="seg" id="b-bracket">${Object.entries(BRACKET_LABELS).map(([k, n]) => `<button data-b="${k}" class="${bracket === k ? "on" : ""}">${n}</button>`).join("")}</div>
         <div class="hint">${BRACKET_HINTS[bracket]}</div><div class="hint">Game Changers en el mazo: <b>${d.game_changers.length}</b></div>
         ${d.game_changers.length ? `<div class="item-meta">${d.game_changers.map((n) => `<span class="chip gold">${esc(n)}</span>`).join("")}</div>` : ""}</div>` : ""}
@@ -1337,14 +1344,14 @@ async function builderSheet(seeds, startFormat, opts = {}) {
       ${d.template ? `<div class="warn"><span>Basado en la lista ganadora de ${esc(d.template.archetype)}${d.template.player ? ` de ${esc(d.template.player)}` : ""}${d.template.event ? ` (${d.template.result === "1" ? "ganó" : `${esc(d.template.result)}º en`} ${esc(d.template.event)})` : ""}: sus cartas, sus tierras y su banquillo, como haría un jugador de torneo.</span> <span>${power == 6 ? "En World Champion entra entera: lo que no tienes sale en gris para comprar." : "En Competitivo, solo lo que tienes; el resto lo completa el constructor."}</span></div>` : ""}
       <label class="toggle" style="margin:4px 0 6px"><input type="checkbox" id="b-spoil" ${spoil ? "checked" : ""}> Spoilers: usar cartas anunciadas que aún no han salido y ver con cuáles hace sinergia el mazo</label>
       ${spoil ? `<h2>Spoilers que encajan con este mazo</h2>${d.spoilers.length ? `<div class="hint">Cartas anunciadas que aún no se pueden comprar. En dorado, las que ya están en el mazo. Toca una para meterla o sacarla${format === "commander" ? "" : " (entran 4 copias)"}.</div>
-        <div class="grid">${d.spoilers.map((c) => `<button class="gcard ${c.in_deck ? "" : "missing"}" data-spoil="${esc(c.name)}" data-in="${c.in_deck ? 1 : 0}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span class="num-tag ${c.in_deck ? "full" : ""}">${c.in_deck ? "✓" : "+"}</span><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></button>`).join("")}</div>`
+        <div class="grid">${d.spoilers.map((c) => `<button class="gcard ${c.in_deck ? "" : "missing"}" data-spoil="${esc(c.name)}" data-in="${c.in_deck ? 1 : 0}"><img loading="lazy" src="${esc(c.image)}" alt="${esc(c.name)}"><span class="num-tag ${c.in_deck ? "full" : ""}">${c.in_deck ? ico("check") : ico("plus2")}</span><div class="why">Sale el ${esc(c.released)}${c.reasons.length ? ` · ${c.reasons.map(esc).join(", ")}` : ""}</div></button>`).join("")}</div>`
         : `<div class="hint">Ningún spoiler de los que hay ahora encaja con este mazo en estos colores.</div>`}` : ""}
-      <label class="toggle" style="margin:4px 0 10px"><input type="checkbox" id="b-p9" ${p9 ? "checked" : ""}> ⚡ Power 9 (Black Lotus, los Mox de tus colores y, si es azul, Ancestral Recall, Time Walk y Timetwister; aunque no los tengas. Solo Casual)</label>
+      <label class="toggle" style="margin:4px 0 10px"><input type="checkbox" id="b-p9" ${p9 ? "checked" : ""}> ${ico("bolt")}Power 9 (Black Lotus, los Mox de tus colores y, si es azul, Ancestral Recall, Time Walk y Timetwister; aunque no los tengas. Solo Casual)</label>
       <div class="field"><label>Meter una carta concreta</label><input class="search" id="b-addq" placeholder="Escribe el nombre de una carta…"><div class="list" id="b-addres"></div></div>
-      ${excluded.length ? `<div class="item-meta">Quitadas: ${excluded.map((n) => `<button class="chip" data-back="${esc(n)}">↩ ${esc(n)}</button>`).join("")}</div>` : ""}
-      <button class="btn block" id="b-more" style="margin:4px 0 8px">➕ Más cartas base (${seeds.length})</button>
+      ${excluded.length ? `<div class="item-meta">Quitadas: ${excluded.map((n) => `<button class="chip" data-back="${esc(n)}">${ico("undo")}${esc(n)}</button>`).join("")}</div>` : ""}
+      <button class="btn block" id="b-more" style="margin:4px 0 8px">${ico("plus")}Más cartas base (${seeds.length})</button>
       <div class="seg mana-row" id="b-colors">${COLORS.map(([k, n]) => `<button data-c="${k}" class="mana ${colors.includes(k) ? "on" : ""}" aria-label="${n}" title="${n}">${manaIcon(k, n)}</button>`).join("")}</div>
-      ${d.warnings.map((w) => `<div class="warn">⚠️ ${esc(w)}</div>`).join("")}
+      ${d.warnings.map((w) => `<div class="warn">${ico("warn")}${esc(w)}</div>`).join("")}
       ${d.commander ? `<h2>Comandante</h2><div class="grid">${t(d.commander)}</div>` : ""}
       <div class="stats">
         <div class="stat"><b>${s.total}</b><span>Cartas</span></div>
@@ -1352,7 +1359,7 @@ async function builderSheet(seeds, startFormat, opts = {}) {
         <div class="stat"><b>${euro(s.value)}</b><span>Valor</span></div>
       </div>
       ${d.themes.length ? `<div class="item-meta">Plan del mazo: ${d.themes.map((x) => `<span class="chip gold">${esc(x)}</span>`).join("")}</div>` : ""}
-      <details class="guide" open><summary>📖 Cómo se juega este mazo</summary>
+      <details class="guide" open><summary>${ico("book")}Cómo se juega este mazo</summary>
         <p class="guide-style">${esc(d.guide.style_text)}</p>
         <p><b>Cartas clave:</b> ${esc(d.guide.core.join(", "))}.</p>
         ${d.guide.plan.length ? `<p><b>El plan:</b></p><ul>${d.guide.plan.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
@@ -1373,18 +1380,18 @@ async function builderSheet(seeds, startFormat, opts = {}) {
       ${d.combos?.length ? `<h2>${ico("synergy")}Combos infinitos en este mazo</h2>${d.combos.map((k) => `<details class="guide"><summary>${k.cards.map(esc).join(" + ")} · ${esc(k.makes[0] || "")}</summary>
         ${k.pre || k.needs.length ? `<div class="hint">Necesitas: ${[...k.needs, k.pre].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
         <ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>`).join("")}` : ""}
-      ${d.bench.length ? `<h2>➕ Te recomiendo añadir (ya las tienes)</h2><div class="hint">Toca una para meterla en el mazo como carta base.</div>
+      ${d.bench.length ? `<h2>${ico("plus")}Te recomiendo añadir (ya las tienes)</h2><div class="hint">Toca una para meterla en el mazo como carta base.</div>
         <div class="grid">${d.bench.map((c) => `<button class="gcard rec" data-add="${esc(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
           ${c.eur != null ? `<span class="badge full">${euro(c.eur)}</span>` : ""}<div class="why">${esc(c.reasons.join(" · "))}</div></button>`).join("")}</div>` : ""}
-      ${d.meta_recs?.length ? `<h2>📊 Lo que juega el meta</h2><div class="hint">Cartas habituales en las listas de torneo ${d.meta_recs[0].why === "con tus cartas base" ? "con tus cartas base" : "de tus colores"} que no están en tu mazo. Toca una para meterla (si no la tienes, entra igual, marcada para comprar).</div>
+      ${d.meta_recs?.length ? `<h2>${ico("meta")}Lo que juega el meta</h2><div class="hint">Cartas habituales en las listas de torneo ${d.meta_recs[0].why === "con tus cartas base" ? "con tus cartas base" : "de tus colores"} que no están en tu mazo. Toca una para meterla (si no la tienes, entra igual, marcada para comprar).</div>
         <div class="grid">${d.meta_recs.map((c) => `<button class="gcard rec ${c.owned ? "" : "missing"}" data-add="${esc(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
           <span class="badge ${c.owned ? "full" : "none"}">${c.pct}%</span>
           <div class="why">${c.owned ? `La tienes ×${c.owned}` : euro(c.eur)}${c.replaces ? ` · en lugar de ${esc(c.replaces)}` : ""}</div></button>`).join("")}</div>` : ""}
-      ${d.buy?.length ? `<h2>🛒 Te recomiendo comprar</h2><div class="hint">No las tienes y mejorarían el mazo. Toca una para verla en Cardmarket.</div>
+      ${d.buy?.length ? `<h2>${ico("cart")}Te recomiendo comprar</h2><div class="hint">No las tienes y mejorarían el mazo. Toca una para verla en Cardmarket.</div>
         <div class="grid">${d.buy.map((c) => `<a class="gcard rec" target="_blank" rel="noopener" href="${cardmarketUrl(c.name)}"><img loading="lazy" draggable="false" src="${esc(c.image)}" alt="${esc(c.name)}">
           <span class="badge part">${euro(c.eur)}</span><div class="why">${esc(c.reasons.join(" · "))}</div></a>`).join("")}</div>` : ""}
       <div class="row-btns"><button class="btn" id="b-other">Otras cartas</button><button class="btn" id="b-copy">Copiar lista</button></div>
-      <button class="btn block primary" id="b-save" style="margin-top:8px">💾 Guardar en Mis mazos</button>`;
+      <button class="btn block primary" id="b-save" style="margin-top:8px">${ico("save")}Guardar en Mis mazos</button>`;
     $("#b-format", body).onchange = (e) => { format = e.target.value; store("buildFormat", format); colors = null; run(); };
     body.querySelectorAll("#b-colors button").forEach((b) => (b.onclick = () => {
       const set = new Set(colors.split(""));
@@ -1454,7 +1461,7 @@ async function builderSheet(seeds, startFormat, opts = {}) {
         const res = await api(`/api/search?q=${encodeURIComponent(q)}`);
         box.innerHTML = res.slice(0, 6).map((r) => `<button class="item" data-put="${esc(r.name)}"><img class="thumb" loading="lazy" src="${esc(r.image)}" alt="">
           <div class="item-main"><div class="item-title">${esc(r.name)}</div>${r.alias ? `<div class="item-meta"><span class="chip">${esc(r.alias)}</span></div>` : ""}</div>
-          <div class="item-side"><div class="sub">➕</div></div></button>`).join("") || `<div class="hint">No la encuentro.</div>`;
+          <div class="item-side"><div class="sub">${ico("plus")}</div></div></button>`).join("") || `<div class="hint">No la encuentro.</div>`;
         box.querySelectorAll("[data-put]").forEach((b) => (b.onclick = () => {
           const n = b.dataset.put;
           if (!seeds.includes(n)) seeds.push(n);
@@ -1539,7 +1546,7 @@ async function pickSeed(already = [], keepFormat = null) {
       <div class="hint">Cuantas más cartas elijas que vayan juntas, más sólido sale el mazo. Al elegir una, te sugiero otras de tu carpeta que combinan con ella.</div></div>
     <div id="seed-sugg"></div>
     <input class="search" id="seed-q" placeholder="Buscar en tus cartas…">
-    <div class="seg" style="margin-top:8px"><button id="seed-legend">👑 Solo comandantes</button></div>
+    <div class="seg" style="margin-top:8px"><button id="seed-legend">${ico("crown")}Solo comandantes</button></div>
     <div id="seed-list">${skeleton(3)}</div>
     <div class="sel-bar" id="seed-bar"><span class="sub" id="seed-n">Ninguna elegida</span><button class="btn primary" id="seed-go" disabled>Crear mazo</button></div>`);
   $("#seed-combos", body).onclick = () => combosSheet(format);
@@ -1635,7 +1642,7 @@ views.market = async () => {
   const v = $("#view");
   const section = store("marketTab") || "moves";
   v.innerHTML = `<h2>Mercado</h2>
-    <div class="seg" id="m-tab"><button data-t="watch">${ico("follow")}Sigo</button><button data-t="moves">${ico("up")}Movimientos</button><button data-t="pred">${ico("predict")}Predicciones</button><button data-t="syn">${ico("synergy")}Sinergias</button></div>
+    <div class="seg" id="m-tab"><button data-t="watch">${ico("follow")}Sigo</button><button data-t="hot">${ico("fire")}Hot</button><button data-t="moves">${ico("up")}Movimientos</button><button data-t="pred">${ico("predict")}Predicciones</button><button data-t="syn">${ico("synergy")}Sinergias</button></div>
     <div id="m-section"></div>`;
   v.querySelectorAll("#m-tab button").forEach((b) => {
     b.classList.toggle("on", b.dataset.t === section);
@@ -1645,6 +1652,7 @@ views.market = async () => {
   if (section === "pred") return predictionsView(box);
   if (section === "syn") return synergiesView(box);
   if (section === "watch") return watchView(box);
+  if (section === "hot") return hotView(box);
   box.innerHTML = `
     <div class="seg" id="m-scope"><button data-s="pauper">Legales en Pauper</button><button data-s="collection">Mis cartas</button><button data-s="all">Todas</button></div>
     <div class="seg" id="m-days"><button data-d="1">1 día</button><button data-d="7">7 días</button><button data-d="30">30 días</button></div>
@@ -1669,9 +1677,22 @@ views.market = async () => {
   draw();
 };
 
+// Cartas hot de la semana: suben y se juegan mucho (Cardmarket no publica las ventas: es la mejor pista de demanda).
+async function hotView(box) {
+  box.innerHTML = skeleton(4);
+  const r = await api("/api/hot");
+  box.innerHTML = `<h2>${ico("fire")}Cartas hot de la semana</h2>
+    <div class="hint">Del ${esc(r.base)} al ${esc(r.latest)}. Cardmarket no publica cuántas copias se venden, así que aquí están las que más demanda tienen: suben esta semana (sin bajar ayer) y se juegan mucho en el meta de algún formato o en Commander.</div>
+    ${r.items.length ? `<div class="list">${r.items.map((c, i) => `<div class="item hot" data-follow="${esc(c.name)}"><span class="hot-rank">${i + 1}</span><img class="thumb" loading="lazy" src="${esc(c.image || "")}" alt="">
+      <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ` <span class="chip gold">La tienes ×${c.owned}</span>` : ""}</div><div class="item-meta">${c.why.map((w) => `<span class="chip">${esc(w)}</span>`).join("")}</div></div>
+      <div class="item-side"><div class="price">${euro(c.eur)}</div><div class="up">${pct(c.pct)}</div></div></div>`).join("")}</div>`
+      : `<div class="empty"><strong>Aún no hay cartas hot</strong>Hace falta una semana de precios para verlas.</div>`}`;
+  box.querySelectorAll("[data-follow]").forEach((el) => (el.onclick = () => synergySheet(el.dataset.follow)));
+}
+
 // Cartas que sigues: precio de Cardmarket y cuánto ha subido o bajado en 1, 7 y 30 días.
 async function watchView(box) {
-  box.innerHTML = `<div class="hint">Sigue cartas concretas (tuyas o no) y mira cómo cambia su precio. Con 🎯 pones un precio objetivo (lista de deseos): te aviso cuando baje de ahí. Toca una para verla; ✕ para dejar de seguirla.</div>
+  box.innerHTML = `<div class="hint">Sigue cartas concretas (tuyas o no) y mira cómo cambia su precio. Con ${ico("target")}pones un precio objetivo (lista de deseos): te aviso cuando baje de ahí. Toca una para verla; ${ico("close")}para dejar de seguirla.</div>
     <input class="search" id="w-q" placeholder="Buscar una carta para seguirla…">
     <div class="list" id="w-search"></div>
     <button class="btn block" id="w-top" style="margin-top:8px">${ico("follow")}Seguir mis 20 cartas más valiosas</button>
@@ -1683,8 +1704,8 @@ async function watchView(box) {
       <div class="item watch" data-name="${esc(c.name)}"><img class="thumb" loading="lazy" src="${esc(c.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(c.name)}${c.owned ? ` <span class="chip gold">La tienes ×${c.owned}</span>` : ""}</div>
           <div class="item-meta">${chg(c.d1, "1 d")}${chg(c.d7, "7 d")}${chg(c.d30, "30 d")}</div>
-          <div class="item-meta"><button class="mini-chip ${c.reached ? "up" : ""}" data-target="${esc(c.name)}" data-v="${c.target ?? ""}">🎯 ${c.target != null ? `${c.reached ? "¡Ya está! " : ""}Objetivo ${euro(c.target)}` : "Precio objetivo"}</button></div></div>
-        <div class="item-side"><div class="price">${euro(c.eur)}</div><button class="btn w-del" data-del="${esc(c.name)}" aria-label="Dejar de seguir">✕</button></div></div>`).join("")}</div>`
+          <div class="item-meta"><button class="mini-chip ${c.reached ? "up" : ""}" data-target="${esc(c.name)}" data-v="${c.target ?? ""}">${ico("target")}${c.target != null ? `${c.reached ? "¡Ya está! " : ""}Objetivo ${euro(c.target)}` : "Precio objetivo"}</button></div></div>
+        <div class="item-side"><div class="price">${euro(c.eur)}</div><button class="btn w-del" data-del="${esc(c.name)}" aria-label="Dejar de seguir">${ico("close")}</button></div></div>`).join("")}</div>`
       : `<div class="empty"><strong>Aún no sigues ninguna carta</strong>Búscala arriba, o pulsa «Seguir su precio» en la ficha de una carta.</div>`;
     box.querySelectorAll(".watch[data-name]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del],[data-target]")) synergySheet(el.dataset.name); }));
     box.querySelectorAll("[data-target]").forEach((b) => (b.onclick = async () => {
@@ -1745,11 +1766,11 @@ async function predictionsView(box) {
 
 async function synergiesView(box) {
   box.innerHTML = `<div class="hint">Cuando sale una colección, algunas cartas antiguas suben porque combinan con las nuevas. Aquí las ves antes.</div>
-    <h2>🆕 Colecciones nuevas</h2><div class="list" id="ns-list">${skeleton(2)}</div>
-    <h2>🔍 Con cualquier carta</h2><input class="search" id="syn-q" placeholder="Busca una carta (de cualquier colección)…"><div class="list" id="syn-res"></div>`;
+    <h2>${ico("sparkle")}Colecciones nuevas</h2><div class="list" id="ns-list">${skeleton(2)}</div>
+    <h2>${ico("search")}Con cualquier carta</h2><input class="search" id="syn-q" placeholder="Busca una carta (de cualquier colección)…"><div class="list" id="syn-res"></div>`;
   const sets = await api("/api/newsets");
   $("#ns-list").innerHTML = sets.map((s) => `<button class="item set-row" data-code="${esc(s.code)}">${setIcon(s)}
-      <div class="item-main"><div class="item-title">${esc(s.name)}</div><div class="item-meta">${s.upcoming ? "📅 Sale el" : "Salió el"} ${esc(s.released)}</div></div></button>`).join("")
+      <div class="item-main"><div class="item-title">${esc(s.name)}</div><div class="item-meta">${s.upcoming ? `${ico("calendar")}Sale el` : "Salió el"} ${esc(s.released)}</div></div></button>`).join("")
     || `<div class="hint">No hay colecciones recientes.</div>`;
   box.querySelectorAll("#ns-list [data-code]").forEach((b) => (b.onclick = () => setSynergySheet(b.dataset.code)));
   let t;
@@ -1820,7 +1841,7 @@ async function synergySheet(name, id, partner) {
       <button class="btn block" id="follow" style="margin:8px 0">${ico("follow")}Seguir su precio en Mercado</button>
       <h2>${ico("synergy")}Cartas que combinan</h2><div class="hint">Las cartas de todo Magic que mejor encajan con ella. "La tienes" = está en tu carpeta.</div>
       <div class="list">${d.cards.map(predRow).join("") || '<div class="hint">No he encontrado sinergias claras.</div>'}</div>
-      <a class="btn block" style="margin-top:10px;text-decoration:none" target="_blank" rel="noopener" href="${cardmarketUrl(d.name)}">🛒 Ver ${esc(d.name)} en Cardmarket</a>`;
+      <a class="btn block" style="margin-top:10px;text-decoration:none" target="_blank" rel="noopener" href="${cardmarketUrl(d.name)}">${ico("cart")}Ver ${esc(d.name)} en Cardmarket</a>`;
     bindPred(body);
     followButton(body, d.name);
     priceChart($("#price-chart", body), id ? { id } : { name: d.name });
@@ -1846,9 +1867,9 @@ views.alerts = async () => {
 };
 
 // Título de un aviso con icono en vez de emoji (📈 sube, 📉 baja, 📊 meta, 🏆 ganador)
-const EV_ICONS = { "📈": "up", "📉": "down", "📊": "meta", "🏆": "trophy" };
+const EV_ICONS = { "📈": "up", "📉": "down", "📊": "meta", "🏆": "trophy", "🎯": "target", "📜": "scroll", "📅": "calendar", "⚠": "warn", "🚫": "warn", "🔨": "hammer" };
 function evTitle(title) {
-  const m = /^(📈|📉|📊|🏆)\s*(.*)$/u.exec(title);
+  const m = /^(\p{Extended_Pictographic})\uFE0F?\s*(.*)$/u.exec(title);
   return m ? `${ico(EV_ICONS[m[1]])}${esc(m[2])}` : esc(title);
 }
 
@@ -1926,10 +1947,9 @@ async function startScan() {
       <div class="scan-frame" id="scan-frame"><i></i><i></i><i></i><i></i></div>
       <div class="scan-top">
         <div class="seg" id="scan-lang">${SCAN_LANGS.map(([k, , n]) => `<button data-l="${k}">${n}</button>`).join("")}</div>
-        <button class="sheet-close" id="scan-close" aria-label="Cerrar escáner">✕</button>
+        <button class="sheet-close" id="scan-close" aria-label="Cerrar escáner">${ico("close")}</button>
       </div>
       <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
-      <div class="scan-read" id="scan-read"></div>
       <div class="scan-result" id="scan-result" hidden></div>
       <div class="scan-tools" id="scan-tools"></div>
     </div>`);
@@ -1947,12 +1967,12 @@ async function startScan() {
   const video = $("#scan-video");
   video.srcObject = S.stream;
   await video.play().catch(() => {});
-  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0 });
+  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0, noText: 0, triedCams: new Set() });
   document.documentElement.classList.add("lock");
   status("Preparando el lector…");
   Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6)])
-    .then(() => status(canFocus(S.stream) ? "Coloca la carta dentro del marco · toca para enfocar"
-      : "Esta cámara no enfoca: prueba 🔄 Cámara o 📷 Foto (usa el enfoque del móvil)")).catch((e) => status(e.message));
+    .then(() => status(canFocus(S.stream) ? "Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar"
+      : "Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)")).catch((e) => status(e.message));
   setupCameraControls(video);
   S.timer = setInterval(scanTick, 200);
 }
@@ -1967,8 +1987,30 @@ const canFocus = (stream) => {
 };
 const stopStream = (st) => st?.getTracks().forEach((t) => t.stop());
 async function backCameras() {
+  const num = (d) => { const m = /camera2? ?(\d+)/i.exec(d.label); return m ? +m[1] : 50; };
   return (await navigator.mediaDevices.enumerateDevices())
-    .filter((d) => d.kind === "videoinput" && !/front|user|frontal|delant|selfie/i.test(d.label));
+    .filter((d) => d.kind === "videoinput" && !/front|user|frontal|delant|selfie/i.test(d.label))
+    // la principal primero (en Android, "camera2 0"); las gran angular y teleobjetivo, al final
+    .sort((a, b) => (/wide|ultra|gran|angular|tele/i.test(a.label) - /wide|ultra|gran|angular|tele/i.test(b.label)) || num(a) - num(b));
+}
+async function autoNextCamera() {
+  const cams = await backCameras();
+  S.triedCams ||= new Set();
+  const cur = S.stream?.getVideoTracks()[0].getSettings().deviceId;
+  S.triedCams.add(cur);
+  const next = cams.find((d) => !S.triedCams.has(d.deviceId));
+  if (!next) return;  // ya se han probado todas
+  S.autoSwitching = true;
+  try {
+    stopStream(S.stream);
+    S.stream = await navigator.mediaDevices.getUserMedia(camOpts(next.deviceId));
+    store("scanCam", next.deviceId);
+    const video = $("#scan-video");
+    video.srcObject = S.stream;
+    await video.play().catch(() => {});
+    setupCameraControls(video);
+    status("Probando otra cámara del móvil…");
+  } catch { /* nada */ } finally { S.autoSwitching = false; }
 }
 async function openBestCamera() {
   const saved = store("scanCam");
@@ -1976,6 +2018,9 @@ async function openBestCamera() {
     const st = await navigator.mediaDevices.getUserMedia(camOpts(saved)).catch(() => null);
     if (st) return st;
   }
+  // Primero la cámara trasera principal (las gran angular de muchos Android no enfocan de cerca)
+  const main = (await backCameras().catch(() => []))[0];
+  if (main?.deviceId) { const sm = await navigator.mediaDevices.getUserMedia(camOpts(main.deviceId)).catch(() => null); if (sm) return sm; }
   let st = await navigator.mediaDevices.getUserMedia(camOpts());
   if (canFocus(st)) return st;
   const first = st.getVideoTracks()[0].getSettings().deviceId;
@@ -2029,17 +2074,17 @@ function setupCameraControls(video) {
     focusAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   };
   const bar = $("#scan-tools");
-  bar.innerHTML = `<button class="btn" id="scan-photo">📷 Foto</button><button class="btn" id="scan-cam">🔄 Cámara</button>`;
+  bar.innerHTML = `<button class="btn" id="scan-photo">${ico("cam")}Foto</button><button class="btn" id="scan-cam">${ico("refresh")}Cámara</button>`;
   $("#scan-photo").onclick = () => { closeScanner(); photoScan(); };
   $("#scan-cam").onclick = switchCamera;
   if (caps.torch) {
     let on = false;
-    bar.insertAdjacentHTML("beforeend", `<button class="btn" id="scan-torch">🔦</button>`);
+    bar.insertAdjacentHTML("beforeend", `<button class="btn" id="scan-torch">${ico("torch")}</button>`);
     $("#scan-torch").onclick = (e) => { on = !on; apply({ torch: on }); e.currentTarget.classList.toggle("primary", on); };
   }
   if (caps.focusDistance && modes.includes("manual")) {
     const fd = caps.focusDistance;
-    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">🎯<input type="range" id="scan-focus" min="${fd.min}" max="${fd.max}" step="${fd.step || (fd.max - fd.min) / 50}" value="${track.getSettings().focusDistance ?? fd.min}"></label>
+    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">${ico("target")}<input type="range" id="scan-focus" min="${fd.min}" max="${fd.max}" step="${fd.step || (fd.max - fd.min) / 50}" value="${track.getSettings().focusDistance ?? fd.min}"></label>
       ${modes.includes("continuous") ? `<button class="btn" id="scan-af">AF</button>` : ""}`);
     $("#scan-focus").oninput = (e) => apply({ focusMode: "manual", focusDistance: +e.target.value });
     $("#scan-af")?.addEventListener("click", () => { apply({ focusMode: "continuous" }); toast("Enfoque automático"); });
@@ -2047,10 +2092,10 @@ function setupCameraControls(video) {
   if (caps.zoom && caps.zoom.max > caps.zoom.min) {
     const z0 = Math.min(caps.zoom.max, Math.max(caps.zoom.min, +(store("scanZoom") || 1.6)));
     apply({ zoom: z0 });
-    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">🔍<input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${z0}"></label>`);
+    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">${ico("search")}<input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${z0}"></label>`);
     $("#scan-zoomr").oninput = (e) => { apply({ zoom: +e.target.value }); store("scanZoom", e.target.value); };
   }
-  if (!canFocus(S.stream)) status("Esta cámara no enfoca: prueba 🔄 Cámara o 📷 Foto (usa el enfoque del móvil)");
+  if (!canFocus(S.stream)) status("Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)");
 }
 
 function closeScanner() {
@@ -2075,6 +2120,7 @@ function grabFrame() {
   const x = Math.max(0, (fr.left - vr.left - ox) / scale), y = Math.max(0, (fr.top - vr.top - oy) / scale);
   const w = Math.min(v.videoWidth - x, fr.width / scale), h = Math.min(v.videoHeight - y, fr.height / scale);
   return {
+    whole: toCanvas(v, 0, 0, v.videoWidth, v.videoHeight, 1100),
     title: toCanvas(v, x + w * 0.02, y + h * 0.01, w * 0.9, h * 0.14, 700, true),
     bottom: toCanvas(v, x, y + h * 0.84, w * 0.72, h * 0.16, 560, true),
     full: toCanvas(v, x, y, w, h, 820),
@@ -2098,8 +2144,14 @@ async function scanTick() {
   try {
     const [lang, code] = scanLang();
     let lines;
-    if (S.n % 4 === 0) {
-      // Cada 4 intentos, la carta entera: sirve si la carta no llena el marco o está torcida.
+    if (S.n % 2 === 1) {
+      // Uno de cada dos intentos: TODA la imagen, buscando texto suelto (psm 11). Así la carta no tiene que estar dentro del
+      // marco: se lee esté donde esté de la pantalla, girada o pequeña.
+      const wc = lang === "auto" || lang === "en" ? "eng" : code;
+      const r = await (await getWorker(wc, `whole:${wc}`, 11)).recognize(strips.whole);
+      lines = ocrLines(r.data, strips.whole);
+    } else if (S.n % 6 === 0) {
+      // La carta entera dentro del marco: sirve si no llena el marco o está torcida.
       const r = await (await getWorker("eng", "full")).recognize(strips.full);
       lines = ocrLines(r.data, strips.full);
     } else {
@@ -2108,13 +2160,13 @@ async function scanTick() {
       lines = await readStrips(await getWorker(titleCode, `title:${titleCode}`, 6), strips);
     }
     if (!S.running || S.paused) return;
-    const seen = lines.map((l) => l.text).join(" · ").slice(0, 70);
-    const read = $("#scan-read");
-    if (read) read.textContent = seen ? `Leo: «${seen}»` : "No veo texto: acerca la carta o dale más luz";
+    // Sin texto durante un rato: puede que esta cámara no enfoque de cerca → probar la siguiente trasera (y recordarla)
+    S.noText = lines.some((l) => /[a-z]{3}/i.test(l.text)) ? 0 : (S.noText || 0) + 1;
+    if (S.noText >= 18 && !S.autoSwitching) { S.noText = 0; autoNextCamera(); }
     const m = await api("/api/match", { lines, lang });
     const top = m[0];
     if (top && top.name === S.justAdded) {
-      status("Añadida ✓ · Pon la siguiente carta");  // sigue la misma carta delante: no añadirla dos veces
+      status("Añadida · Pon la siguiente carta");  // sigue la misma carta delante: no añadirla dos veces
     } else if (top && top.score >= 0.85) {
       S.justAdded = null;
       S.misses = 0;
@@ -2127,7 +2179,7 @@ async function scanTick() {
       S.justAdded = null;
       S.misses = (S.misses || 0) + 1;
       if (S.misses % 6 === 0) S.refocus?.();  // ~cada 2-3 s sin leer nada: forzar un reenfoque
-      status(S.misses > 12 ? "¿Borrosa? Aleja el móvil un palmo y usa el zoom 🔍" : "Coloca la carta dentro del marco, con buena luz y sin reflejos");
+      status(S.misses > 12 ? "¿Borrosa? Aleja el móvil un palmo y usa el zoom" : "Apunta a la carta, con luz y sin reflejos");
     }
   } catch (err) {
     status(err.message);
@@ -2144,7 +2196,7 @@ function showScanResult(matches) {
   const resume = (added) => {
     box.hidden = true; box.innerHTML = ""; S.last = null; S.hits = 0; S.paused = false;
     S.justAdded = added ? matches[0].name : null;
-    status(added ? "Añadida ✓ · Pon la siguiente carta" : "Coloca la siguiente carta");
+    status(added ? "Añadida · Pon la siguiente carta" : "Coloca la siguiente carta");
   };
   addSheet(matches, { into: box, compact: true, onDone: () => resume(true), onSkip: () => resume(false) });
 }
@@ -2198,7 +2250,7 @@ async function profileSheet() {
   const body = openSheet(skeleton(3));
   const [p, m] = await Promise.all([api("/api/profile"), api("/api/medals")]);
   const medal = (icon, title, sub = "") => `<div class="medal">${icon}<div><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</div></div>`;
-  const setIco = (x) => (x.icon ? `<img src="${esc(x.icon)}" alt="">` : `<i>🏅</i>`);
+  const setIco = (x) => (x.icon ? `<img src="${esc(x.icon)}" alt="">` : ico("medal"));
   const got = m.ladder.filter((x) => x.done);
   body.innerHTML = `
     <div class="profile-head"><div class="avatar">${esc((p.name || "?").slice(0, 1).toUpperCase())}</div>
@@ -2209,9 +2261,9 @@ async function profileSheet() {
          <label class="toggle" style="margin:6px 0"><input type="checkbox" id="pf-lock" ${p.lock ? "checked" : ""}> Pedir la contraseña al abrir la app</label>
          <div id="pf-lockpass" hidden><input class="search" id="pf-lockpw" type="password" autocomplete="current-password" placeholder="Tu contraseña, para activarlo">
            <button class="btn primary block" id="pf-lockok" style="margin-top:6px">Activar</button></div>
-         <div class="row-btns"><button class="btn" id="cl-out">Cerrar sesión</button><button class="btn primary" id="cl-push">☁️ Guardar ahora</button></div>`
+         <div class="row-btns"><button class="btn" id="cl-out">Cerrar sesión</button><button class="btn primary" id="cl-push">${ico("cloud")}Guardar ahora</button></div>`
       : accountForm()}
-    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="pf-sound" ${store("sounds") === "0" ? "" : "checked"}> 🔔 Sonidos al añadir cartas</label>
+    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="pf-sound" ${store("sounds") === "0" ? "" : "checked"}> ${ico("bell")}Sonidos al añadir cartas</label>
 
     <h2>${ico("trophy")}Medallas (${m.sets.length + m.precons.length + got.length})</h2>
     <div class="medals">${got.map((x) => medal(`<i>${ico("trophy")}</i>`, x.label)).join("")}</div>
@@ -2222,15 +2274,15 @@ async function profileSheet() {
         <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="bar"><i style="width:${x.pct}%"></i></div>
         <div class="item-meta">${x.owned}/${x.total} · ${x.pct}%</div></div></button>`).join("")}</div>` : ""}
     ${!m.sets.length && !m.precons.length ? `<div class="hint">Completa una colección o un mazo preconstruido para ganar su medalla.</div>` : ""}
-    <div class="medals">${m.ladder.filter((x) => !x.done).slice(0, 3).map((x) => `<div class="medal locked"><i>🔒</i><div><b>${esc(x.label)}</b></div></div>`).join("")}</div>
+    <div class="medals">${m.ladder.filter((x) => !x.done).slice(0, 3).map((x) => `<div class="medal locked">${ico("lock")}<div><b>${esc(x.label)}</b></div></div>`).join("")}</div>
 
     <h2>Importar y copias de seguridad</h2>
     <button class="btn block" id="pf-import">${ico("import")}Importar cartas de otra app (CSV)</button>
     <div class="hint">El CSV lleva todas tus carpetas y se puede importar aquí, en ManaBox o en Moxfield. La copia completa guarda también tus mazos y el perfil.</div>
-    <button class="btn block" id="pf-csv">📤 Exportar todas mis cartas (CSV)</button>
-    <div class="row-btns"><button class="btn" id="pf-mox">📤 Para Moxfield</button><button class="btn" id="pf-mana">📤 Para ManaBox</button></div>
-    <button class="btn block" id="pf-json" style="margin-top:8px">💾 Copia completa (para otro móvil)</button>
-    <label class="btn block" for="pf-restore" style="margin-top:8px">♻️ Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>
+    <button class="btn block" id="pf-csv">${ico("export")}Exportar todas mis cartas (CSV)</button>
+    <div class="row-btns"><button class="btn" id="pf-mox">${ico("export")}Para Moxfield</button><button class="btn" id="pf-mana">${ico("export")}Para ManaBox</button></div>
+    <button class="btn block" id="pf-json" style="margin-top:8px">${ico("save")}Copia completa (para otro móvil)</button>
+    <label class="btn block" for="pf-restore" style="margin-top:8px">${ico("refresh")}Restaurar una copia completa</label><input type="file" id="pf-restore" accept=".json,application/json" hidden>
     <button class="btn block" id="pf-credits" style="margin-top:14px">Créditos</button>`;
   body.querySelectorAll("[data-set]").forEach((b) => (b.onclick = () => setSheet(b.dataset.set)));
   bindAccountForm(body, profileSheet);
@@ -2354,7 +2406,7 @@ const Cloud = (() => {
     session.dirty = true;
     persist();
     clearTimeout(timer);
-    timer = setTimeout(() => push().catch((e) => toast(`☁️ No se ha podido guardar en la nube: ${e.message}`)), 3000);
+    timer = setTimeout(() => push().catch((e) => toast(`No se ha podido guardar en la nube: ${e.message}`)), 3000);
   };
   return {
     ready, push, apply,
@@ -2408,7 +2460,7 @@ async function unlock() {
       <form id="lock-form" class="lock-form" autocomplete="on">
         <input type="text" name="username" autocomplete="username" value="${esc(p.name || "")}" hidden>
         <div class="lock-row"><input class="search" id="lock-pass" name="password" type="password" autocomplete="current-password" placeholder="Contraseña" autofocus>
-          <button type="button" class="btn" id="lock-eye" aria-label="Mostrar la contraseña">👁</button></div>
+          <button type="button" class="btn" id="lock-eye" aria-label="Mostrar la contraseña">${ico("eye")}</button></div>
         <button type="submit" class="btn primary block" id="lock-ok">Entrar</button>
       </form>
       <div class="sub" id="lock-msg"></div>
@@ -2471,8 +2523,8 @@ async function boot() {
   if (await openDeckLink()) { /* abierto un mazo compartido */ }
   else if (!store("accountAsked") && !Cloud.user) accountWelcome(); else dailyReport();
   syncRunner();
-  Cloud.sync().then((r) => { if (r === "pulled") { cid = 1; store("cid", "1"); loadSummary(); render(); toast("☁️ Datos actualizados desde tu cuenta"); } })
-    .catch(() => toast("☁️ Sin conexión con la nube: se guardará cuando vuelva"));
+  Cloud.sync().then((r) => { if (r === "pulled") { cid = 1; store("cid", "1"); loadSummary(); render(); toast("Datos actualizados desde tu cuenta"); } })
+    .catch(() => toast("Sin conexión con la nube: se guardará cuando vuelva"));
 }
 
 // ---------- créditos: de dónde sale todo lo que usa la app ----------
@@ -2545,7 +2597,7 @@ async function syncRunner() {
 function notifyLocal(e) {
   const LN = window.Capacitor?.Plugins?.LocalNotifications;
   if (!LN) return;
-  LN.schedule({ notifications: [{ id: Math.floor(Math.random() * 2 ** 31), title: e.title, body: e.body || "" }] }).catch(() => {});
+  LN.schedule({ notifications: [{ id: Math.floor(Math.random() * 2 ** 31), title: String(e.title).replace(/^\p{Extended_Pictographic}️?\s*/u, ""), body: e.body || "" }] }).catch(() => {});  // sin emojis
 }
 
 boot();

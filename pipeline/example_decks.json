@@ -249,6 +249,106 @@
  },
  {
   "format": "VV",
+  "name": "Simic Affinity",
+  "category": "Affinity",
+  "source": "CS Studios",
+  "player": "CS Studios",
+  "note": "Value Vintage: cartas legales en Vintage (con sus restringidas) y el mazo entero, con banquillo, cuesta como máximo 30 $ (TCGplayer, la edición más barata). Nadu, Winged Wisdom está prohibida.",
+  "cards": [
+   [
+    "Broodstar",
+    2,
+    0
+   ],
+   [
+    "Kappa Cannoneer",
+    4,
+    0
+   ],
+   [
+    "Memory Guardian",
+    4,
+    0
+   ],
+   [
+    "Shardless Agent",
+    4,
+    0
+   ],
+   [
+    "Sojourner's Companion",
+    4,
+    0
+   ],
+   [
+    "Thought Monitor",
+    4,
+    0
+   ],
+   [
+    "Valkyrie Aerial Unit",
+    4,
+    0
+   ],
+   [
+    "Thoughtcast",
+    4,
+    0
+   ],
+   [
+    "Calculated Dismissal",
+    2,
+    0
+   ],
+   [
+    "Reality Heist",
+    4,
+    0
+   ],
+   [
+    "Bard's Bow",
+    2,
+    0
+   ],
+   [
+    "Elixir of Immortality",
+    2,
+    0
+   ],
+   [
+    "Up the Beanstalk",
+    2,
+    0
+   ],
+   [
+    "Forest",
+    2,
+    0
+   ],
+   [
+    "Island",
+    4,
+    0
+   ],
+   [
+    "Seat of the Synod",
+    4,
+    0
+   ],
+   [
+    "Tanglepool Bridge",
+    4,
+    0
+   ],
+   [
+    "Tree of Tales",
+    4,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "VV",
   "name": "Red Cycling Aggro (Hollow One)",
   "category": "Aggro",
   "source": "Draftsim",
@@ -596,6 +696,526 @@
     "Anger of the Gods",
     2,
     1
+   ]
+  ]
+ },
+ {
+  "format": "DAN",
+  "name": "Dandân verde (Song of the Fogbeast)",
+  "category": "Juego de mesa",
+  "source": "Archidekt",
+  "player": "josefcub",
+  "note": "Mazo compartido de 80 cartas: los dos jugadores roban de la misma biblioteca y comparten cementerio. 20 vidas; pierdes a 0 vidas o si no puedes robar. Un mulligan gratis si la mano tiene menos de 2 tierras. Dandân es la única criatura.",
+  "cards": [
+   [
+    "Evolution Charm",
+    2,
+    0
+   ],
+   [
+    "Avoid Fate",
+    4,
+    0
+   ],
+   [
+    "Blessed Respite",
+    2,
+    0
+   ],
+   [
+    "Desert of the Indomitable",
+    2,
+    0
+   ],
+   [
+    "Decisive Denial",
+    2,
+    0
+   ],
+   [
+    "Song of the Dryads",
+    8,
+    0
+   ],
+   [
+    "Temple of Mystery",
+    2,
+    0
+   ],
+   [
+    "Trailblazer",
+    2,
+    0
+   ],
+   [
+    "Provoke",
+    2,
+    0
+   ],
+   [
+    "Tranquil Thicket",
+    2,
+    0
+   ],
+   [
+    "Dryad's Favor",
+    2,
+    0
+   ],
+   [
+    "Leery Fogbeast",
+    10,
+    0
+   ],
+   [
+    "Slippery Karst",
+    2,
+    0
+   ],
+   [
+    "The Hunter Maze",
+    2,
+    0
+   ],
+   [
+    "Venom",
+    2,
+    0
+   ],
+   [
+    "Natural Selection",
+    2,
+    0
+   ],
+   [
+    "Krosan Reclamation",
+    2,
+    0
+   ],
+   [
+    "Worldly Tutor",
+    2,
+    0
+   ],
+   [
+    "Wilt",
+    2,
+    0
+   ],
+   [
+    "Forest",
+    18,
+    0
+   ],
+   [
+    "Reclaim",
+    2,
+    0
+   ],
+   [
+    "Havenwood Battleground",
+    2,
+    0
+   ],
+   [
+    "Master's Rebuke",
+    2,
+    0
+   ],
+   [
+    "Simic Growth Chamber",
+    2,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "DAN",
+  "name": "Forgotten Fish (orden del cementerio)",
+  "category": "Juego de mesa",
+  "source": "Archidekt",
+  "player": "TevishSzat",
+  "note": "Mazo compartido de 80 cartas: los dos jugadores roban de la misma biblioteca y comparten cementerio. 20 vidas; pierdes a 0 vidas o si no puedes robar. Un mulligan gratis si la mano tiene menos de 2 tierras. Dandân es la única criatura.",
+  "cards": [
+   [
+    "Brainstorm",
+    2,
+    0
+   ],
+   [
+    "Crystal Spray",
+    2,
+    0
+   ],
+   [
+    "Dandân",
+    10,
+    0
+   ],
+   [
+    "Accumulated Knowledge",
+    4,
+    0
+   ],
+   [
+    "Metamorphose",
+    2,
+    0
+   ],
+   [
+    "Unsubstantiate",
+    2,
+    0
+   ],
+   [
+    "Piracy Charm",
+    2,
+    0
+   ],
+   [
+    "Mind Bend",
+    2,
+    0
+   ],
+   [
+    "Diminishing Returns",
+    2,
+    0
+   ],
+   [
+    "Ray of Command",
+    2,
+    0
+   ],
+   [
+    "Memory Lapse",
+    8,
+    0
+   ],
+   [
+    "Predict",
+    2,
+    0
+   ],
+   [
+    "Bösium Strip",
+    2,
+    0
+   ],
+   [
+    "Vision Charm",
+    2,
+    0
+   ],
+   [
+    "Halimar Depths",
+    2,
+    0
+   ],
+   [
+    "Mystic Sanctuary",
+    2,
+    0
+   ],
+   [
+    "Svyelunite Temple",
+    2,
+    0
+   ],
+   [
+    "Lonely Sandbar",
+    2,
+    0
+   ],
+   [
+    "Island",
+    18,
+    0
+   ],
+   [
+    "Remote Isle",
+    2,
+    0
+   ],
+   [
+    "Phyrexian Grimoire",
+    2,
+    0
+   ],
+   [
+    "Supplant Form",
+    2,
+    0
+   ],
+   [
+    "Coral Atoll",
+    2,
+    0
+   ],
+   [
+    "The Surgical Bay",
+    2,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "VV",
+  "name": "12post",
+  "category": "Rampa",
+  "source": "Archidekt",
+  "player": "kriblo",
+  "note": "Value Vintage: cartas legales en Vintage (con sus restringidas) y el mazo entero, con banquillo, cuesta como máximo 30 $ (TCGplayer, la edición más barata). Nadu, Winged Wisdom está prohibida.",
+  "cards": [
+   [
+    "Desolation Twin",
+    1,
+    0
+   ],
+   [
+    "Farsight Mask",
+    2,
+    0
+   ],
+   [
+    "Cloudpost",
+    4,
+    0
+   ],
+   [
+    "Glimmerpost",
+    4,
+    0
+   ],
+   [
+    "Meteor Golem",
+    4,
+    0
+   ],
+   [
+    "Ancient Stone Idol",
+    2,
+    0
+   ],
+   [
+    "Sowing Mycospawn",
+    4,
+    0
+   ],
+   [
+    "Ugin, the Ineffable",
+    2,
+    0
+   ],
+   [
+    "Hangarback Walker",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Triniform",
+    2,
+    0
+   ],
+   [
+    "Ancient Stirrings",
+    4,
+    0
+   ],
+   [
+    "Omo, Queen of Vesuva",
+    1,
+    0
+   ],
+   [
+    "Trenchpost",
+    4,
+    0
+   ],
+   [
+    "Chromatic Star",
+    4,
+    0
+   ],
+   [
+    "Expedition Map",
+    4,
+    0
+   ],
+   [
+    "Sylvan Scrying",
+    2,
+    0
+   ],
+   [
+    "Buried Ruin",
+    4,
+    0
+   ],
+   [
+    "Pick Your Poison",
+    3,
+    1
+   ],
+   [
+    "Forest",
+    6,
+    0
+   ],
+   [
+    "Duplicant",
+    1,
+    0
+   ],
+   [
+    "Glaring Fleshraker",
+    4,
+    0
+   ],
+   [
+    "Sylvan Scrying",
+    1,
+    1
+   ]
+  ]
+ },
+ {
+  "format": "VV",
+  "name": "Dimir Lurrus Control",
+  "category": "Control",
+  "source": "Archidekt",
+  "player": "kriblo",
+  "note": "Value Vintage: cartas legales en Vintage (con sus restringidas) y el mazo entero, con banquillo, cuesta como máximo 30 $ (TCGplayer, la edición más barata). Nadu, Winged Wisdom está prohibida.",
+  "cards": [
+   [
+    "Delver of Secrets",
+    4,
+    0
+   ],
+   [
+    "Waterlogged Teachings",
+    4,
+    0
+   ],
+   [
+    "Annul",
+    2,
+    0
+   ],
+   [
+    "Mishra's Bauble",
+    3,
+    0
+   ],
+   [
+    "Lurrus of the Dream-Den",
+    1,
+    1
+   ],
+   [
+    "Cling to Dust",
+    3,
+    0
+   ],
+   [
+    "Into the Story",
+    1,
+    0
+   ],
+   [
+    "Opt",
+    4,
+    0
+   ],
+   [
+    "Darkwater Catacombs",
+    4,
+    0
+   ],
+   [
+    "Thing in the Ice",
+    4,
+    0
+   ],
+   [
+    "Make Disappear",
+    3,
+    0
+   ],
+   [
+    "Choked Estuary",
+    4,
+    0
+   ],
+   [
+    "Unsummon",
+    3,
+    0
+   ],
+   [
+    "Treasure Cruise",
+    1,
+    0
+   ],
+   [
+    "River of Tears",
+    4,
+    0
+   ],
+   [
+    "Brainstorm",
+    1,
+    0
+   ],
+   [
+    "Bloodchief's Thirst",
+    3,
+    0
+   ],
+   [
+    "Tragic Slip",
+    1,
+    0
+   ],
+   [
+    "Counterspell",
+    1,
+    0
+   ],
+   [
+    "Portent",
+    4,
+    1
+   ],
+   [
+    "Dig Through Time",
+    1,
+    0
+   ],
+   [
+    "Dress Down",
+    3,
+    0
+   ],
+   [
+    "Unsummon",
+    1,
+    1
+   ],
+   [
+    "Dress Down",
+    1,
+    1
+   ],
+   [
+    "Annul",
+    2,
+    1
+   ],
+   [
+    "Island",
+    6,
+    0
    ]
   ]
  }
