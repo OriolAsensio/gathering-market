@@ -384,10 +384,9 @@ let state = { collectionFilter: "", deckSort: store("deckSort") || "meta", marke
 
 function render() {
   const tab = (location.hash || "#collection").slice(1);
-  document.body.classList.toggle("immersive", tab === "life" || tab === "versus");  // sin la cabecera del valor de tus cartas
-  if (tab !== "life" && tab !== "versus") store("lastTab", tab);
+  document.body.classList.toggle("immersive", tab === "life");  // sin la cabecera del valor de tus cartas
+  if (tab !== "life") store("lastTab", tab);
   if (tab !== "life") document.querySelector(".lf-table")?.remove();  // al salir (botón atrás de Android): fuera la mesa
-  if (tab !== "versus") document.querySelector(".vs-board")?.remove();
   document.querySelectorAll(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   $("#col-bar")?.remove();
   (views[tab] || views.collection)();
@@ -857,7 +856,6 @@ async function deckSheet(id, keep = null) {
     <button class="btn block" id="dk-cm" style="margin-top:8px" ${missing.length ? "" : "disabled"}>🛒 Comprar lo que falta en Cardmarket</button>
     <h2>Probar el mazo</h2>
     <div class="row-btns"><button class="btn" id="dk-hand">🃏 Mano de prueba</button><button class="btn" id="dk-prob">🎲 Probabilidades</button></div>
-    <button class="btn block primary" id="dk-play" style="margin-top:8px">⚔️ Jugar contra un bot</button>
     <h2>Compartir el mazo</h2>
     <div class="row-btns"><button class="btn" id="dk-img">🖼️ Como imagen</button><button class="btn" id="dk-link">🔗 Como enlace</button></div>
     ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
@@ -911,7 +909,6 @@ async function deckSheet(id, keep = null) {
   };
   $("#dk-hand", body).onclick = () => Play.handSheet(d);
   $("#dk-prob", body).onclick = () => Play.probSheet(d);
-  $("#dk-play", body).onclick = () => { store("vsDeck", String(d.id)); closeSheet(); location.hash = "versus"; };
   $("#dk-img", body).onclick = () => shareDeckImage(d, main, side);
   $("#dk-link", body).onclick = async () => shareText(d.archetype, `${d.archetype}: ${await deckLink(d, main, side)}`);
   $("#deck-all", body).onclick = async () => {

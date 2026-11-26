@@ -1,8 +1,6 @@
 "use strict";
-/* Mesa de pruebas de un mazo: mano de prueba (con mulligan de Londres), probabilidades (hipergeométrica) y una partida de
- * práctica (pestaña Versus, versus.js). Es una versión simplificada de Magic: el maná cuenta tierras sin mirar colores, las criaturas
- * combaten por fuerza y resistencia y de los hechizos solo se entienden los efectos más comunes (daño, destruir, robar,
- * ganar vidas). Sirve para ver cómo sale el mazo, no para jugar una partida de reglas completas.
+/* Mesa de pruebas de un mazo: mano de prueba (con mulligan de Londres), probabilidades (hipergeométrica).
+ * Usa los datos de juego de las cartas (tipo, coste, texto; fuerza y resistencia de Scryfall).
  * Usa lo de app.js: openSheet, closeSheet, api, esc, $, toast, ico, store. */
 
 const Play = (() => {
