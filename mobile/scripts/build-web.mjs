@@ -47,4 +47,13 @@ window.GM_CONFIG = {
 mkdirSync(join(www, "runners"), { recursive: true });
 writeFileSync(join(www, "runners", "background.js"),
   readFileSync(join(mobile, "runners", "background.js"), "utf8").replace("__PACK_URL__", packUrl ? packUrl.replace(/\/?$/, "/") : ""));
+// Código nativo propio (mobile/android no está en git): lector de texto del escáner (ML Kit).
+const javaDir = join(mobile, "android", "app", "src", "main", "java", "app", "gatheringmarket");
+if (existsSync(javaDir)) {
+  for (const f of ["OcrPlugin.java", "MainActivity.java"]) cpSync(join(mobile, "native", f), join(javaDir, f));
+  const gradle = join(mobile, "android", "app", "build.gradle"), dep = 'implementation "com.google.mlkit:text-recognition:16.0.1"';
+  const g = readFileSync(gradle, "utf8");
+  if (!g.includes(dep)) writeFileSync(gradle, g.replace("implementation project(':capacitor-android')", `implementation project(':capacitor-android')
+    ${dep}`));
+}
 console.log(`www listo. Paquete en internet: ${packUrl || "(ninguno todavía)"}`);

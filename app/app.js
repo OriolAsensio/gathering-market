@@ -2012,7 +2012,8 @@ async function startScan() {
     camSharp: {}, backToBest: false, blurSince: 0, sharpMax: 0, camSince: Date.now() });
   document.documentElement.classList.add("lock");
   status("Preparando el lector…");
-  Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6), getWorker(scanLang()[1], `whole:${scanLang()[1]}`, 11)])
+  (nativeOcr() && scanLang()[0] !== "ja" ? Promise.resolve()
+    : Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6), getWorker(scanLang()[1], `whole:${scanLang()[1]}`, 11)]))
     .then(() => status(canFocus(S.stream) ? "Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar"
       : "Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)")).catch((e) => status(e.message));
   setupCameraControls(video);
@@ -2163,14 +2164,20 @@ const status = (msg) => { const el = $("#scan-status"); if (el) el.textContent =
 
 // Del vídeo (que se ve con object-fit: cover) recorta lo que hay dentro del marco: dos franjas
 // ampliadas (título arriba; edición y número abajo) y, para cuando la carta no encaja bien, la carta entera.
-function grabFrame() {
+// El marco de la carta en píxeles del vídeo (el vídeo se ve con object-fit: cover).
+function frameRect() {
   const v = $("#scan-video"), f = $("#scan-frame");
-  if (!v?.videoWidth) return null;
+  if (!v?.videoWidth || !f) return null;
   const vr = v.getBoundingClientRect(), fr = f.getBoundingClientRect();
   const scale = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
   const ox = (vr.width - v.videoWidth * scale) / 2, oy = (vr.height - v.videoHeight * scale) / 2;
   const x = Math.max(0, (fr.left - vr.left - ox) / scale), y = Math.max(0, (fr.top - vr.top - oy) / scale);
-  const w = Math.min(v.videoWidth - x, fr.width / scale), h = Math.min(v.videoHeight - y, fr.height / scale);
+  return { v, x, y, w: Math.min(v.videoWidth - x, fr.width / scale), h: Math.min(v.videoHeight - y, fr.height / scale) };
+}
+function grabFrame() {
+  const r = frameRect();
+  if (!r) return null;
+  const { v, x, y, w, h } = r;
   return {
     whole: toCanvas(v, 0, 0, v.videoWidth, v.videoHeight, 960),
     title: toCanvas(v, x + w * 0.02, y + h * 0.01, w * 0.9, h * 0.14, 700, true),
@@ -2184,6 +2191,26 @@ async function readStrips(w, strips) {
   const [top, bottom] = await Promise.all([w.recognize(strips.title),
     getWorker("eng", "bottom", 6).then((b) => b.recognize(strips.bottom))]);
   return [...textLines(top, 0), ...textLines(bottom, 0.95)];
+}
+
+// Lector nativo de Android (ML Kit, ver mobile/android/.../OcrPlugin.java): décimas de segundo por lectura y lee
+// la imagen entera. En la web, con cartas en japonés o si falla, se usa Tesseract (más lento).
+const nativeOcr = () => (window.Capacitor?.isNativePlatform?.() && !S.noNative
+  ? window.Capacitor.Plugins?.Ocr || window.Capacitor.registerPlugin?.("Ocr") : null);
+async function nativeLines(ocr) {
+  const fr = frameRect();
+  if (!fr) return null;
+  const { v } = fr, k = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+  const c = (nativeLines.c ||= document.createElement("canvas"));
+  c.width = Math.round(v.videoWidth * k);
+  c.height = Math.round(v.videoHeight * k);
+  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+  const r = await ocr.read({ image: c.toDataURL("image/jpeg", 0.85) });
+  // Altura dentro del marco (0 = arriba, donde va el título); lo que queda fuera cuenta como borde. Primero lo de dentro.
+  const yIn = (l) => ((l.y ?? 0) / k - fr.y) / fr.h;
+  return (r.lines || []).filter((l) => l.text?.trim())
+    .map((l) => ({ text: l.text.trim(), y: Math.min(1, Math.max(0, yIn(l))), out: yIn(l) < -0.05 || yIn(l) > 1.05 }))
+    .sort((a, b) => a.out - b.out || a.y - b.y).map(({ text, y }) => ({ text, y }));
 }
 
 async function scanTick() {
@@ -2200,7 +2227,10 @@ async function scanTick() {
     // de más (antes, en AUTO, también el japonés, que en el móvil tardaba muchísimo en cargar y bloqueaba el escáner).
     const wc = lang === "auto" || lang === "en" ? "eng" : code;
     const timeout = new Promise((_, no) => setTimeout(() => no(new Error("lento")), 12000));
-    if (S.n % 3 === 0) {
+    const ocr = lang !== "ja" && nativeOcr();
+    if (ocr) {
+      lines = await nativeLines(ocr).catch((e) => { S.noNative = true; console.warn("Lector nativo:", e); return []; });
+    } else if (S.n % 3 === 0) {
       const r = await Promise.race([getWorker(wc, `whole:${wc}`, 11).then((w) => w.recognize(strips.whole)), timeout]);
       lines = ocrLines(r.data, strips.whole);
     } else {
@@ -2246,13 +2276,9 @@ async function scanTick() {
 // En el vídeo de prueba: cámara desenfocada 130-400, enfocada 2.400-3.000.
 const BLUR = 500;
 function sharpness() {
-  const v = $("#scan-video"), f = $("#scan-frame");
-  if (!v?.videoWidth || !f) return null;
-  const vr = v.getBoundingClientRect(), fr = f.getBoundingClientRect();
-  const sc = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
-  const ox = (vr.width - v.videoWidth * sc) / 2, oy = (vr.height - v.videoHeight * sc) / 2;
-  const sx = Math.max(0, (fr.left - vr.left - ox) / sc), sy = Math.max(0, (fr.top - vr.top - oy) / sc);
-  const sw = Math.min(v.videoWidth - sx, fr.width / sc), sh = Math.min(v.videoHeight - sy, fr.height / sc);
+  const fr = frameRect();
+  if (!fr) return null;
+  const { v, x: sx, y: sy, w: sw, h: sh } = fr;
   if (sw < 8 || sh < 8) return null;
   const W = 240, H = Math.max(3, Math.round((W * sh) / sw));
   const c = (sharpness.c ||= document.createElement("canvas"));
