@@ -632,7 +632,7 @@ async function addSheet(candidates, opts = {}) {
   const body = opts.into || openSheet(`<h3>Añadir carta</h3><div id="add-body">${skeleton(1)}</div>`);
   if (opts.into) body.innerHTML = `<div id="add-body">${skeleton(1)}</div>`;
   const cands = await Promise.all(candidates.map(async (c) => ({ ...c, printings: c.printings || (await api(`/api/printings?name=${encodeURIComponent(c.name)}`)) })));
-  let ci = 0, qty = 1, foil = false, proxy = false, alter = "", lang = store("addLang") || "en";  // idioma: se recuerda el último
+  let ci = 0, qty = 1, foil = false, proxy = false, alter = "", lang = opts.lang || store("addLang") || "en";  // idioma: se recuerda el último
   const added = [];  // lo añadido en esta ventana (varios artes / foil seguidos)
   let pid = defaultPrint(cands[0]);
   const draw = () => {
@@ -665,7 +665,7 @@ async function addSheet(candidates, opts = {}) {
     $("#add-foil", body).onclick = () => { foil = !foil; draw(); };
     $("#add-proxy", body).onclick = () => { proxy = !proxy; draw(); };
     body.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => { alter = b.dataset.alt; draw(); }));
-    $("#add-lang", body).onchange = (e) => { lang = e.target.value; store("addLang", lang); };
+    $("#add-lang", body).onchange = (e) => { lang = e.target.value; if (!opts.lang) store("addLang", lang); };
     body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { qty = Math.max(1, qty + +b.dataset.q); draw(); }));
     $("#add-ok", body).onclick = async () => {
       const r = await api("/api/collection", { card_id: p.id, foil, qty });
@@ -675,6 +675,7 @@ async function addSheet(candidates, opts = {}) {
       toast(`${qty}× ${c.name} añadida${proxy ? " (proxy)" : ""}${alter ? ` (${ALTER_LABELS[alter]})` : ""}`);
       if (!proxy) celebrate(r);
       loadSummary();
+      if (S.sell && $("#scanner")) sellPush({ name: c.name, set: p.set, number: p.number, foil, lang, qty, eur: foil ? p.eur_foil : p.eur });
       if (opts.onDone) { opts.onDone(); refresh(); return; }
       added.push(`${qty}× ${p.set.toUpperCase()} #${p.number}${foil ? " foil" : ""}${alter ? ` ${ALTER_LABELS[alter].toLowerCase()}` : ""}${lang !== "en" ? ` (${lang.toUpperCase()})` : ""}`);
       closeSheet.dirty = true;
@@ -2043,6 +2044,7 @@ async function startScan() {
       </div>
       <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
       <div class="scan-burst" id="scan-burst" hidden></div>
+      <div class="scan-ask" id="scan-ask" hidden></div>
       <div class="scan-result" id="scan-result" hidden></div>
       <div class="scan-tools" id="scan-tools"></div>
     </div>`);
@@ -2071,6 +2073,7 @@ async function startScan() {
     .then(() => status(canFocus(S.stream) ? "Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar"
       : "Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)")).catch((e) => status(e.message));
   setupCameraControls(video);
+  if (!S.tradeSide && !S.sellList?.length) askSell();  // si ya hay lista para vender (volviste al escáner), se sigue apuntando
   S.timer = setInterval(() => { checkFocus(); scanTick(); }, 200);
 }
 
@@ -2299,7 +2302,7 @@ async function scanTick() {
       lines = await Promise.race([getWorker(wc, `title:${wc}`, 6).then((w) => readStrips(w, strips)), timeout]);
     }
     if (!S.running || S.paused) return;
-    const m = await api("/api/match", { lines, lang });
+    const m = await api("/api/match", { lines, lang: "auto" });  // siempre todos los idiomas: así detecta el de la carta
     const top = m[0];
     const moved = S.moveAt > (S.addAt || 0) && S.moveAt < frameAt;  // la carta cambió entre la última añadida y esta foto
     if (top && top.name === S.justAdded && !(S.burstOn && moved)) {  // en ráfaga, otra copia igual cuenta si la carta ha cambiado
@@ -2384,7 +2387,7 @@ function checkFocus() {
 // más probable y el escáner sigue solo. Al terminar se revisa la lista y se añade todo junto.
 function burstAdd(m) {
   const top = m[0], id = defaultPrint(top), p = top.printings.find((x) => x.id === id) || top.printings[0];
-  S.burst.push({ name: top.name, id: p.id, set: p.set, number: p.number, eur: p.eur, image: p.image });
+  S.burst.push({ name: top.name, id: p.id, set: p.set, number: p.number, eur: p.eur, image: p.image, lang: top.lang || "en" });
   Object.assign(S, { justAdded: top.name, seen: [], addAt: Date.now(), last: null, hits: 0 });
   navigator.vibrate?.(35);
   Sfx.play([[880, 0, 0.08, "triangle", 0.08], [1320, 0.07, 0.12, "triangle", 0.08]]);
@@ -2402,11 +2405,47 @@ function paintBurst() {
 function burstDone() {
   closeScanner();
   if (S.tradeSide) return tradeTake();
-  if (S.burst?.length) burstReview();
+  if (S.burst?.length) return burstReview();
+  if (S.sell && S.sellList?.length) sellSheet();
+}
+// ---- Modo vender: al abrir el escáner se pregunta; lo que se añade se apunta y al salir sale la lista para Cardmarket
+function sellPush(x) {
+  const l = (S.sellList ||= []), g = l.find((y) => y.name === x.name && y.set === x.set && y.number === x.number && y.foil === x.foil && y.lang === x.lang);
+  if (g) g.qty += x.qty; else l.push({ ...x });
+}
+const CM_LANG = { en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese", ja: "Japanese", ko: "Korean", ru: "Russian", zhs: "S-Chinese", zht: "T-Chinese" };
+function sellSheet() {
+  const l = S.sellList || [];
+  const text = l.map((x) => `${x.qty} ${x.name} (${String(x.set).toUpperCase()} #${x.number})${x.foil ? " Foil" : ""} ${CM_LANG[x.lang] || "English"}${x.eur != null ? ` ${String(x.eur.toFixed(2)).replace(".", ",")} €` : ""}`).join("\n");
+  const csv = ["Quantity,Name,Set code,Collector number,Foil,Language,Price EUR",
+    ...l.map((x) => [x.qty, `"${x.name.replace(/"/g, '""')}"`, String(x.set).toUpperCase(), x.number, x.foil ? "foil" : "", CM_LANG[x.lang] || "English", x.eur ?? ""].join(","))].join("\n");
+  const total = Math.round(l.reduce((a, x) => a + (x.eur || 0) * x.qty, 0) * 100) / 100;
+  const body = openSheet(`<h3>Para vender</h3>
+    <div class="hint">Las cartas que has escaneado, con edición, número, foil, idioma y precio de hoy. Cópialas y ponlas a la venta en Cardmarket (Vender → Poner a la venta), o guarda el CSV.</div>
+    <div class="stats"><div class="stat"><b>${l.reduce((a, x) => a + x.qty, 0)}</b><span>Cartas</span></div><div class="stat"><b>${euro(total)}</b><span>Valen</span></div></div>
+    <textarea class="search sell-list" readonly rows="8">${esc(text)}</textarea>
+    <div class="row-btns"><button class="btn" id="sl-csv">${ico("export")}CSV</button><button class="btn primary" id="sl-copy">${ico("list")}Copiar y abrir Cardmarket</button></div>
+    <button class="btn" id="sl-done" style="margin-top:8px;width:100%">${ico("check")}Listo, borrar la lista</button>`);
+  $("#sl-copy", body).onclick = async () => { await copy(text, "Lista copiada"); window.open("https://www.cardmarket.com/es/Magic/Stock/Offers/Singles", "_blank", "noopener"); };
+  $("#sl-csv", body).onclick = () => saveFile("para-vender.csv", csv, "text/csv");
+  $("#sl-done", body).onclick = () => { S.sellList = []; S.sell = false; closeSheet(); };
+}
+function askSell() {
+  const box = $("#scan-ask");
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = `<div><b>¿Vas a vender estas cartas?</b><div class="sub">Si sí, al salir te doy la lista para Cardmarket (edición, foil e idioma).</div></div>
+    <div class="row-btns"><button class="btn" data-sell="0">No, a mi colección</button><button class="btn primary" data-sell="1">${ico("coin")}Sí, para vender</button></div>`;
+  box.querySelectorAll("[data-sell]").forEach((b) => (b.onclick = () => {
+    S.sell = b.dataset.sell === "1";
+    if (!S.sell) S.sellList = [];
+    box.hidden = true;
+    if (S.sell) toast("Modo vender: al salir tendrás la lista");
+  }));
 }
 function burstReview() {
   const groups = new Map();
-  for (const x of S.burst) { const g = groups.get(x.id) || { ...x, qty: 0 }; g.qty++; groups.set(x.id, g); }
+  for (const x of S.burst) { const k = `${x.id}|${x.lang || "en"}`, g = groups.get(k) || { ...x, qty: 0 }; g.qty++; groups.set(k, g); }
   const items = [...groups.values()];
   const body = openSheet("");
   const draw = () => {
@@ -2415,7 +2454,7 @@ function burstReview() {
       <div class="hint">La edición es la leída en la carta o, si no se ve, la normal más barata. Si alguna no es, cámbiala luego en su ficha.</div>
       <div class="stats"><div class="stat"><b>${copies}</b><span>Cartas</span></div><div class="stat"><b>${euro(Math.round(live.reduce((a, x) => a + (x.eur || 0) * x.qty, 0) * 100) / 100)}</b><span>Valor</span></div></div>
       <div class="list">${items.map((x, i) => x.qty ? `<div class="item"><img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
-        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="item-meta">${esc(String(x.set).toUpperCase())} #${esc(x.number)} · ${euro(x.eur)}</div></div>
+        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="item-meta">${esc(String(x.set).toUpperCase())} #${esc(x.number)} · ${euro(x.eur)}${x.lang && x.lang !== "en" ? ` · ${esc(CARD_LANG_NAMES[x.lang] || x.lang)}` : ""}</div></div>
         <div class="stepper"><button data-q="-1" data-i="${i}">−</button><b class="num">${x.qty}</b><button data-q="1" data-i="${i}">+</button></div></div>` : "").join("")}</div>
       <div class="row-btns"><button class="btn" id="bu-more">${ico("cam")}Seguir escaneando</button><button class="btn primary" id="bu-add" ${copies ? "" : "disabled"}>Añadir ${copies}</button></div>
       <button class="btn" id="bu-drop" style="margin-top:8px;width:100%">${ico("trash")}Descartar la lista</button>`;
@@ -2424,14 +2463,15 @@ function burstReview() {
     $("#bu-drop", body).onclick = () => { if (confirm(t("¿Descartar las cartas escaneadas sin añadirlas?"))) { S.burst = []; closeSheet(); } };
     $("#bu-add", body).onclick = async (e) => {
       e.currentTarget.disabled = true;
-      const lang = store("addLang") || "en";
       for (const x of items.filter((y) => y.qty > 0)) {
         await api("/api/collection", { card_id: x.id, foil: false, qty: x.qty });
-        if (lang !== "en") await api("/api/lang", { card_id: x.id, foil: false, lang });
+        if ((x.lang || "en") !== "en") await api("/api/lang", { card_id: x.id, foil: false, lang: x.lang });
+        if (S.sell) sellPush({ name: x.name, set: x.set, number: x.number, foil: false, lang: x.lang || "en", qty: x.qty, eur: x.eur });
       }
       toast(`${copies} cartas añadidas`);
       S.burst = [];
       closeSheet(); loadSummary(); refresh();
+      if (S.sell && S.sellList?.length) sellSheet();  // modo vender: la lista para Cardmarket
     };
   };
   const sync = () => { S.burst = items.flatMap((x) => Array(x.qty).fill(x)); };
@@ -2530,7 +2570,7 @@ function showScanResult(matches) {
     S.justAdded = added ? matches[0].name : null;
     status(added ? "Añadida · Pon la siguiente carta" : "Coloca la siguiente carta");
   };
-  addSheet(matches, { into: box, compact: true, onDone: () => resume(true), onSkip: () => resume(false) });
+  addSheet(matches, { into: box, compact: true, lang: matches[0].lang, onDone: () => resume(true), onSkip: () => resume(false) });
 }
 
 // Plan B: hacer una foto (si no hay cámara en directo).

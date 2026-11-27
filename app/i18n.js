@@ -15,6 +15,15 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Para vender", "To sell", "Per vendre"],
+  ["Las cartas que has escaneado, con edición, número, foil, idioma y precio de hoy. Cópialas y ponlas a la venta en Cardmarket (Vender → Poner a la venta), o guarda el CSV.", "The cards you scanned, with set, number, foil, language and today's price. Copy them and list them for sale on Cardmarket (Sell → Put up for sale), or save the CSV.", "Les cartes que has escanejat, amb edició, número, foil, idioma i preu d'avui. Copia-les i posa-les a la venda a Cardmarket (Vendre → Posar a la venda), o desa el CSV."],
+  ["Copiar y abrir Cardmarket", "Copy and open Cardmarket", "Copiar i obrir Cardmarket"],
+  ["Listo, borrar la lista", "Done, clear the list", "Fet, esborrar la llista"],
+  ["¿Vas a vender estas cartas?", "Are you going to sell these cards?", "Vendràs aquestes cartes?"],
+  ["Si sí, al salir te doy la lista para Cardmarket (edición, foil e idioma).", "If so, when you exit I'll give you the list for Cardmarket (set, foil and language).", "Si és que sí, en sortir et dono la llista per a Cardmarket (edició, foil i idioma)."],
+  ["No, a mi colección", "No, to my collection", "No, a la meva col·lecció"],
+  ["Sí, para vender", "Yes, to sell", "Sí, per vendre"],
+  ["Modo vender: al salir tendrás la lista", "Sell mode: you'll get the list when you exit", "Mode vendre: en sortir tindràs la llista"],
   ["Avisos actualizados", "Alerts updated", "Avisos actualitzats"],
   ["Mira las notificaciones del móvil", "Check your phone's notifications", "Mira les notificacions del mòbil"],
   ["Probar aviso", "Test alert", "Provar avís"],

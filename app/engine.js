@@ -953,7 +953,7 @@ const Engine = (() => {
     const names = await extra("names.json");
     const m = new Map(), printedOf = new Map();
     for (const [printed, oi] of Object.entries(names[lang] || {})) { const k = compact(printed); m.set(k, oi); printedOf.set(k, printed); }
-    foreign[lang] = { map: m, keys: [...m.keys()], printed: printedOf };
+    foreign[lang] = { code: lang, map: m, keys: [...m.keys()], printed: printedOf };
     return foreign[lang];
   }
   const FOOTER_RE = /wizards|coast|illus|©|™/i;
@@ -966,13 +966,19 @@ const Engine = (() => {
     const raw = body.lines || [];
     const lines = raw.map((l, i) => (typeof l === "string" ? { text: l, y: i / Math.max(raw.length, 1) } : l));
     nameKeys ||= [...oByNorm.keys()];
-    const scores = new Map();
-    const bump = (k, s) => scores.set(k, Math.max(scores.get(k) || 0, s));
+    const scores = new Map(), srcLang = new Map();
+    // Idioma de la carta: el del nombre que mejor encaja (en un empate, inglés: hay nombres que no se traducen)
+    const bump = (k, s, lang = "en") => {
+      const cur = scores.get(k) || 0;
+      if (s > cur || (s === cur && lang === "en")) srcLang.set(k, lang);
+      scores.set(k, Math.max(cur, s));
+    };
     // Cartas en otros idiomas: se busca el nombre impreso y se traduce a la carta.
     // lang "auto" = en todos los idiomas que haya (español, francés, alemán, italiano, portugués, japonés).
     const langs = !body.lang || body.lang === "en" ? [] : body.lang === "auto" ? Object.keys(await extra("names.json")) : [body.lang];
     const indexes = await Promise.all(langs.map(foreignIndex));
     const toKey = (oi) => norm(O[oi][0]);
+    const enSame = (oi, printed) => compact(front(O[oi][0])) === printed;  // «Ornithopter» se llama igual en alemán: mejor inglés
     for (const line of lines.slice(0, 40)) {
       const y = line.y || 0;
       if (FOOTER_RE.test(line.text)) continue;
@@ -984,7 +990,7 @@ const Engine = (() => {
             for (let j = i + 2; j <= Math.min(flat.length, i + 40); j++) {
               const oi = lang.map.get(flat.slice(i, j));
               if (oi != null && j - i >= 3) {
-                bump(toKey(oi), 1 + Math.min(j - i, 20) / 100 - y * 0.5);
+                bump(toKey(oi), 1 + Math.min(j - i, 20) / 100 - y * 0.5, enSame(oi, flat.slice(i, j)) ? "en" : lang.code);
                 if (j - i >= Math.max(6, flat.length * 0.6)) exactHit = true;  // un trozo corto no descarta el resto
               }
             }
@@ -992,7 +998,7 @@ const Engine = (() => {
         }
         // Parecido aproximado (errores del lector), solo si no hay coincidencia exacta: es lo que cuesta.
         if (!exactHit && flat.length >= 3 && y < TITLE_ZONE) {
-          for (const lang of indexes) for (const k of closeMatches(flat, lang.keys, 2, 0.72)) bump(toKey(lang.map.get(k)), ratio(flat, k) - y * 0.5);
+          for (const lang of indexes) for (const k of closeMatches(flat, lang.keys, 2, 0.72)) bump(toKey(lang.map.get(k)), ratio(flat, k) - y * 0.5, enSame(lang.map.get(k), k) ? "en" : lang.code);
         }
       }
       const tokens = cleanTokens(line.text);
@@ -1015,6 +1021,9 @@ const Engine = (() => {
     }
     const text = lines.map((l) => l.text).join("\n");
     const codes = setCodes(text);
+    // La línea inferior de las cartas modernas dice el idioma ("DSK • ES"): manda sobre lo deducido del nombre
+    const LANG_OF = { EN: "en", ES: "es", SP: "es", FR: "fr", DE: "de", IT: "it", PT: "pt", JA: "ja", JP: "ja", KO: "ko", RU: "ru", ZHS: "zhs", CS: "zhs", ZHT: "zht", CT: "zht" };
+    const printedLang = [...text.matchAll(SET_CODE_RE)].map((m) => LANG_OF[m[2].toUpperCase()]).find(Boolean) || null;
     const nums = new Set(NUM_RES.flatMap((re) => [...text.matchAll(re)].map((m) => m[1].replace(/^0+/, ""))));
     const found = [];
     for (const code of codes) for (const num of nums) for (const pi of bySetNum.get(`${code.toLowerCase()}|${num}`) || []) found.push(pi);
@@ -1032,7 +1041,9 @@ const Engine = (() => {
       const prints = printsOf[oi].map(printingRow);
       let best = exact.get(k) || null;
       if (!best && codes.size) { const inSet = prints.filter((p) => codes.has(p.set.toUpperCase())); if (inSet.length === 1) best = inSet[0].id; }
-      return { name: front(O[oi][0]), score: Math.round(score * 100) / 100, printings: prints, best };
+      // Cartas antiguas sin código de edición ("27/158"): si solo una impresión tiene ese número, es esa
+      if (!best && !codes.size && nums.size) { const byNum = prints.filter((p) => nums.has(String(p.number).replace(/^0+/, ""))); if (byNum.length === 1) best = byNum[0].id; }
+      return { name: front(O[oi][0]), score: Math.round(score * 100) / 100, printings: prints, best, lang: printedLang || srcLang.get(k) || "en" };
     });
   }
 

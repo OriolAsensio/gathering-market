@@ -681,3 +681,17 @@ button.lf-extra { pointer-events: auto; position: relative; z-index: 2; backgrou
 .lf-row > span svg.ico { margin-right: 4px; }
 .lf-turn-n { min-width: 34px; text-align: center; font-size: 20px; color: var(--gold); }
 .lf-panel { max-height: 46vh; overflow-y: auto; }
+
+/* Escáner: la ventana de la carta ocupa menos para seguir viendo la cámara */
+.scan-result { max-height: 52vh; }
+.scan-result .stats { display: none; }
+.scan-result .card-big { display: none; }
+.scan-result .big-togs { margin: 6px 0; gap: 6px; }
+.scan-result .big-tog { min-height: 38px; padding: 6px 12px; font-size: 14px; }
+.scan-result #add-alter .big-tog { flex: 1 1 20%; padding: 6px 4px; font-size: 12.5px; }
+.scan-result .field { margin: 4px 0; }
+.scan-result .art { width: 62px; } .scan-result .cand { width: 70px; } .scan-result .art span, .scan-result .art small { font-size: 10px; }
+.scan-ask { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 84px); z-index: 3; background: rgba(16,11,7,.95); border: 1px solid var(--gold);
+  border-radius: 16px; padding: 14px; color: var(--text); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+.scan-ask .sub { margin-top: 4px; }
+.sell-list { width: 100%; font: 13px/1.5 ui-monospace, monospace; white-space: pre; overflow: auto; margin: 8px 0; }
