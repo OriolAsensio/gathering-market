@@ -17,12 +17,17 @@ addEventListener("syncCollection", (resolve, reject, args) => {
     CapacitorKV.set("ids", JSON.stringify(args?.ids || []));   // ["<id>" normal, "<id>f" foil]
     CapacitorKV.set("names", JSON.stringify(args?.names || {}));
     CapacitorKV.set("wishes", JSON.stringify(args?.wishes || []));  // [{name, target, pis}] (pis: posiciones en prices.json)
+    CapacitorKV.set("own", JSON.stringify(args?.own || []));        // [[clave, posición en prices.json, foil]]
+    CapacitorKV.set("alert", JSON.stringify(args?.alert || { pct: 10, min: 50 }));
     CapacitorKV.set("cardsVersion", args?.cardsVersion || "");
     if (args?.day && !kv("lastDay")) CapacitorKV.set("lastDay", args.day);  // no avisar de lo que ya se ve al abrir
     if (args?.lastEvent != null && !kv("lastEvent")) CapacitorKV.set("lastEvent", String(args.lastEvent));
     resolve();
   } catch (e) { reject(e); }
 });
+
+// Botón «Probar aviso» de la app: comprueba que la tarea y los permisos de notificación funcionan.
+addEventListener("testNotify", (resolve) => { notify("Avisos activados", "Así te llegará cuando una carta tuya suba o baje."); resolve(); });
 
 addEventListener("checkPrices", async (resolve, reject) => {
   try {
@@ -39,8 +44,34 @@ addEventListener("checkPrices", async (resolve, reject) => {
     }
     // 2) Tus cartas, una vez por día de precios
     if (version.day && version.day !== kv("lastDay")) {
-      const ids = JSON.parse(kv("ids") || "[]"), names = JSON.parse(kv("names") || "{}");
-      if (ids.length) {
+      const ids = JSON.parse(kv("ids") || "[]"), names = JSON.parse(kv("names") || "{}"), own = JSON.parse(kv("own") || "[]");
+      const sameCards = version.cards_version === kv("cardsVersion");  // si cambian las cartas, las posiciones ya no valen
+      let pr = null;
+      const prices = async () => (pr ||= await (await fetch(PACK + "prices.json?d=" + version.day)).json());
+      if (own.length && sameCards) {
+        // Cada carta guarda un precio de referencia: avisa cuando se aleja tanto como pediste (aunque sea poco a poco,
+        // día a día) y entonces la referencia pasa a ser el precio nuevo.
+        const p = await prices(), base = JSON.parse(kv("base") || "{}"), { pct, min } = JSON.parse(kv("alert") || '{"pct":10,"min":50}');
+        const hits = [];
+        for (const [k, i, f] of own) {
+          const now = (f ? p.eur_foil : p.eur)[i];
+          if (now == null) continue;
+          const old = base[k];
+          if (old == null) { base[k] = now; continue; }
+          if (old >= 10 && Math.abs(now - old) >= min && (Math.abs(now - old) * 100) / old >= pct && !(now > old * 10 && old < 100)) {
+            hits.push({ name: names[k] || "Una carta tuya", old, now, pct: Math.round(((now - old) * 100) / old) });
+            base[k] = now;
+          }
+        }
+        CapacitorKV.set("base", JSON.stringify(base));
+        hits.sort((a, b) => Math.abs(b.now - b.old) - Math.abs(a.now - a.old));
+        const line = (h) => `${h.name} ${h.pct > 0 ? "+" : ""}${h.pct}% (${euro(h.old)} → ${euro(h.now)})`;
+        if (hits.length && hits.length <= 3) for (const h of hits) notify(`${h.pct > 0 ? "Sube" : "Baja"} ${h.name}`, line(h));
+        else if (hits.length) {
+          const up = hits.filter((h) => h.pct > 0).length, down = hits.length - up;
+          notify(`${up ? `${up} suben` : ""}${up && down ? " · " : ""}${down ? `${down} bajan` : ""} en tu colección`, hits.slice(0, 5).map(line).join("\n"));
+        }
+      } else if (ids.length) {  // sin posiciones válidas: los cambios de un día para otro
         const ch = (await (await fetch(PACK + "changes.json?d=" + version.day)).json()).c || {};
         const hits = ids.filter((k) => ch[k]).map((k) => {
           const [old, now] = ch[k];
@@ -57,8 +88,8 @@ addEventListener("checkPrices", async (resolve, reject) => {
       }
       // Lista de deseos: la edición más barata ya está por debajo de tu precio objetivo
       const wishes = JSON.parse(kv("wishes") || "[]"), hit = JSON.parse(kv("wishHit") || "{}");
-      if (wishes.length && version.cards_version === kv("cardsVersion")) {  // si cambian las cartas, las posiciones ya no valen
-        const pr = await (await fetch(PACK + "prices.json?d=" + version.day)).json();
+      if (wishes.length && sameCards) {
+        const pr = await prices();
         for (const w of wishes) {
           const now = Math.min(...w.pis.map((i) => pr.eur[i]).filter((v) => v != null));
           if (!Number.isFinite(now)) continue;

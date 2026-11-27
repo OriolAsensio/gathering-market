@@ -7,7 +7,7 @@ const euro = (v) => (v == null ? "—" : v.toLocaleString("es-ES", { style: "cur
 const pct = (v) => `${v > 0 ? "+" : ""}${v.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
 // Iconos propios (app/icons/*.png, pintados con el color del tema).
 // Iconos: los de línea del sprite de index.html (SVG) o las máscaras PNG de Flaticon (app/icons). Nada de emojis.
-const SVG_ICONS = new Set(["crest", "camera", "cards", "tome", "swords", "scales", "horn", "heart", "clock", "file", "list", "select", "check", "close", "trash", "hammer", "scroll", "cart", "palette", "dice", "image", "link", "edit", "mask", "mug", "scale", "target", "globe", "sparkle", "bolt", "warn", "book", "save", "crown", "search", "calendar", "medal", "cloud", "bell", "lock", "eye", "export", "refresh", "skull", "sword", "gear", "reset", "shuffle", "sound", "mute", "coin", "cam", "torch", "fire", "undo", "plus2", "chart"]);
+const SVG_ICONS = new Set(["crest", "camera", "cards", "tome", "swords", "scales", "horn", "heart", "clock", "file", "list", "select", "check", "close", "trash", "hammer", "scroll", "cart", "palette", "dice", "image", "link", "edit", "mask", "mug", "scale", "target", "globe", "sparkle", "bolt", "warn", "book", "save", "crown", "search", "calendar", "medal", "cloud", "bell", "lock", "eye", "export", "refresh", "skull", "sword", "gear", "reset", "shuffle", "sound", "mute", "coin", "cam", "torch", "fire", "undo", "plus2", "chart", "sun", "moon"]);
 const ico = (name) => (SVG_ICONS.has(name) ? `<svg class="ico svg" aria-hidden="true"><use href="#i-${name}"/></svg>` : `<i class="ico ico-${name}" aria-hidden="true"></i>`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 // Todos los precios son de Cardmarket (en euros), vía Scryfall.
@@ -406,6 +406,7 @@ views.collection = async () => {
   v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
     <button class="btn block" id="col-added" style="margin-top:8px">${ico("clock")}Últimas añadidas</button>
     <div class="row-btns" style="margin-top:8px"><button class="btn" id="col-dups">${ico("list")}Repetidas</button><button class="btn" id="col-stats">${ico("calendar")}Por meses</button></div>
+    <button class="btn" id="col-trade" style="margin-top:8px;width:100%">${ico("scale")}Ayudante de cambios</button>
     <h2>Cartas</h2>
     <input class="search" id="col-filter" placeholder="Filtrar o buscar carta para añadir…" value="${esc(state.collectionFilter)}">
     <div class="seg" id="col-kind" style="margin-top:8px"><button data-k="all">Todas</button><button data-k="real">Sin proxies</button><button data-k="proxy">Proxies</button><button data-k="alter">${ico("alter")}Alteradas</button></div>
@@ -419,6 +420,7 @@ views.collection = async () => {
   $("#col-added").onclick = addedSheet;
   $("#col-dups").onclick = duplicatesSheet;
   $("#col-stats").onclick = statsSheet;
+  $("#col-trade").onclick = tradeSheet;
   const items = await api("/api/collection");
   items.forEach((c) => (c.key = c.row_id));
   const box = $("#col-list");
@@ -620,6 +622,9 @@ function alterBox(btn, x) {
 }
 
 const ALTER_LABELS = { firma: "Firmada", arte: "Arte propio", ambas: "Firmada y con arte propio" };
+// Sin edición detectada, propone la normal más barata (la más común en colecciones).
+const defaultPrint = (c) => c.best || [...c.printings].filter((p) => p.eur != null)
+  .sort((a, b) => a.variant - b.variant || a.eur - b.eur)[0]?.id || c.printings[0]?.id;
 // Elegir carta, arte (con imágenes), foil y cantidad, y añadir.
 async function addSheet(candidates, opts = {}) {
   const body = opts.into || openSheet(`<h3>Añadir carta</h3><div id="add-body">${skeleton(1)}</div>`);
@@ -627,9 +632,6 @@ async function addSheet(candidates, opts = {}) {
   const cands = await Promise.all(candidates.map(async (c) => ({ ...c, printings: c.printings || (await api(`/api/printings?name=${encodeURIComponent(c.name)}`)) })));
   let ci = 0, qty = 1, foil = false, proxy = false, alter = "", lang = store("addLang") || "en";  // idioma: se recuerda el último
   const added = [];  // lo añadido en esta ventana (varios artes / foil seguidos)
-  // Sin edición detectada, propone la normal más barata (la más común en colecciones).
-  const defaultPrint = (c) => c.best || [...c.printings].filter((p) => p.eur != null)
-    .sort((a, b) => a.variant - b.variant || a.eur - b.eur)[0]?.id || c.printings[0]?.id;
   let pid = defaultPrint(cands[0]);
   const draw = () => {
     const c = cands[ci];
@@ -1122,18 +1124,41 @@ async function preconSheet() {
 async function duplicatesSheet() {
   const body = openSheet(`<h3>Repetidas</h3>${skeleton(3)}`);
   const r = await api("/api/duplicates");
-  const text = r.items.map((x) => `${x.extra} ${x.name}`).join("\n");
+  const text = r.items.map((x) => `${x.extra} ${x.name} (${x.set})`).join("\n");
+  // Fila: lo que sobra y, para no venderlas si las usas en un mazo que no está en la app, cuántas tienes en otros mazos
+  const row = (x) => `<div class="item dup"><img class="thumb" loading="lazy" src="${esc(x.image)}" alt="" data-name="${esc(x.name)}">
+    <div class="item-main"><div class="item-title" data-name="${esc(x.name)}">${esc(x.name)}</div>
+      <div class="item-meta">Tienes ${x.qty}${x.used ? ` · tu mazo usa ${x.used}` : ""}${x.extra > 0 ? ` · sobran <b>${x.extra}</b>` : ""}</div>
+      <div class="item-meta proxy-row"><span class="sub">En otros mazos</span><button class="mini" data-rv="${esc(x.name)}" data-d="-1" ${x.reserved ? "" : "disabled"}>−</button><b>${x.reserved}</b><button class="mini" data-rv="${esc(x.name)}" data-d="1" data-n="${x.reserved}">+</button>
+        ${x.reserved ? `<button class="mini-chip" data-note="${esc(x.name)}" data-n="${x.reserved}">${x.note ? esc(x.note) : "¿Qué mazo?"}</button>` : ""}</div></div>
+    <div class="item-side">${x.extra > 0 ? `<div class="price">${euro(x.value)}</div><div class="sub">${euro(x.eur)} c/u</div>` : ""}</div></div>`;
   body.innerHTML = `<h3>Repetidas</h3>
-    <div class="hint">Copias de más: por encima de 4 (o de las que usa tu mazo que más lleva). Sin tierras básicas ni proxies. Para vender o cambiar.</div>
+    <div class="hint">Copias de más: por encima de 4 (o de las que usa tu mazo que más lleva). Sin tierras básicas ni proxies. Si usas copias en un mazo que no tienes en la app (Commander, otro de 60…), súmalas en «En otros mazos» y dejan de contar como repetidas.</div>
     <div class="stats"><div class="stat"><b>${r.copies}</b><span>Copias de más</span></div><div class="stat"><b>${euro(r.value)}</b><span>Valen</span></div></div>
-    ${r.items.length ? `<div class="row-btns"><button class="btn" id="dp-copy">${ico("list")}Copiar lista</button><button class="btn primary" id="dp-share">${ico("share")}Compartir</button></div>
-      <div class="list">${r.items.map((x) => `<button class="item" data-name="${esc(x.name)}"><img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
-        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="item-meta">Tienes ${x.qty}${x.used ? ` · tu mazo usa ${x.used}` : ""} · sobran ${x.extra}</div></div>
-        <div class="item-side"><div class="price">${euro(x.value)}</div><div class="sub">${euro(x.eur)} c/u</div></div></button>`).join("")}</div>`
-      : `<div class="empty"><strong>No te sobra nada</strong>Ninguna carta pasa de 4 copias (ni de lo que usan tus mazos).</div>`}`;
+    ${r.items.length ? `<div class="row-btns"><button class="btn" id="dp-copy">${ico("list")}Copiar lista</button><button class="btn" id="dp-csv">${ico("export")}CSV</button><button class="btn primary" id="dp-sell">${ico("coin")}Vender</button></div>
+      <div class="list">${r.items.map(row).join("")}</div>`
+      : `<div class="empty"><strong>No te sobra nada</strong>Ninguna carta pasa de 4 copias (ni de lo que usan tus mazos).</div>`}
+    ${r.reserved.filter((x) => x.extra <= 0).length ? `<h2>En otros mazos</h2><div class="list">${r.reserved.filter((x) => x.extra <= 0).map(row).join("")}</div>` : ""}`;
   $("#dp-copy", body)?.addEventListener("click", () => copy(text, "Lista copiada"));
-  $("#dp-share", body)?.addEventListener("click", () => shareText("Mis cartas repetidas", text));
+  $("#dp-csv", body)?.addEventListener("click", () => saveFile("repetidas.csv",
+    ["Quantity,Name,Set code,Collector number,Price EUR", ...r.items.map((x) => [x.extra, `"${x.name.replace(/"/g, '""')}"`, x.set, x.number, x.eur ?? ""].join(","))].join("\n"), "text/csv"));
+  // Vender: Cardmarket no deja subir una lista a la venta a particulares; se copia la lista y se abre tu página de venta
+  $("#dp-sell", body)?.addEventListener("click", async () => {
+    await copy(r.items.map((x) => `${x.extra}x ${x.name} (${x.set}) ~${euro(x.eur)}`).join("\n"), "Lista copiada con precios: ponlas a la venta en Cardmarket");
+    window.open("https://www.cardmarket.com/es/Magic/Stock/Offers/Singles", "_blank", "noopener");
+  });
   body.querySelectorAll("[data-name]").forEach((b) => (b.onclick = () => synergySheet(b.dataset.name)));
+  body.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = async () => {
+    const cur = r.items.concat(r.reserved).find((x) => x.name === b.dataset.rv)?.reserved || 0;
+    await api("/api/reserve", { name: b.dataset.rv, n: cur + +b.dataset.d });
+    duplicatesSheet();
+  }));
+  body.querySelectorAll("[data-note]").forEach((b) => (b.onclick = async () => {
+    const note = prompt(t("¿En qué mazo están? (p. ej. «Commander de Atraxa»)"), b.textContent === t("¿Qué mazo?") ? "" : b.textContent);
+    if (note == null) return;
+    await api("/api/reserve", { name: b.dataset.note, n: +b.dataset.n, note });
+    duplicatesSheet();
+  }));
 }
 // Por meses: cartas añadidas, lo que costaron y cómo ha ido el valor de tu colección
 async function statsSheet() {
@@ -1901,11 +1926,35 @@ views.alerts = async () => {
   const shown = events.filter((e) => (tab === "price") === (e.kind === "price" || e.kind === "wish"));  // los deseos, con los precios
   v.innerHTML = `<h2>Avisos</h2>
     <div class="seg" id="al-tab"><button data-t="price" class="${tab === "price" ? "on" : ""}">${ico("up")}Precios de cartas</button><button data-t="events" class="${tab === "events" ? "on" : ""}">${ico("trophy")}Baneos y eventos</button></div>
-    <div class="hint">${tab === "price" ? "Cartas tuyas que suben o bajan un 10 % o más, y cartas de los mazos top de Pauper que se mueven." : "Baneos de todos los formatos y la fecha del próximo anuncio, ganadores de torneos grandes (Paupergeddon, Super Pauper, RCQ, Mundial), colecciones nuevas y cambios en el meta."} Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
+    ${tab === "price" ? `<div class="alert-set" id="al-set"></div>` : ""}
+    <div class="hint">${tab === "price" ? "Cartas tuyas que suben o bajan mucho, y cartas de los mazos top de Pauper que se mueven." : "Baneos de todos los formatos y la fecha del próximo anuncio, ganadores de torneos grandes (Paupergeddon, Super Pauper, RCQ, Mundial), colecciones nuevas y cambios en el meta."} Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
     ${shown.length ? `<div class="list">${shown.map((e) => `<div class="event"><div class="t">${evTitle(e.title)}</div>${e.body ? `<div class="b">${esc(e.body).replace(/\n/g, "<br>")}</div>` : ""}<div class="d">${esc(e.day)}</div></div>`).join("")}</div>`
       : `<div class="empty"><strong>Sin avisos todavía</strong>Cuando haya un baneo, una colección nueva o una carta tuya se mueva más de un 10%, aparecerá aquí y en el móvil.</div>`}`;
   v.querySelectorAll("#al-tab button").forEach((b) => (b.onclick = () => { store("alertTab", b.dataset.t); views.alerts(); }));
+  if ($("#al-set", v)) alertSettings($("#al-set", v));
 };
+
+// Cuándo te avisa el móvil de tus cartas (aunque la app esté cerrada): % y euros respecto al último precio avisado.
+async function alertSettings(box) {
+  const p = await api("/api/alertprefs");
+  const PCTS = [5, 10, 15, 20, 30], MINS = [10, 25, 50, 100, 200, 500];
+  box.innerHTML = `<div class="sub"><b>Avísame de mis cartas</b> (aunque la app esté cerrada) cuando suban o bajen</div>
+    <div class="seg">${PCTS.map((x) => `<button data-pct="${x}" class="${x === p.pct ? "on" : ""}">${x} %</button>`).join("")}</div>
+    <div class="sub">y al menos</div>
+    <div class="seg">${MINS.map((x) => `<button data-min="${x}" class="${x === p.min ? "on" : ""}">${euro(x / 100)}</button>`).join("")}</div>
+    <div class="hint">Cuenta desde el último aviso de esa carta: también avisa si sube poco a poco durante varios días.</div>
+    ${Runner ? `<button class="btn" id="al-test">${ico("bell")}Probar aviso</button>
+      <div class="hint">¿No llega? En Ajustes de Android → Aplicaciones → Gather in One: permite las notificaciones, el inicio automático y quita la restricción de batería. Android revisa los precios cada media hora como mínimo, cuando hay conexión.</div>` : ""}`;
+  const save = async (body) => { await api("/api/alertprefs", body); syncRunner(); alertSettings(box); toast("Avisos actualizados"); };
+  box.querySelectorAll("[data-pct]").forEach((b) => (b.onclick = () => save({ pct: +b.dataset.pct })));
+  box.querySelectorAll("[data-min]").forEach((b) => (b.onclick = () => save({ min: +b.dataset.min })));
+  $("#al-test", box)?.addEventListener("click", async () => {
+    await Native.LocalNotifications?.requestPermissions().catch(() => {});
+    await Native.BackgroundRunner?.requestPermissions({ apis: ["notifications"] }).catch(() => {});
+    try { await Runner.dispatchEvent({ label: "app.gatheringmarket.prices", event: "testNotify", details: {} }); toast("Mira las notificaciones del móvil"); }
+    catch { notifyLocal({ title: "Avisos activados", body: "Así te llegará cuando una carta tuya suba o baje." }); }
+  });
+}
 
 // Título de un aviso con icono en vez de emoji (📈 sube, 📉 baja, 📊 meta, 🏆 ganador)
 const EV_ICONS = { "📈": "up", "📉": "down", "📊": "meta", "🏆": "trophy", "🎯": "target", "📜": "scroll", "📅": "calendar", "⚠": "warn", "🚫": "warn", "🔨": "hammer" };
@@ -1991,13 +2040,14 @@ async function startScan() {
         <button class="sheet-close" id="scan-close" aria-label="Cerrar escáner">${ico("close")}</button>
       </div>
       <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
+      <div class="scan-burst" id="scan-burst" hidden></div>
       <div class="scan-result" id="scan-result" hidden></div>
       <div class="scan-tools" id="scan-tools"></div>
     </div>`);
   const paintLang = () => document.querySelectorAll("#scan-lang button").forEach((b) => b.classList.toggle("on", b.dataset.l === scanLang()[0]));
   paintLang();
   document.querySelectorAll("#scan-lang button").forEach((b) => (b.onclick = () => { store("scanLang", b.dataset.l); paintLang(); S.last = null; }));
-  $("#scan-close").onclick = closeScanner;
+  $("#scan-close").onclick = burstDone;
   try {
     S.stream = await openBestCamera();
   } catch (err) {
@@ -2008,6 +2058,8 @@ async function startScan() {
   const video = $("#scan-video");
   video.srcObject = S.stream;
   await video.play().catch(() => {});
+  S.burst ||= [];
+  S.burstOn = !!S.tradeSide || store("scanBurst") === "1";  // escanear para un cambio: siempre en ráfaga
   Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0, seen: [], triedCams: new Set(),
     camSharp: {}, backToBest: false, blurSince: 0, sharpMax: 0, camSince: Date.now() });
   document.documentElement.classList.add("lock");
@@ -2127,9 +2179,16 @@ function setupCameraControls(video) {
     focusAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   };
   const bar = $("#scan-tools");
-  bar.innerHTML = `<button class="btn" id="scan-photo">${ico("cam")}Foto</button><button class="btn" id="scan-cam">${ico("refresh")}Cámara</button>`;
+  bar.innerHTML = `<button class="btn ${S.burstOn ? "primary" : ""}" id="scan-burst-on">${ico("bolt")}Ráfaga</button><button class="btn" id="scan-photo">${ico("cam")}Foto</button><button class="btn" id="scan-cam">${ico("refresh")}Cámara</button>`;
   $("#scan-photo").onclick = () => { closeScanner(); photoScan(); };
   $("#scan-cam").onclick = switchCamera;
+  $("#scan-burst-on").onclick = (e) => {
+    S.burstOn = !S.burstOn; store("scanBurst", S.burstOn ? "1" : "0");
+    e.currentTarget.classList.toggle("primary", S.burstOn);
+    paintBurst();
+    toast(S.burstOn ? "Ráfaga: cada carta va a una lista y sigue con la siguiente" : "Ráfaga desactivada");
+  };
+  paintBurst();
   if (caps.torch) {
     let on = false;
     bar.insertAdjacentHTML("beforeend", `<button class="btn" id="scan-torch">${ico("torch")}</button>`);
@@ -2215,7 +2274,7 @@ async function nativeLines(ocr) {
 
 async function scanTick() {
   if (!S.running || S.busy || S.paused) return;
-  const strips = grabFrame();
+  const strips = grabFrame(), frameAt = Date.now();
   if (!strips) return;
   S.busy = true;
   S.n = (S.n || 0) + 1;
@@ -2239,7 +2298,8 @@ async function scanTick() {
     if (!S.running || S.paused) return;
     const m = await api("/api/match", { lines, lang });
     const top = m[0];
-    if (top && top.name === S.justAdded) {
+    const moved = S.moveAt > (S.addAt || 0) && S.moveAt < frameAt;  // la carta cambió entre la última añadida y esta foto
+    if (top && top.name === S.justAdded && !(S.burstOn && moved)) {  // en ráfaga, otra copia igual cuenta si la carta ha cambiado
       status("Añadida · Pon la siguiente carta");  // sigue la misma carta delante: no añadirla dos veces
     } else if (top && top.score >= 0.85) {
       S.justAdded = null;
@@ -2254,10 +2314,10 @@ async function scanTick() {
       if (S.hits >= 2 || top.best || top.score >= 1.05) {
         const cam = S.stream?.getVideoTracks()[0].getSettings().deviceId;
         if (cam) store("scanCam", cam);  // esta cámara lee: la próxima vez se abre directamente
-        showScanResult(m);
+        if (S.burstOn) burstAdd(m); else showScanResult(m);
       }
     } else {
-      S.justAdded = null;
+      if (!S.burstOn) S.justAdded = null;  // en ráfaga, otra copia igual solo cuenta si la carta ha cambiado (movimiento)
       S.misses = (S.misses || 0) + 1;
       if (S.misses % 6 === 0) S.refocus?.();  // ~cada 2-3 s sin leer nada: forzar un reenfoque
       status(S.misses > 12 ? "¿Borrosa? Aleja el móvil un palmo y usa el zoom" : "Apunta a la carta, con luz y sin reflejos");
@@ -2288,10 +2348,17 @@ function sharpness() {
   g.drawImage(v, sx, sy, sw, sh, 0, 0, W, H);
   const d = g.getImageData(0, 0, W, H).data;
   let s = 0, s2 = 0, n = 0;
+  const cells = new Float32Array(64), cnt = new Uint16Array(64);
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
     const i = (y * W + x) * 4, l = 4 * d[i] - d[i - 4] - d[i + 4] - d[i - W * 4] - d[i + W * 4];
     s += l; s2 += l * l; n++;
+    const ci = ((y * 8 / H) | 0) * 8 + ((x * 8 / W) | 0);
+    cells[ci] += d[i]; cnt[ci]++;
   }
+  // Movimiento: la imagen del marco (8×8 zonas) cambia mucho = han quitado o puesto una carta (ráfaga: otra copia igual cuenta)
+  for (let i = 0; i < 64; i++) cells[i] /= cnt[i] || 1;
+  if (S.thumb) { let diff = 0; for (let i = 0; i < 64; i++) diff += Math.abs(cells[i] - S.thumb[i]); S.diff = diff / 64; if (S.diff > 30) S.moveAt = Date.now(); }  // vídeo de prueba: mano quieta ≤ 8, cambiar la carta ≈ 44
+  S.thumb = cells;
   return n ? s2 / n - (s / n) ** 2 : null;
 }
 // Si la imagen sigue borrosa: a los 2 s, reenfocar; a los 6 s, probar otra cámara trasera (muchos móviles abren una que
@@ -2308,6 +2375,146 @@ function checkFocus() {
   if (t > 2000 && !S.refocused) { S.refocused = true; S.refocus?.(); }
   // shortcut: umbral sacado de un solo vídeo (una grabación de pantalla); si en otro móvil cambia de cámara sin motivo, subir o bajar BLUR
   if (t > 6000 && now - (S.camSince || 0) > 6000 && now - (S.readAt || 0) > 6000 && (S.sharpMax || 0) < BLUR) { S.blurSince = 0; autoNextCamera(); }
+}
+
+// ---- Ráfaga (para soportes impresos en 3D o montones de cartas): cada carta reconocida va a una lista con su edición
+// más probable y el escáner sigue solo. Al terminar se revisa la lista y se añade todo junto.
+function burstAdd(m) {
+  const top = m[0], id = defaultPrint(top), p = top.printings.find((x) => x.id === id) || top.printings[0];
+  S.burst.push({ name: top.name, id: p.id, set: p.set, number: p.number, eur: p.eur, image: p.image });
+  Object.assign(S, { justAdded: top.name, seen: [], addAt: Date.now(), last: null, hits: 0 });
+  navigator.vibrate?.(35);
+  Sfx.play([[880, 0, 0.08, "triangle", 0.08], [1320, 0.07, 0.12, "triangle", 0.08]]);
+  status(`${top.name} · pon la siguiente`);
+  paintBurst();
+}
+function paintBurst() {
+  const box = $("#scan-burst");
+  if (!box) return;
+  box.hidden = !S.burstOn && !S.burst?.length;
+  const n = S.burst?.length || 0, last = S.burst?.[n - 1];
+  box.innerHTML = `<div><b>${n}</b> ${n === 1 ? "carta" : "cartas"}${last ? ` · ${esc(last.name)}` : ""}</div>${n ? `<button class="btn primary" id="burst-review">${S.tradeSide ? "Listo" : "Revisar y añadir"}</button>` : ""}`;
+  $("#burst-review", box)?.addEventListener("click", burstDone);
+}
+function burstDone() {
+  closeScanner();
+  if (S.tradeSide) return tradeTake();
+  if (S.burst?.length) burstReview();
+}
+function burstReview() {
+  const groups = new Map();
+  for (const x of S.burst) { const g = groups.get(x.id) || { ...x, qty: 0 }; g.qty++; groups.set(x.id, g); }
+  const items = [...groups.values()];
+  const body = openSheet("");
+  const draw = () => {
+    const live = items.filter((x) => x.qty > 0), copies = live.reduce((a, x) => a + x.qty, 0);
+    body.innerHTML = `<h3>Cartas escaneadas</h3>
+      <div class="hint">La edición es la leída en la carta o, si no se ve, la normal más barata. Si alguna no es, cámbiala luego en su ficha.</div>
+      <div class="stats"><div class="stat"><b>${copies}</b><span>Cartas</span></div><div class="stat"><b>${euro(Math.round(live.reduce((a, x) => a + (x.eur || 0) * x.qty, 0) * 100) / 100)}</b><span>Valor</span></div></div>
+      <div class="list">${items.map((x, i) => x.qty ? `<div class="item"><img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="item-meta">${esc(String(x.set).toUpperCase())} #${esc(x.number)} · ${euro(x.eur)}</div></div>
+        <div class="stepper"><button data-q="-1" data-i="${i}">−</button><b class="num">${x.qty}</b><button data-q="1" data-i="${i}">+</button></div></div>` : "").join("")}</div>
+      <div class="row-btns"><button class="btn" id="bu-more">${ico("cam")}Seguir escaneando</button><button class="btn primary" id="bu-add" ${copies ? "" : "disabled"}>Añadir ${copies}</button></div>
+      <button class="btn" id="bu-drop" style="margin-top:8px;width:100%">${ico("trash")}Descartar la lista</button>`;
+    body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { const x = items[+b.dataset.i]; x.qty = Math.max(0, x.qty + +b.dataset.q); sync(); draw(); }));
+    $("#bu-more", body).onclick = () => { closeSheet(); startScan(); };
+    $("#bu-drop", body).onclick = () => { if (confirm(t("¿Descartar las cartas escaneadas sin añadirlas?"))) { S.burst = []; closeSheet(); } };
+    $("#bu-add", body).onclick = async (e) => {
+      e.currentTarget.disabled = true;
+      const lang = store("addLang") || "en";
+      for (const x of items.filter((y) => y.qty > 0)) {
+        await api("/api/collection", { card_id: x.id, foil: false, qty: x.qty });
+        if (lang !== "en") await api("/api/lang", { card_id: x.id, foil: false, lang });
+      }
+      toast(`${copies} cartas añadidas`);
+      S.burst = [];
+      closeSheet(); loadSummary(); refresh();
+    };
+  };
+  const sync = () => { S.burst = items.flatMap((x) => Array(x.qty).fill(x)); };
+  draw();
+}
+
+// ---- Ayudante de cambios: lo que das y lo que recibes (buscando o escaneando), con su valor en Cardmarket y si está equilibrado.
+// Se guarda en el móvil hasta que lo vacías; al final puede pasar el cambio a tu colección.
+const tradeLoad = () => { try { return JSON.parse(store("trade") || "") || { give: [], get: [] }; } catch { return { give: [], get: [] }; } };
+const tradeSave = (tr) => store("trade", JSON.stringify(tr));
+function tradePush(tr, side, x, qty = 1) {
+  const g = tr[side].find((y) => y.id === x.id && !!y.foil === !!x.foil);
+  if (g) g.qty += qty; else tr[side].push({ name: x.name, id: x.id, foil: !!x.foil, set: x.set, number: x.number, eur: x.eur, image: x.image, qty });
+}
+function tradeTake() {
+  const tr = tradeLoad();
+  for (const x of S.burst || []) tradePush(tr, S.tradeSide, x);
+  tradeSave(tr);
+  S.burst = S.burstStash || [];
+  S.burstStash = null; S.tradeSide = null;
+  tradeSheet();
+}
+async function tradeSheet() {
+  const body = openSheet("");
+  const tr = tradeLoad();
+  const sum = (side) => Math.round(tr[side].reduce((a, x) => a + (x.eur || 0) * x.qty, 0) * 100) / 100;
+  const draw = () => {
+    const give = sum("give"), get = sum("get"), diff = Math.round((get - give) * 100) / 100, top = Math.max(give, get);
+    const even = top === 0 || Math.abs(diff) <= Math.max(0.5, top * 0.05);
+    const side = (k, title) => `<h2>${title} · ${euro(sum(k))}</h2>
+      <div class="list">${tr[k].map((x, i) => `<div class="item"><img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
+        <div class="item-main"><div class="item-title">${esc(x.name)}</div><div class="item-meta">${esc(String(x.set).toUpperCase())} #${esc(x.number)}${x.foil ? " · foil" : ""} · ${euro(x.eur)}</div></div>
+        <div class="stepper"><button data-s="${k}" data-i="${i}" data-q="-1">−</button><b class="num">${x.qty}</b><button data-s="${k}" data-i="${i}" data-q="1">+</button></div></div>`).join("")}</div>
+      <div class="row-btns"><input class="search" data-find="${k}" placeholder="Buscar carta…"><button class="btn" data-scan="${k}">${ico("cam")}Escanear</button></div>
+      <div class="list" data-res="${k}"></div>`;
+    body.innerHTML = `<h3>Ayudante de cambios</h3>
+      <div class="hint">Añade lo que das y lo que recibes (buscando o escaneando varias seguidas). Precios de Cardmarket de hoy, edición normal más barata o la que tengas.</div>
+      <div class="trade-balance ${even ? "even" : diff > 0 ? "up" : "down"}">${even ? "Cambio equilibrado" : diff > 0 ? `Recibes ${euro(diff)} más` : `Das ${euro(-diff)} más`}
+        <span>${euro(give)} ↔ ${euro(get)}</span></div>
+      ${side("give", "Doy")}${side("get", "Recibo")}
+      <div class="row-btns" style="margin-top:12px"><button class="btn" id="tr-clear">${ico("trash")}Vaciar</button>
+        <button class="btn primary" id="tr-apply" ${tr.give.length || tr.get.length ? "" : "disabled"}>${ico("check")}Hecho: pasar a mi colección</button></div>`;
+    body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => {
+      const list = tr[b.dataset.s], x = list[+b.dataset.i];
+      x.qty += +b.dataset.q;
+      if (x.qty <= 0) list.splice(+b.dataset.i, 1);
+      tradeSave(tr); draw();
+    }));
+    body.querySelectorAll("[data-scan]").forEach((b) => (b.onclick = () => {
+      S.burstStash = S.burst || []; S.burst = []; S.tradeSide = b.dataset.scan;
+      closeSheet(); startScan();
+    }));
+    let timer;
+    body.querySelectorAll("[data-find]").forEach((inp) => (inp.oninput = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const k = inp.dataset.find, out = $(`[data-res="${k}"]`, body), q = inp.value.trim();
+        if (q.length < 2) { out.innerHTML = ""; return; }
+        const res = await api(`/api/search?q=${encodeURIComponent(q)}`);
+        out.innerHTML = res.slice(0, 6).map((r) => `<button class="item" data-pick="${esc(r.name)}"><img class="thumb" loading="lazy" src="${esc(r.image)}" alt="">
+          <div class="item-main"><div class="item-title">${esc(r.name)}</div></div><div class="item-side"><div class="price">${euro(r.eur)}</div></div></button>`).join("") || `<div class="hint">No la encuentro.</div>`;
+        out.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = async () => {
+          const name = b.dataset.pick;
+          // Lo que das: si la tienes, la edición tuya (para quitarla bien de la colección); si no, la normal más barata
+          const mine = k === "give" ? (await api("/api/collection")).find((x) => x.name === name) : null;
+          let x = mine && { name, id: mine.id, foil: mine.foil, set: mine.set, number: mine.number, eur: mine.eur, image: mine.image };
+          if (!x) {
+            const printings = await api(`/api/printings?name=${encodeURIComponent(name)}`), id = defaultPrint({ printings });
+            const p = printings.find((y) => y.id === id) || printings[0];
+            x = { name, id: p.id, set: p.set, number: p.number, eur: p.eur, image: p.image };
+          }
+          tradePush(tr, k, x); tradeSave(tr); draw();
+        }));
+      }, 250);
+    }));
+    $("#tr-clear", body).onclick = () => { if (confirm(t("¿Vaciar el cambio?"))) { tr.give = []; tr.get = []; tradeSave(tr); draw(); } };
+    $("#tr-apply", body).onclick = async () => {
+      if (!confirm(t("Se quitan de tu colección las cartas que das y se añaden las que recibes. ¿Seguimos?"))) return;
+      for (const x of tr.give) await api("/api/collection", { card_id: x.id, foil: x.foil, qty: -x.qty });
+      for (const x of tr.get) await api("/api/collection", { card_id: x.id, foil: x.foil, qty: x.qty });
+      tr.give = []; tr.get = []; tradeSave(tr);
+      toast("Cambio pasado a tu colección");
+      closeSheet(); loadSummary(); refresh();
+    };
+  };
+  draw();
 }
 
 function showScanResult(matches) {

@@ -656,3 +656,28 @@ svg.ico.svg { background: none !important; -webkit-mask: none !important; mask: 
 .lf-dice-btns { display: flex; gap: 12px; }
 .lf-dice-btns button { border: 1px solid rgba(214,168,78,.5); background: rgba(255,255,255,.07); color: var(--text); border-radius: 14px; padding: 14px 22px; font: 700 17px var(--display); display: inline-flex; align-items: center; gap: 8px; }
 .lf-dice-btns button[data-again] { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink); border-color: var(--gold); }
+
+.scan-burst { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 84px); display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: rgba(16,11,7,.88); border: 1px solid rgba(214,168,78,.45); border-radius: 14px; padding: 10px 12px; color: var(--text); font-size: 15px; z-index: 1; }
+.scan-burst b { color: var(--gold); font-size: 20px; }
+.scan-burst > div { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scan-burst .btn { flex: none; padding: 9px 12px; }
+
+.trade-balance { margin: 10px 0 6px; padding: 14px; border-radius: 14px; text-align: center; font: 700 20px var(--display); background: rgba(0,0,0,.25); box-shadow: inset 0 0 0 1px rgba(214,168,78,.3); }
+.trade-balance span { display: block; margin-top: 4px; font: 400 14px var(--body); color: var(--muted); }
+.trade-balance.even { color: var(--gold); } .trade-balance.up { color: #7fdc8a; } .trade-balance.down { color: #ff8f8f; }
+
+/* Vidas: fichas de mesa, contadores a un toque y turno */
+.lf-tokens { display: flex; gap: 6px; justify-content: center; min-height: 0; margin-bottom: 4px; pointer-events: none; position: relative; z-index: 2; }
+.lf-tokens .tok { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font: 700 13px var(--display); color: #1a1209; background: linear-gradient(180deg, #ffe39a, #d6a84e); box-shadow: 0 2px 10px rgba(0,0,0,.5); animation: lf-pop .3s ease-out; }
+.lf-tokens .tok.init { background: linear-gradient(180deg, #ffb3a3, #c0392b); color: #fff; }
+.lf-tokens svg.ico { margin: 0; }
+button.lf-extra { pointer-events: auto; position: relative; z-index: 2; background: none; border: 0; color: #fff; font: inherit; font-size: 15px; padding: 6px 4px; }
+.lf-extra span.hot { background: #6b1d14; }
+.lf-extra span.add { opacity: .55; display: inline-flex; gap: 2px; }
+.lf-bar button.lf-turn { font: 800 14px var(--display); color: var(--gold); width: auto; min-width: 40px; padding: 0 8px; border-radius: 999px; }
+.lf-bar button.day { background: rgba(255,214,102,.35); } .lf-bar button.night { background: rgba(90,120,255,.35); }
+.lf-row .lf-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+.lf-row > span svg.ico { margin-right: 4px; }
+.lf-turn-n { min-width: 34px; text-align: center; font-size: 20px; color: var(--gold); }
+.lf-panel { max-height: 46vh; overflow-y: auto; }

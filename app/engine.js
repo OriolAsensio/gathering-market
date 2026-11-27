@@ -461,15 +461,29 @@ const Engine = (() => {
       for (const [n, q] of d.cards || []) per.set(norm(n), (per.get(norm(n)) || 0) + q);
       for (const [k, q] of per) used.set(k, Math.max(used.get(k) || 0, q));
     }
-    const items = [];
+    const items = [], reserved = [], res = user.reserved || {};
     for (const [k, r] of have) {
       if (BASICS.has(k) || /^basic/i.test(O[r.oi][1])) continue;
-      const keep = Math.max(4, used.get(k) || 0), extra = r.qty - keep;
-      if (extra <= 0) continue;
-      items.push({ name: front(O[r.oi][0]), image: img(P[r.pi][0]), qty: r.qty, used: used.get(k) || 0, keep, extra, eur: eur(r.eur), value: r.eur ? Math.round(extra * r.eur) / 100 : 0 });
+      // Copias en mazos que no están en la app (Commander, otros de 60…): las marca el usuario y no sobran
+      const rv = res[k]?.n || 0, keep = Math.max(4, used.get(k) || 0) + rv, extra = r.qty - keep;
+      const row = { name: front(O[r.oi][0]), image: img(P[r.pi][0]), set: P[r.pi][2].toUpperCase(), number: P[r.pi][3], qty: r.qty, used: used.get(k) || 0,
+        reserved: rv, note: res[k]?.note || "", keep, extra, eur: eur(r.eur), value: r.eur && extra > 0 ? Math.round(extra * r.eur) / 100 : 0 };
+      if (rv) reserved.push(row);
+      if (extra > 0) items.push(row);
     }
     items.sort((a, b) => b.value - a.value || b.extra - a.extra);
-    return { items, copies: items.reduce((a, x) => a + x.extra, 0), value: Math.round(items.reduce((a, x) => a + x.value, 0) * 100) / 100 };
+    reserved.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, reserved, copies: items.reduce((a, x) => a + x.extra, 0), value: Math.round(items.reduce((a, x) => a + x.value, 0) * 100) / 100 };
+  }
+  /** Copias de una carta que están en mazos fuera de la app (no cuentan como repetidas). */
+  function reservePost({ name, n, note }) {
+    const k = norm(name);
+    if (!oByNorm.has(k)) throw new Error("No conozco esa carta");
+    const map = (user.reserved ||= {});
+    const v = Math.max(0, Math.min(999, Math.round(+n) || 0));
+    if (!v) delete map[k]; else map[k] = { n: v, note: String(note ?? map[k]?.note ?? "").slice(0, 60) };
+    saveUser();
+    return { ok: true };
   }
   /** Estadísticas por mes: cartas añadidas, lo que te costaron (precio del día en que las añadiste; las de antes de guardarlo,
    *  al precio de hoy) y cómo ha ido el valor de tu colección ese mes. */
@@ -1217,18 +1231,27 @@ const Engine = (() => {
   }
 
   /** Para la tarea en segundo plano de Android: tus cartas (id o id+"f" si es foil) con su nombre. */
+  // Cuándo avisar de una carta tuya (también la tarea en segundo plano): se aleja este % y estos céntimos de su precio de referencia.
+  const alertPrefs = () => ({ pct: user.prefs?.alertPct ?? 10, min: user.prefs?.alertMin ?? 50 });
+  function alertPrefsPost({ pct, min }) {
+    const p = (user.prefs ||= {});
+    if (pct != null) p.alertPct = Math.max(1, Math.min(100, +pct || 10));
+    if (min != null) p.alertMin = Math.max(0, Math.min(10000, Math.round(+min) || 0));
+    saveUser();
+    return alertPrefs();
+  }
   function watchIds() {
-    const ids = [], names = {};
+    const ids = [], names = {}, own = [];
     for (const [pi, foil] of entries(1)) {
       const k = P[pi][0] + (foil ? "f" : "");
       if (names[k]) continue;
-      ids.push(k); names[k] = `${front(O[P[pi][1]][0])} (${P[pi][2].toUpperCase()}${foil ? " foil" : ""})`;
+      ids.push(k); own.push([k, pi, foil ? 1 : 0]); names[k] = `${front(O[P[pi][1]][0])} (${P[pi][2].toUpperCase()}${foil ? " foil" : ""})`;
     }
     const wishes = Object.entries(user.targets || {}).map(([n, cents]) => {
       const oi = oByNorm.get(norm(n));
       return oi == null ? null : { name: n, target: Math.round(cents / wishFactor()), pis: printsOf[oi].filter((pi) => !P[pi][5]) };  // la tarea compara precios en inglés
     }).filter(Boolean);
-    return { ids, names, wishes, cardsVersion: PR.cards_version, day: PR.day, lastEvent: Math.max(0, ...PACK_EVENTS.map((e) => +e.id || 0)) };
+    return { ids, names, own, alert: alertPrefs(), wishes, cardsVersion: PR.cards_version, day: PR.day, lastEvent: Math.max(0, ...PACK_EVENTS.map((e) => +e.id || 0)) };
   }
 
   /** Combos infinitos de 2 cartas (Commander Spellbook) que puedes montar con tu colección, o a los que te falta una.
@@ -3003,12 +3026,12 @@ const Engine = (() => {
 
   // ---------------------------------------------------------------- rutas
   const GET = { "/api/summary": summary, "/api/search": search, "/api/printings": printings, "/api/collection": collection, "/api/duplicates": duplicates, "/api/monthstats": monthStats, "/api/cardinfo": cardInfo, "/api/valuehistory": valueHistory, "/api/added": added,
-    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/hot": hotCards, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/events": events, "/api/collections": collectionsList,
+    "/api/decks": decks, "/api/deck": deck, "/api/movers": movers, "/api/hot": hotCards, "/api/history": history, "/api/sbplan": sbPlan, "/api/combos": combosFor, "/api/tournaments": tournaments, "/api/watchids": watchIds, "/api/alertprefs": alertPrefs, "/api/events": events, "/api/collections": collectionsList,
     "/api/build": build, "/api/sets": sets, "/api/set": set, "/api/sets/search": setsSearch, "/api/precons": precons,
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost, "/api/alertprefs": alertPrefsPost, "/api/reserve": reservePost };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

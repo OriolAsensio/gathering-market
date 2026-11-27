@@ -44,10 +44,11 @@ const Life = (() => {
 
   function newGame(keepSeats = true) {
     const s = settings(), ps = profiles(), old = game?.players || [];
-    game = { start: s.start, layout: s.layout, started: Date.now(), players: Array.from({ length: s.n }, (_, i) => {
+    // monarch / initiative: índice del jugador que lo tiene (o null); day: "day" | "night" | null; turn: número de turno
+    game = { start: s.start, layout: s.layout, started: Date.now(), turn: 1, monarch: null, initiative: null, day: null, players: Array.from({ length: s.n }, (_, i) => {
       const prev = keepSeats ? old[i] : null, p = ps.find((x) => x.id === prev?.pid);
       return { pid: p?.id || null, name: p?.name || prev?.name || `Jugador ${i + 1}`, color: p?.color || prev?.color || COLORS[i % COLORS.length], img: p?.img || prev?.img || null,
-        life: s.start, poison: 0, energy: 0, exp: 0, cmd: {}, delta: 0 };
+        life: s.start, poison: 0, energy: 0, exp: 0, rad: 0, cmd: {}, delta: 0 };
     }) };
     save("lifeGame", game);
   }
@@ -104,17 +105,21 @@ const Life = (() => {
         <div class="lf-in" style="background-color:${pl.color};${bg}">
           <button class="lf-tap up" data-i="${i}" data-d="1" aria-label="Más una vida"><span>+</span></button>
           <button class="lf-tap down" data-i="${i}" data-d="-1" aria-label="Menos una vida"><span>−</span></button>
+          <div class="lf-tokens">${game.monarch === i ? `<span class="tok monarch">${ico("crown")}Monarca</span>` : ""}${game.initiative === i ? `<span class="tok init">${ico("sword")}Iniciativa</span>` : ""}</div>
           <button class="lf-name" data-who="${i}">${esc(pl.name)}</button>
           <div class="lf-life" id="lf-life-${i}">${pl.life}</div>
           <div class="lf-delta ${pl.delta > 0 ? "up" : "down"}" id="lf-delta-${i}" ${pl.delta ? "" : "hidden"}>${pl.delta > 0 ? "+" : ""}${pl.delta}</div>
-          <div class="lf-extra">${pl.poison ? `<span>${ico("skull")}${pl.poison}</span>` : ""}${pl.energy ? `<span>${ico("bolt")}${pl.energy}</span>` : ""}${pl.exp ? `<span>${ico("sparkle")}${pl.exp}</span>` : ""}${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `<span style="--c:${game.players[+k]?.color}" class="cmd">${ico("sword")}${v}</span>`).join("")}</div>
+          <button class="lf-extra" data-who="${i}" aria-label="Contadores">${pl.poison ? `<span class="${pl.poison >= 7 ? "hot" : ""}">${ico("skull")}${pl.poison}</span>` : ""}${pl.energy ? `<span>${ico("bolt")}${pl.energy}</span>` : ""}${pl.exp ? `<span>${ico("sparkle")}${pl.exp}</span>` : ""}${pl.rad ? `<span>${ico("warn")}${pl.rad}</span>` : ""}${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `<span style="--c:${game.players[+k]?.color}" class="cmd">${ico("sword")}${v}</span>`).join("")}
+            ${pl.poison || pl.energy || pl.exp || pl.rad || Object.values(pl.cmd).some(Boolean) ? "" : `<span class="add">${ico("skull")}${ico("plus2")}</span>`}</button>
           ${dead ? `<div class="lf-skull">${ico("skull")}</div>` : ""}
           <div class="lf-flash"></div>
         </div></div>`;
     }).join("")}
     <div class="lf-bar">
       <button data-act="exit" aria-label="Salir">${ico("close")}</button><button data-act="set" aria-label="Ajustes">${ico("gear")}</button>
-      <button data-act="dice" aria-label="Dados">${ico("dice")}</button><button data-act="first" aria-label="Quién empieza">${ico("crown")}</button><button data-act="reset" aria-label="Reiniciar">${ico("reset")}</button>
+      <button data-act="dice" aria-label="Dados">${ico("dice")}</button><button data-act="first" aria-label="Quién empieza">${ico("shuffle")}</button>
+      <button data-act="tok" aria-label="Monarca, iniciativa, día y noche" class="${game.day || ""}">${ico(game.day === "night" ? "moon" : game.day === "day" ? "sun" : "crown")}</button>
+      <button data-act="turn" class="lf-turn" aria-label="Turno">T${game.turn || 1}</button><button data-act="reset" aria-label="Reiniciar">${ico("reset")}</button>
     </div>
     <div class="lf-panel" id="lf-panel" hidden></div>`;
     el.querySelectorAll(".lf-tap").forEach(bindTap);
@@ -197,6 +202,7 @@ const Life = (() => {
   function act(a) {
     const panel = $("#lf-panel", el);
     if (a === "exit") { el.remove(); el = null; wake?.release?.().catch(() => {}); wake = null; location.hash = store("lastTab") || "collection"; return; }
+    if (a === "turn") { game.turn = (game.turn || 1) + 1; save("lifeGame", game); sfx.up(); buzz(15); paint(); return; }
     if (!panel.hidden && panel.dataset.k === a) { panel.hidden = true; return; }
     panel.dataset.k = a; panel.hidden = false;
     if (a === "set") {
@@ -215,6 +221,22 @@ const Life = (() => {
     } else if (a === "dice") {
       panel.innerHTML = `<div class="lf-row lf-dice-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">${ico("coin")}Moneda</button></div>`;
       panel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => roll(b.dataset.d)));
+    } else if (a === "tok") {
+      const who = (k) => `<button data-${k}="-1" class="${game[k] == null ? "on" : ""}">Nadie</button>${game.players.map((p, i) => `<button data-${k}="${i}" class="${game[k] === i ? "on" : ""}" style="--c:${p.color}"><i class="lf-dot" style="background:${p.color}"></i>${esc(p.name)}</button>`).join("")}`;
+      panel.innerHTML = `<div class="lf-row"><span>${ico("crown")}Monarca</span>${who("monarch")}</div>
+        <div class="lf-row"><span>${ico("sword")}Iniciativa</span>${who("initiative")}</div>
+        <div class="lf-row"><span>Día / noche</span><button data-day="" class="${game.day ? "" : "on"}">No</button><button data-day="day" class="${game.day === "day" ? "on" : ""}">${ico("sun")}Día</button><button data-day="night" class="${game.day === "night" ? "on" : ""}">${ico("moon")}Noche</button></div>
+        <div class="lf-row"><span>Turno</span><button data-turn="-1">−</button><b class="lf-turn-n">${game.turn || 1}</b><button data-turn="1">+</button></div>`;
+      const give = (k, i) => {
+        game[k] = i < 0 ? null : i;
+        save("lifeGame", game); paint(); act("tok");
+        if (i >= 0) bigResult(k === "monarch" ? "crown" : "sword", k === "monarch" ? `${game.players[i].name} es el monarca` : `${game.players[i].name} tiene la iniciativa`, game.players[i].color);
+        sfx.pick(); buzz(30);
+      };
+      panel.querySelectorAll("[data-monarch]").forEach((b) => (b.onclick = () => give("monarch", +b.dataset.monarch)));
+      panel.querySelectorAll("[data-initiative]").forEach((b) => (b.onclick = () => give("initiative", +b.dataset.initiative)));
+      panel.querySelectorAll("[data-day]").forEach((b) => (b.onclick = () => { game.day = b.dataset.day || null; save("lifeGame", game); paint(); act("tok"); sfx.up(); }));
+      panel.querySelectorAll("[data-turn]").forEach((b) => (b.onclick = () => { game.turn = Math.max(1, (game.turn || 1) + +b.dataset.turn); save("lifeGame", game); paint(); act("tok"); }));
     } else if (a === "first") {
       // Ruleta: el brillo pasa de asiento en asiento, cada vez más despacio, y se para en uno al azar
       panel.hidden = true;
@@ -250,8 +272,9 @@ const Life = (() => {
       ${pl.pid ? `<button class="btn block" id="lf-edit">${ico("edit")}Editar este perfil</button>` : ""}
       <h2>Contadores</h2>
       <div class="lf-counters">
-        ${[["poison", "skull", "Veneno"], ["energy", "bolt", "Energía"], ["exp", "sparkle", "Experiencia"]].map(([k, ic, n]) => `<div class="lf-step"><span>${ico(ic)}${n}</span><button data-k="${k}" data-d="-1">−</button><b>${pl[k]}</b><button data-k="${k}" data-d="1">+</button></div>`).join("")}
+        ${[["poison", "skull", "Veneno"], ["energy", "bolt", "Energía"], ["exp", "sparkle", "Experiencia"], ["rad", "warn", "Radiación"]].map(([k, ic, n]) => `<div class="lf-step"><span>${ico(ic)}${n}</span><button data-k="${k}" data-d="-1">−</button><b>${pl[k] || 0}</b><button data-k="${k}" data-d="1">+</button></div>`).join("")}
       </div>
+      <div class="hint">Con 10 de veneno, pierde. Monarca, iniciativa, día/noche y turno: botón de la corona en la barra del centro.</div>
       ${game.players.length > 1 ? `<h2>Daño de comandante recibido</h2><div class="lf-counters">${game.players.map((o, j) => (j === i ? "" : `<div class="lf-step"><span><i class="lf-dot" style="background:${o.color}"></i>${esc(o.name)}</span><button data-k="cmd" data-j="${j}" data-d="-1">−</button><b>${pl.cmd[j] || 0}</b><button data-k="cmd" data-j="${j}" data-d="1">+</button></div>`)).join("")}</div>
         <div class="hint">El daño de comandante también quita vidas. Con 21 de un mismo comandante, pierde.</div>` : ""}`);
     body.querySelectorAll("[data-pid]").forEach((b) => (b.onclick = () => {
@@ -264,7 +287,7 @@ const Life = (() => {
     body.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => {
       const d = +b.dataset.d;
       if (b.dataset.k === "cmd") { const j = b.dataset.j, old = pl.cmd[j] || 0, nv = Math.max(0, old + d); pl.life -= nv - old; pl.cmd[j] = nv; }
-      else pl[b.dataset.k] = Math.max(0, pl[b.dataset.k] + d);
+      else pl[b.dataset.k] = Math.max(0, (pl[b.dataset.k] || 0) + d);
       d > 0 ? sfx.up() : sfx.down();
       save("lifeGame", game); paint(); seatSheet(i);
     }));
