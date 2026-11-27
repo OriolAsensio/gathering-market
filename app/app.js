@@ -40,6 +40,7 @@ function store(key, val) {
 // ---------- hoja inferior ----------
 // Con una ventana abierta, el fondo no se mueve (si no, según dónde tocas, se desliza la página de detrás).
 function openSheet(html) {
+  closeSheet.after = null;
   $("#sheet-body").innerHTML = html;
   $("#sheet").hidden = false;
   $("#sheet-backdrop").hidden = false;
@@ -52,6 +53,7 @@ function closeSheet() {
   $("#sheet-backdrop").hidden = true;
   document.documentElement.classList.remove("lock");
   if (closeSheet.dirty) { closeSheet.dirty = false; render(); }  // se añadieron/quitaron cartas con la ventana abierta
+  const after = closeSheet.after; closeSheet.after = null; after?.();  // una ventana que necesita saber que se ha cerrado
 }
 $("#sheet-close").onclick = closeSheet;
 $("#sheet-backdrop").onclick = closeSheet;
@@ -2060,7 +2062,7 @@ async function startScan() {
   await video.play().catch(() => {});
   S.burst ||= [];
   S.burstOn = !!S.tradeSide || store("scanBurst") === "1";  // escanear para un cambio: siempre en ráfaga
-  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0, seen: [], triedCams: new Set(),
+  Object.assign(S, { running: true, busy: false, paused: false, last: null, hits: 0, n: 0, seen: [], readAt: 0, triedCams: new Set(),
     camSharp: {}, backToBest: false, blurSince: 0, sharpMax: 0, camSince: Date.now() });
   document.documentElement.classList.add("lock");
   status("Preparando el lector…");
@@ -2110,7 +2112,7 @@ async function autoNextCamera() {
     video.srcObject = S.stream;
     await video.play().catch(() => {});
     setupCameraControls(video);
-    Object.assign(S, { blurSince: 0, sharpMax: 0, camSince: Date.now() });
+    Object.assign(S, { blurSince: 0, sharpMax: 0, camSince: Date.now(), readAt: 0 });
     status("Probando otra cámara del móvil…");
   } catch { /* nada */ } finally { S.autoSwitching = false; }
 }
@@ -2183,6 +2185,7 @@ function setupCameraControls(video) {
   $("#scan-photo").onclick = () => { closeScanner(); photoScan(); };
   $("#scan-cam").onclick = switchCamera;
   $("#scan-burst-on").onclick = (e) => {
+    if (S.tradeSide) return toast("Escaneando para el cambio: pulsa Listo al acabar");
     S.burstOn = !S.burstOn; store("scanBurst", S.burstOn ? "1" : "0");
     e.currentTarget.classList.toggle("primary", S.burstOn);
     paintBurst();
@@ -2374,7 +2377,7 @@ function checkFocus() {
   const t = now - S.blurSince;
   if (t > 2000 && !S.refocused) { S.refocused = true; S.refocus?.(); }
   // shortcut: umbral sacado de un solo vídeo (una grabación de pantalla); si en otro móvil cambia de cámara sin motivo, subir o bajar BLUR
-  if (t > 6000 && now - (S.camSince || 0) > 6000 && now - (S.readAt || 0) > 6000 && (S.sharpMax || 0) < BLUR) { S.blurSince = 0; autoNextCamera(); }
+  if (t > 6000 && now - (S.camSince || 0) > 6000 && !S.readAt && (S.sharpMax || 0) < BLUR) { S.blurSince = 0; autoNextCamera(); }  // una cámara que ya ha leído una carta no se cambia sola
 }
 
 // ---- Ráfaga (para soportes impresos en 3D o montones de cartas): cada carta reconocida va a una lista con su edición
@@ -2904,7 +2907,7 @@ async function dailyReport() {
 const Native = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins : null;
 if (Native) {
   Native.App?.addListener("backButton", () => {
-    if (closeScanner()) return;
+    if ($("#scanner")) { burstDone(); return; }  // como la X: lo escaneado en ráfaga o para un cambio no se pierde
     if (!$("#sheet").hidden) closeSheet();
     else if ((location.hash || "#collection") !== "#collection") location.hash = "#collection";
     else Native.App.exitApp();

@@ -60,8 +60,10 @@ const Life = (() => {
     const body = openSheet(`<div class="lf-ask"><div class="lf-ask-ico">${ico("heart")}</div><h3>¿Iniciar una nueva partida?</h3>
       <div class="sub">${game.players.length} jugadores · ${game.start} vidas</div>
       <div class="row-btns"><button class="btn" id="lf-no">No, seguir la de antes</button><button class="btn primary" id="lf-yes">Sí, nueva partida</button></div></div>`);
-    $("#lf-yes", body).onclick = () => { closeSheet(); newGame(); table(); sfx.pick(); };
-    $("#lf-no", body).onclick = () => { closeSheet(); table(); };
+    // Cerrar la pregunta sin contestar (X, tocar fuera, atrás) = seguir la partida de antes (antes se quedaba la pantalla vacía)
+    closeSheet.after = () => { if (location.hash === "#life" && !document.querySelector(".lf-table")) table(); };
+    $("#lf-yes", body).onclick = () => { closeSheet.after = null; closeSheet(); newGame(); table(); sfx.pick(); };
+    $("#lf-no", body).onclick = () => { closeSheet(); };
   }
 
   // ---- la mesa
@@ -216,7 +218,7 @@ const Life = (() => {
       panel.querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => apply({ start: +b.dataset.l })));
       $("#lf-custom", panel).onchange = (e) => { const v = Math.max(1, Math.min(999, +e.target.value || 20)); apply({ start: v }); };
       panel.querySelectorAll("[data-lay]").forEach((b) => (b.onclick = () => { game.layout = b.dataset.lay; save("lifeSettings", { ...s, layout: game.layout }); save("lifeGame", game); paint(); act("set"); }));
-      $("[data-shuffle]", panel).onclick = () => { for (let i = game.players.length - 1; i > 0; i--) { const j = rnd(i + 1); [game.players[i], game.players[j]] = [game.players[j], game.players[i]]; } save("lifeGame", game); sfx.dice(); paint(); };
+      $("[data-shuffle]", panel).onclick = () => { for (let i = game.players.length - 1; i > 0; i--) { const j = rnd(i + 1); [game.players[i], game.players[j]] = [game.players[j], game.players[i]]; } game.monarch = game.initiative = null; save("lifeGame", game); sfx.dice(); paint(); };
       $("[data-sound]", panel).onclick = () => { store("sounds", store("sounds") === "0" ? "1" : "0"); panel.hidden = true; act("set"); };
     } else if (a === "dice") {
       panel.innerHTML = `<div class="lf-row lf-dice-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">${ico("coin")}Moneda</button></div>`;
