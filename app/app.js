@@ -79,13 +79,13 @@ async function loadSummary() {
 async function collectionsSheet() {
   const list = await api("/api/collections");
   const body = openSheet(`
-    <h3>Carpetas antiguas</h3>
-    <div class="hint">Ahora solo hay una carpeta: tu colección. Estas son de antes; puedes abrirlas o borrarlas.</div>
+    <h3>Carpetas</h3>
+    <div class="hint">Tu colección, las cartas que tienes a la venta y las que has vendido (estas dos no cuentan en el valor de tu colección).</div>
     <div class="list">${list.map((c) => `
       <div class="item ${c.id === cid ? "on" : ""}" data-cid="${c.id}">
         <div class="item-main"><div class="item-title">${c.id === cid ? ico("check") : ""}${esc(c.name)}</div>
           <div class="item-meta">${plural(c.cards, "carta", "cartas")}</div></div>
-        ${c.id !== 1 ? `<button class="btn" data-del="${c.id}" aria-label="Borrar ${esc(c.name)}">${ico("trash")}</button>` : ""}
+        ${c.id !== 1 && !c.kind ? `<button class="btn" data-del="${c.id}" aria-label="Borrar ${esc(c.name)}">${ico("trash")}</button>` : ""}
       </div>`).join("")}</div>`);
   const use = (id) => { cid = id; store("cid", String(id)); closeSheet(); refresh(); };
   body.querySelectorAll("[data-cid]").forEach((el) => (el.onclick = (e) => { if (!e.target.closest("[data-del]")) use(+el.dataset.cid); }));
@@ -405,7 +405,10 @@ const skeleton = (n = 4) => `<div class="list">${'<div class="skeleton"></div>'.
 views.collection = async () => {
   const v = $("#view");
   let mode = store("colView") || "grid";
-  v.innerHTML = `<div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
+  const binders = await api("/api/collections"), here = binders.find((b) => b.id === cid) || binders[0];
+  v.innerHTML = `<div class="seg" id="col-binder">${binders.filter((b) => b.kind).map((b) => `<button data-b="${b.id}" class="${b.id === cid ? "on" : ""}">${b.kind === "main" ? "Mi colección" : esc(b.name)}${b.kind !== "main" && b.cards ? ` (${b.cards})` : ""}</button>`).join("")}</div>
+    ${here.kind === "sale" ? `<div class="hint">Cartas que vas a vender: no cuentan en el valor de tu colección. Abre una y pulsa «La he vendido» al venderla.</div>` : here.kind === "sold" ? `<div class="hint">Cartas que has vendido. El valor es el precio de hoy.</div>` : ""}
+    <div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
     <button class="btn block" id="col-added" style="margin-top:8px">${ico("clock")}Últimas añadidas</button>
     <div class="row-btns" style="margin-top:8px"><button class="btn" id="col-dups">${ico("list")}Repetidas</button><button class="btn" id="col-stats">${ico("calendar")}Por meses</button></div>
     <button class="btn" id="col-trade" style="margin-top:8px;width:100%">${ico("scale")}Ayudante de cambios</button>
@@ -416,7 +419,8 @@ views.collection = async () => {
     <div class="seg" id="col-view" style="margin-top:8px"><button data-v="grid">${ico("picture")}Imágenes</button><button data-v="list">${ico("list")}Lista</button><button data-v="select">${ico("select")}Seleccionar</button></div>
     <div id="col-list">${skeleton()}</div>`;
   document.body.insertAdjacentHTML("beforeend", `<div class="sel-bar floating" id="col-bar" hidden>
-    <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">${ico("trash")}Quitar</button><button class="btn primary" id="col-go">${ico("hammer")}Crear mazo</button></div>`);
+    <span class="sub" id="col-count"></span><button class="btn" id="col-cancel">Cancelar</button><button class="btn" id="col-del" aria-label="Quitar las elegidas">${ico("trash")}Quitar</button>${here.kind === "main" || here.kind === "sale" ? `<button class="btn" id="col-sell">${ico("coin")}${here.kind === "main" ? "A la venta" : "Vendidas"}</button>` : ""}<button class="btn primary" id="col-go">${ico("hammer")}Crear mazo</button></div>`);
+  v.querySelectorAll("[data-b]").forEach((b) => (b.onclick = () => { cid = +b.dataset.b; store("cid", String(cid)); refresh(); }));
   $("#col-import").onclick = importSheet;
   $("#col-build").onclick = () => builderSheet();
   $("#col-added").onclick = addedSheet;
@@ -495,6 +499,12 @@ views.collection = async () => {
     loadSummary();
     render();
   };
+  $("#col-sell")?.addEventListener("click", async () => {
+    const rows = [...sel.ids].map((k) => items.find((c) => c.key === k)).filter(Boolean), to = here.kind === "main" ? "sale" : "sold";
+    for (const c of rows) await api("/api/move", { card_id: c.id, foil: c.foil, qty: c.qty, to });
+    toast(to === "sale" ? "Puestas a la venta" : "Marcadas como vendidas");
+    sel.set(false); loadSummary(); render();
+  });
   $("#col-go").onclick = () => {
     const names = [...new Set([...sel.ids].map((k) => items.find((c) => c.key === k)?.name).filter(Boolean))];
     sel.set(false);
@@ -553,6 +563,10 @@ function cardSheet(c) {
   $("#add-version", body).onclick = () => addSheet([{ name: c.name }]);
   const drawVersions = async () => {
     const mine = (await api("/api/collection")).filter((x) => x.name === c.name);
+    const kind = (await api("/api/collections")).find((b) => b.id === cid)?.kind || "main";
+    // A la venta / vendida: de tu colección a «A la venta», de ahí a «Vendidas» (o de vuelta)
+    const MOVES = { main: [["sale", "coin", "Poner a la venta"]], sale: [["sold", "check", "La he vendido"], ["main", "undo", "Volver a mi colección"]], sold: [["sale", "undo", "Deshacer: no la he vendido"]] };
+    const moveBtns = (x) => (MOVES[kind] || []).map(([to, ic, label]) => `<button class="btn move-btn" data-mv="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-to="${to}">${ico(ic)}${label}</button>`).join("");
     $("#versions", body).innerHTML = mine.map((x) => `<div class="item version">
         <img class="thumb" loading="lazy" src="${esc(x.image)}" alt="">
         <div class="item-main"><div class="item-title">${esc(x.set_name)} #${esc(x.number)}</div>
@@ -561,9 +575,10 @@ function cardSheet(c) {
             <select class="lang-sel" id="lang-${esc(x.id)}-${x.foil ? 1 : 0}" data-lid="${esc(x.id)}" data-f="${x.foil ? 1 : 0}">${Object.entries(CARD_LANG_NAMES).map(([k, n]) => `<option value="${k}" ${k === x.lang ? "selected" : ""}>${n}</option>`).join("")}</select></div>
           <div class="item-meta proxy-row"><span class="sub">Proxies</span><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" ${x.proxy ? "" : "disabled"}>−</button><b>${x.proxy || 0}</b><button class="mini" data-px="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" ${x.proxy < x.qty ? "" : "disabled"}>+</button>${x.proxy ? `<span class="sub">(no suman valor; solo para Casual${x.proxy_collect ? "" : "; no cuentan para la colección"})</span>` : ""}</div>
           ${x.alter ? `<div class="item-meta"><span class="chip gold">${ico("alter")}${esc(x.alter.name)} ×${x.alter.qty}</span> ~${euro(x.alter.estimate[0])}–${euro(x.alter.estimate[1])}${x.alter.note ? ` · ${esc(x.alter.note)}` : ""}</div>` : ""}
-          <button class="btn alter-btn" data-alter="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-q="${x.qty}">${ico("alter")}${x.alter ? "Cambiar alteración" : "¿Firmada o con arte propio?"}</button></div>
+        </div>
         <div class="stepper"><button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="-1" aria-label="Quitar una">−</button><b class="num">${x.qty}</b>
           <button data-v="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-d="1" aria-label="Añadir otra">+</button></div>
+        <div class="version-actions"><button class="btn alter-btn" data-alter="${esc(x.id)}" data-f="${x.foil ? 1 : 0}" data-q="${x.qty}">${ico("alter")}${x.alter ? "Cambiar alteración" : "¿Firmada o con arte propio?"}</button>${moveBtns(x)}</div>
       </div>`).join("") || `<div class="hint">Ya no tienes ninguna.</div>`;
     body.querySelectorAll("#versions [data-px]").forEach((b) => (b.onclick = async () => {
       const row = mine.find((x) => x.id === b.dataset.px && x.foil === (b.dataset.f === "1"));
@@ -574,6 +589,11 @@ function cardSheet(c) {
     body.querySelectorAll("#versions [data-lid]").forEach((s) => (s.onchange = async () => {
       await api("/api/lang", { card_id: s.dataset.lid, foil: s.dataset.f === "1", lang: s.value });
       toast("Idioma guardado");
+      closeSheet.dirty = true; drawVersions(); loadSummary();
+    }));
+    body.querySelectorAll("#versions [data-mv]").forEach((b) => (b.onclick = async () => {
+      await api("/api/move", { card_id: b.dataset.mv, foil: b.dataset.f === "1", qty: 1, to: b.dataset.to });
+      toast({ sale: "1 copia a «A la venta»", sold: "1 copia a «Vendidas»", main: "1 copia de vuelta a tu colección" }[b.dataset.to]);
       closeSheet.dirty = true; drawVersions(); loadSummary();
     }));
     body.querySelectorAll("#versions [data-alter]").forEach((b) => (b.onclick = () => alterBox(b, mine.find((x) => x.id === b.dataset.alter && x.foil === (b.dataset.f === "1")))));
@@ -668,14 +688,16 @@ async function addSheet(candidates, opts = {}) {
     $("#add-lang", body).onchange = (e) => { lang = e.target.value; if (!opts.lang) store("addLang", lang); };
     body.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => { qty = Math.max(1, qty + +b.dataset.q); draw(); }));
     $("#add-ok", body).onclick = async () => {
-      const r = await api("/api/collection", { card_id: p.id, foil, qty });
-      await api("/api/lang", { card_id: p.id, foil, lang });
-      if (alter) await api("/api/alter", { card_id: p.id, foil, kind: alter, qty, add: true });
-      if (proxy) await api("/api/proxy", { card_id: p.id, foil, delta: qty, collect: confirm(t("¿Quieres que este proxy cuente para la colección? (completar colecciones y número de cartas). Aceptar = sí, Cancelar = no")) });
+      // Escáner: a «A la venta» si dijiste que es para vender; si no, a tu colección (aunque estés mirando otra carpeta)
+      const scanning = !!$("#scanner"), to = scanning ? (S.sell && S.sellTo ? S.sellTo : 1) : cid;
+      const r = await api("/api/collection", { c: to, card_id: p.id, foil, qty });
+      await api("/api/lang", { c: to, card_id: p.id, foil, lang });
+      if (scanning && S.sell) S.sellCount = (S.sellCount || 0) + qty;
+      if (alter) await api("/api/alter", { c: to, card_id: p.id, foil, kind: alter, qty, add: true });
+      if (proxy) await api("/api/proxy", { c: to, card_id: p.id, foil, delta: qty, collect: confirm(t("¿Quieres que este proxy cuente para la colección? (completar colecciones y número de cartas). Aceptar = sí, Cancelar = no")) });
       toast(`${qty}× ${c.name} añadida${proxy ? " (proxy)" : ""}${alter ? ` (${ALTER_LABELS[alter]})` : ""}`);
       if (!proxy) celebrate(r);
       loadSummary();
-      if (S.sell && $("#scanner")) sellPush({ name: c.name, set: p.set, number: p.number, foil, lang, qty, eur: foil ? p.eur_foil : p.eur });
       if (opts.onDone) { opts.onDone(); refresh(); return; }
       added.push(`${qty}× ${p.set.toUpperCase()} #${p.number}${foil ? " foil" : ""}${alter ? ` ${ALTER_LABELS[alter].toLowerCase()}` : ""}${lang !== "en" ? ` (${lang.toUpperCase()})` : ""}`);
       closeSheet.dirty = true;
@@ -2073,7 +2095,8 @@ async function startScan() {
     .then(() => status(canFocus(S.stream) ? "Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar"
       : "Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)")).catch((e) => status(e.message));
   setupCameraControls(video);
-  if (!S.tradeSide && !S.sellList?.length) askSell();  // si ya hay lista para vender (volviste al escáner), se sigue apuntando
+  S.sell = false;
+  if (!S.tradeSide) askSell();
   S.timer = setInterval(() => { checkFocus(); scanTick(); }, 200);
 }
 
@@ -2406,41 +2429,21 @@ function burstDone() {
   closeScanner();
   if (S.tradeSide) return tradeTake();
   if (S.burst?.length) return burstReview();
-  if (S.sell && S.sellList?.length) sellSheet();
+  if (S.sell && S.sellCount) { toast(`${S.sellCount} en «A la venta»`); S.sellCount = 0; }
 }
-// ---- Modo vender: al abrir el escáner se pregunta; lo que se añade se apunta y al salir sale la lista para Cardmarket
-function sellPush(x) {
-  const l = (S.sellList ||= []), g = l.find((y) => y.name === x.name && y.set === x.set && y.number === x.number && y.foil === x.foil && y.lang === x.lang);
-  if (g) g.qty += x.qty; else l.push({ ...x });
-}
-const CM_LANG = { en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese", ja: "Japanese", ko: "Korean", ru: "Russian", zhs: "S-Chinese", zht: "T-Chinese" };
-function sellSheet() {
-  const l = S.sellList || [];
-  const text = l.map((x) => `${x.qty} ${x.name} (${String(x.set).toUpperCase()} #${x.number})${x.foil ? " Foil" : ""} ${CM_LANG[x.lang] || "English"}${x.eur != null ? ` ${String(x.eur.toFixed(2)).replace(".", ",")} €` : ""}`).join("\n");
-  const csv = ["Quantity,Name,Set code,Collector number,Foil,Language,Price EUR",
-    ...l.map((x) => [x.qty, `"${x.name.replace(/"/g, '""')}"`, String(x.set).toUpperCase(), x.number, x.foil ? "foil" : "", CM_LANG[x.lang] || "English", x.eur ?? ""].join(","))].join("\n");
-  const total = Math.round(l.reduce((a, x) => a + (x.eur || 0) * x.qty, 0) * 100) / 100;
-  const body = openSheet(`<h3>Para vender</h3>
-    <div class="hint">Las cartas que has escaneado, con edición, número, foil, idioma y precio de hoy. Cópialas y ponlas a la venta en Cardmarket (Vender → Poner a la venta), o guarda el CSV.</div>
-    <div class="stats"><div class="stat"><b>${l.reduce((a, x) => a + x.qty, 0)}</b><span>Cartas</span></div><div class="stat"><b>${euro(total)}</b><span>Valen</span></div></div>
-    <textarea class="search sell-list" readonly rows="8">${esc(text)}</textarea>
-    <div class="row-btns"><button class="btn" id="sl-csv">${ico("export")}CSV</button><button class="btn primary" id="sl-copy">${ico("list")}Copiar y abrir Cardmarket</button></div>
-    <button class="btn" id="sl-done" style="margin-top:8px;width:100%">${ico("check")}Listo, borrar la lista</button>`);
-  $("#sl-copy", body).onclick = async () => { await copy(text, "Lista copiada"); window.open("https://www.cardmarket.com/es/Magic/Stock/Offers/Singles", "_blank", "noopener"); };
-  $("#sl-csv", body).onclick = () => saveFile("para-vender.csv", csv, "text/csv");
-  $("#sl-done", body).onclick = () => { S.sellList = []; S.sell = false; closeSheet(); };
-}
+// ---- Modo vender: al abrir el escáner se pregunta; lo que escaneas va a la carpeta «A la venta» (no cuenta en tu colección)
 function askSell() {
   const box = $("#scan-ask");
   if (!box) return;
   box.hidden = false;
-  box.innerHTML = `<div><b>¿Vas a vender estas cartas?</b><div class="sub">Si sí, al salir te doy la lista para Cardmarket (edición, foil e idioma).</div></div>
+  box.innerHTML = `<div><b>¿Vas a vender estas cartas?</b><div class="sub">Si sí, van a la carpeta «A la venta» (no cuentan en el valor de tu colección).</div></div>
     <div class="row-btns"><button class="btn" data-sell="0">No, a mi colección</button><button class="btn primary" data-sell="1">${ico("coin")}Sí, para vender</button></div>`;
-  box.querySelectorAll("[data-sell]").forEach((b) => (b.onclick = () => {
+  box.querySelectorAll("[data-sell]").forEach((b) => (b.onclick = async () => {
     S.sell = b.dataset.sell === "1";
-    if (!S.sell) S.sellList = [];
+    S.sellTo = S.sell ? (await api("/api/collections")).find((x) => x.kind === "sale")?.id : null;
+    S.sellCount = 0;
     box.hidden = true;
-    if (S.sell) toast("Modo vender: al salir tendrás la lista");
+    if (S.sell) toast("Lo que escanees irá a «A la venta»");
   }));
 }
 function burstReview() {
@@ -2464,14 +2467,13 @@ function burstReview() {
     $("#bu-add", body).onclick = async (e) => {
       e.currentTarget.disabled = true;
       for (const x of items.filter((y) => y.qty > 0)) {
-        await api("/api/collection", { card_id: x.id, foil: false, qty: x.qty });
-        if ((x.lang || "en") !== "en") await api("/api/lang", { card_id: x.id, foil: false, lang: x.lang });
-        if (S.sell) sellPush({ name: x.name, set: x.set, number: x.number, foil: false, lang: x.lang || "en", qty: x.qty, eur: x.eur });
+        const to = S.sell && S.sellTo ? S.sellTo : 1;
+        await api("/api/collection", { c: to, card_id: x.id, foil: false, qty: x.qty });
+        if ((x.lang || "en") !== "en") await api("/api/lang", { c: to, card_id: x.id, foil: false, lang: x.lang });
       }
-      toast(`${copies} cartas añadidas`);
+      toast(S.sell ? `${copies} cartas en «A la venta»` : `${copies} cartas añadidas`);
       S.burst = [];
       closeSheet(); loadSummary(); refresh();
-      if (S.sell && S.sellList?.length) sellSheet();  // modo vender: la lista para Cardmarket
     };
   };
   const sync = () => { S.burst = items.flatMap((x) => Array(x.qty).fill(x)); };

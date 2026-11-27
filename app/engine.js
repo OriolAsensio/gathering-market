@@ -165,6 +165,7 @@ const Engine = (() => {
     cheapCache = new Map();
     decksByCardCache = null;
     user = await loadUser();
+    ensureSpecial();
     loaded = true;
     const alerts = checkLocalAlerts();
     return { day: PR.day, alerts, offline: !version };
@@ -273,12 +274,12 @@ const Engine = (() => {
     }
     return out;
   }
-  function addCard(c, id, foil, delta) {
+  function addCard(c, id, foil, delta, noLog = false) {  // noLog: pasar de una carpeta a otra no es comprar
     const cards = cardsOf(c);
     const key = `${id}|${foil ? 1 : 0}`;
     const qty = (cards[key] || 0) + delta;
     if (qty > 0) cards[key] = qty; else delete cards[key];
-    if (delta > 0) logAdded(c, id, foil, delta);
+    if (delta > 0 && !noLog) logAdded(c, id, foil, delta);
   }
   /** Historial de cartas añadidas: [día local, carpeta, carta, foil, copias], lo más nuevo primero. */
   function logAdded(c, id, foil, n) {
@@ -504,8 +505,39 @@ const Engine = (() => {
       change: m.start != null && m.end != null ? Math.round((m.end - m.start) * 100) / 100 : null, pct: m.start ? Math.round(((m.end - m.start) * 1000) / m.start) / 10 : null }));
   }
 
+  // Carpetas fijas además de tu colección: cartas a la venta y cartas vendidas (no cuentan en el valor de tu colección)
+  const SPECIAL = { sale: "A la venta", sold: "Vendidas" };
+  function ensureSpecial() {
+    let changed = false;
+    for (const [kind, name] of Object.entries(SPECIAL)) {
+      if (user.binders.some((b) => b.kind === kind)) continue;
+      const id = user.nextId++;
+      user.binders.push({ id, name, kind });
+      user.cards[id] = {}; (user.pinned ||= {})[id] = [];
+      changed = true;
+    }
+    if (changed) saveUser();
+  }
+  const specialId = (kind) => user.binders.find((b) => b.kind === kind)?.id;
   function collectionsList() {
-    return user.binders.map((b) => ({ id: b.id, name: b.name, cards: entries(b.id).reduce((s, e) => s + e[2], 0) }));
+    return user.binders.map((b) => ({ id: b.id, name: b.name, kind: b.kind || (b.id === 1 ? "main" : ""), cards: entries(b.id).reduce((s, e) => s + e[2], 0) }));
+  }
+  /** Pasar copias de una carpeta a otra: to = "sale" (poner a la venta), "sold" (vendida), "main" (volver a tu colección).
+   *  Se lleva el idioma de la carta. */
+  function moveCards({ c, card_id, foil, qty, to }) {
+    const from = binderOf(c), dest = to === "main" ? 1 : specialId(to);
+    if (!from || !dest) throw new Error("Esa carpeta ya no existe");
+    if (!byId.has(card_id)) throw new Error("No conozco esa carta");
+    const key = `${card_id}|${foil ? 1 : 0}`, have = cardsOf(from)[key] || 0, n = Math.min(have, Math.max(1, +qty || 1));
+    if (!n) throw new Error("No tienes esa carta en esta carpeta");
+    const lang = user.langs?.[from]?.[key];
+    addCard(from, card_id, !!foil, -n);
+    addCard(dest, card_id, !!foil, n, true);
+    if (lang) ((user.langs ||= {})[dest] ||= {})[key] = lang;
+    if (lang && !cardsOf(from)[key]) delete user.langs[from][key];
+    if (to === "sold") ((user.soldLog ||= []).unshift([new Date().toLocaleDateString("sv"), card_id, foil ? 1 : 0, n, priceOf(byId.get(card_id), !!foil)]), user.soldLog.length = Math.min(user.soldLog.length, 2000));
+    saveUser();
+    return { ok: true, moved: n };
   }
 
   function collectionsPost(body) {
@@ -529,6 +561,7 @@ const Engine = (() => {
     if (body.delete) {
       const id = +body.delete;
       if (id === 1) throw new Error("Tu carpeta principal no se puede borrar");
+      if (user.binders.find((b) => b.id === id)?.kind) throw new Error("Esta carpeta no se puede borrar");
       user.binders = user.binders.filter((b) => b.id !== id);
       delete user.cards[id];
       delete user.pinned[id];
@@ -754,13 +787,14 @@ const Engine = (() => {
       : [["Name", "Set code", "Set name", "Collector number", "Foil", "Rarity", "Quantity", "Scryfall ID", "Purchase price", "Misprint", "Altered", "Condition", "Language", "Purchase price currency"]];
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
     for (const b of user.binders) {
+      if (b.kind === "sold") continue;  // lo vendido ya no es tuyo; lo que está a la venta va en la lista de cambio de Moxfield
       for (const [pi, foil, qty0] of entries(b.id)) {
         const [cid, oi, set, number, r] = P[pi], k = `${cid}|${foil ? 1 : 0}`;
         const qty = qty0 - (proxyOf(b.id, k, qty0) || 0);
         if (qty <= 0) continue;
         const name = front(O[oi][0]), lang = langOf(b.id, k), price = eur(priceOf(pi, foil)) ?? "";
         rows.push(fmt === "moxfield"
-          ? [qty, 0, O[oi][0], set, "Near Mint", LANG_EN[lang] || "English", foil ? "foil" : "", "", now, number, "False", "False", price]
+          ? [qty, b.kind === "sale" ? qty : 0, O[oi][0], set, "Near Mint", LANG_EN[lang] || "English", foil ? "foil" : "", "", now, number, "False", "False", price]
           : [name, set.toUpperCase(), SETS.get(set)?.name || "", number, foil ? "foil" : "normal", RARITY[r] || "", qty, cid, price, "false", alterOf(b.id, k, price, qty) ? "true" : "false", "near_mint", lang, "EUR"]);
       }
     }
@@ -3042,7 +3076,7 @@ const Engine = (() => {
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost, "/api/alertprefs": alertPrefsPost, "/api/reserve": reservePost };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost, "/api/alertprefs": alertPrefsPost, "/api/reserve": reservePost, "/api/move": moveCards };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");
@@ -3059,6 +3093,7 @@ const Engine = (() => {
     const u = JSON.parse(text);
     if (!u.binders || !u.cards) throw new Error("No es una copia de seguridad de Gather in One");
     user = u;
+    ensureSpecial();
     await saveUser();
   }
 

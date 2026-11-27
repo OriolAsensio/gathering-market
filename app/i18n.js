@@ -15,6 +15,23 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Mi colección", "My collection", "La meva col·lecció"],
+  ["A la venta", "For sale", "A la venda"],
+  ["Vendidas", "Sold", "Venudes"],
+  ["Tu colección, las cartas que tienes a la venta y las que has vendido (estas dos no cuentan en el valor de tu colección).", "Your collection, the cards you have for sale and the ones you've sold (these two don't count towards your collection's value).", "La teva col·lecció, les cartes que tens a la venda i les que has venut (aquestes dues no compten en el valor de la teva col·lecció)."],
+  ["Cartas que vas a vender: no cuentan en el valor de tu colección. Abre una y pulsa «La he vendido» al venderla.", "Cards you're going to sell: they don't count towards your collection's value. Open one and tap «I sold it» when you sell it.", "Cartes que vendràs: no compten en el valor de la teva col·lecció. Obre'n una i prem «L'he venuda» quan la venguis."],
+  ["Cartas que has vendido. El valor es el precio de hoy.", "Cards you've sold. The value is today's price.", "Cartes que has venut. El valor és el preu d'avui."],
+  ["Poner a la venta", "Put up for sale", "Posar a la venda"],
+  ["La he vendido", "I sold it", "L'he venuda"],
+  ["Volver a mi colección", "Back to my collection", "Tornar a la meva col·lecció"],
+  ["Deshacer: no la he vendido", "Undo: I didn't sell it", "Desfer: no l'he venuda"],
+  ["1 copia a «A la venta»", "1 copy to «For sale»", "1 còpia a «A la venda»"],
+  ["1 copia a «Vendidas»", "1 copy to «Sold»", "1 còpia a «Venudes»"],
+  ["1 copia de vuelta a tu colección", "1 copy back to your collection", "1 còpia de tornada a la teva col·lecció"],
+  ["Puestas a la venta", "Put up for sale", "Posades a la venda"],
+  ["Marcadas como vendidas", "Marked as sold", "Marcades com a venudes"],
+  ["Lo que escanees irá a «A la venta»", "What you scan will go to «For sale»", "El que escanegis anirà a «A la venda»"],
+  ["Si sí, van a la carpeta «A la venta» (no cuentan en el valor de tu colección).", "If so, they go to the «For sale» folder (they don't count towards your collection's value).", "Si és que sí, van a la carpeta «A la venda» (no compten en el valor de la teva col·lecció)."],
   ["Para vender", "To sell", "Per vendre"],
   ["Las cartas que has escaneado, con edición, número, foil, idioma y precio de hoy. Cópialas y ponlas a la venta en Cardmarket (Vender → Poner a la venta), o guarda el CSV.", "The cards you scanned, with set, number, foil, language and today's price. Copy them and list them for sale on Cardmarket (Sell → Put up for sale), or save the CSV.", "Les cartes que has escanejat, amb edició, número, foil, idioma i preu d'avui. Copia-les i posa-les a la venda a Cardmarket (Vendre → Posar a la venda), o desa el CSV."],
   ["Copiar y abrir Cardmarket", "Copy and open Cardmarket", "Copiar i obrir Cardmarket"],
@@ -1126,6 +1143,8 @@ const RULES = [
   [/^Doy · (.+)$/, "I give · $1", "Dono · $1"], [/^Recibo · (.+)$/, "I get · $1", "Rebo · $1"],
   [/^(.+) es el monarca$/, "$1 is the monarch", "$1 és el monarca"], [/^(.+) tiene la iniciativa$/, "$1 has the initiative", "$1 té la iniciativa"],
   [/^Tienes (\d+)( · tu mazo usa (\d+))?$/, (m) => `You have ${m[1]}${m[2] ? ` · your deck uses ${m[3]}` : ""}`, (m) => `En tens ${m[1]}${m[2] ? ` · la baralla en fa servir ${m[3]}` : ""}`],
+  [/^A la venta \((\d+)\)$/, "For sale ($1)", "A la venda ($1)"], [/^Vendidas \((\d+)\)$/, "Sold ($1)", "Venudes ($1)"],
+  [/^(\d+) (?:cartas )?en «A la venta»$/, "$1 in «For sale»", "$1 a «A la venda»"],
 ];
 
 const COL = { en: 1, ca: 2 };
