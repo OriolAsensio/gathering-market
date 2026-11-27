@@ -15,6 +15,7 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Ya está en esa carpeta", "It's already in that folder", "Ja és en aquesta carpeta"],
   ["Mi colección", "My collection", "La meva col·lecció"],
   ["A la venta", "For sale", "A la venda"],
   ["Vendidas", "Sold", "Venudes"],
@@ -1145,6 +1146,7 @@ const RULES = [
   [/^Tienes (\d+)( · tu mazo usa (\d+))?$/, (m) => `You have ${m[1]}${m[2] ? ` · your deck uses ${m[3]}` : ""}`, (m) => `En tens ${m[1]}${m[2] ? ` · la baralla en fa servir ${m[3]}` : ""}`],
   [/^A la venta \((\d+)\)$/, "For sale ($1)", "A la venda ($1)"], [/^Vendidas \((\d+)\)$/, "Sold ($1)", "Venudes ($1)"],
   [/^(\d+) (?:cartas )?en «A la venta»$/, "$1 in «For sale»", "$1 a «A la venda»"],
+  [/^¿Poner a la venta (\d+) copias? de más\? Pasan a la carpeta «A la venta» \(no cuentan en el valor de tu colección\), primero las ediciones más baratas\.$/, "Put $1 extra copies up for sale? They go to the «For sale» folder (they don't count towards your collection's value), cheapest printings first.", "Posar a la venda $1 còpies de més? Passen a la carpeta «A la venda» (no compten en el valor de la teva col·lecció), primer les edicions més barates."],
 ];
 
 const COL = { en: 1, ca: 2 };

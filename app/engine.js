@@ -445,8 +445,8 @@ const Engine = (() => {
 
   /** Repetidas: copias de más de cada carta (más de 4, o más de las que usa tu mazo que más lleva), sin básicas ni proxies.
    *  Para vender o cambiar: cuánto valen las que sobran (la edición más barata que tienes). */
-  function duplicates({ c }) {
-    const id = binderOf(c) || 1, have = new Map();
+  function duplicates() {
+    const id = 1, have = new Map();  // siempre tu colección (no «A la venta» ni «Vendidas»)
     for (const [pi, foil, qty] of entries(id)) {
       const real = qty - proxyOf(id, `${P[pi][0]}|${foil ? 1 : 0}`, qty);
       if (real <= 0) continue;
@@ -524,9 +524,21 @@ const Engine = (() => {
   }
   /** Pasar copias de una carpeta a otra: to = "sale" (poner a la venta), "sold" (vendida), "main" (volver a tu colección).
    *  Se lleva el idioma de la carta. */
-  function moveCards({ c, card_id, foil, qty, to }) {
+  function moveCards({ c, card_id, foil, qty, to, name }) {
     const from = binderOf(c), dest = to === "main" ? 1 : specialId(to);
     if (!from || !dest) throw new Error("Esa carpeta ya no existe");
+    if (from === dest) throw new Error("Ya está en esa carpeta");
+    if (name) {  // por nombre (Repetidas): primero las ediciones más baratas
+      let left = Math.max(0, +qty || 0), moved = 0;
+      const rows = entries(from).filter(([pi]) => norm(O[P[pi][1]][0]) === norm(name)).sort((a, b) => (priceOf(a[0], a[1]) ?? 1e9) - (priceOf(b[0], b[1]) ?? 1e9));
+      for (const [pi, f, q] of rows) {
+        if (!left) break;
+        const n = Math.min(left, q);
+        moveCards({ c, card_id: P[pi][0], foil: f, qty: n, to });
+        left -= n; moved += n;
+      }
+      return { ok: true, moved };
+    }
     if (!byId.has(card_id)) throw new Error("No conozco esa carta");
     const key = `${card_id}|${foil ? 1 : 0}`, have = cardsOf(from)[key] || 0, n = Math.min(have, Math.max(1, +qty || 1));
     if (!n) throw new Error("No tienes esa carta en esta carpeta");
@@ -535,6 +547,18 @@ const Engine = (() => {
     addCard(dest, card_id, !!foil, n, true);
     if (lang) ((user.langs ||= {})[dest] ||= {})[key] = lang;
     if (lang && !cardsOf(from)[key]) delete user.langs[from][key];
+    // Firmadas/alteradas y proxies: se quedan en la carpeta de origen las que quepan; las que no, viajan con la carta
+    const left = cardsOf(from)[key] || 0, al = user.alters?.[from]?.[key], px = user.proxies?.[from]?.[key] || 0;
+    if (al && (al.qty || 1) > left) {
+      const m = (al.qty || 1) - left, dm = (user.alters[dest] ||= {});
+      dm[key] = { kind: al.kind, note: al.note || "", qty: (dm[key]?.qty || 0) + m };
+      if (left) al.qty = left; else delete user.alters[from][key];
+    }
+    if (px > left) {
+      const dp = ((user.proxies ||= {})[dest] ||= {});
+      dp[key] = (dp[key] || 0) + px - left;
+      if (left) user.proxies[from][key] = left; else delete user.proxies[from][key];
+    }
     if (to === "sold") ((user.soldLog ||= []).unshift([new Date().toLocaleDateString("sv"), card_id, foil ? 1 : 0, n, priceOf(byId.get(card_id), !!foil)]), user.soldLog.length = Math.min(user.soldLog.length, 2000));
     saveUser();
     return { ok: true, moved: n };

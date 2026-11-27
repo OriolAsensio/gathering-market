@@ -384,6 +384,7 @@ const artStrip = (printings, pid) => `<div class="arts" id="arts">${printings.ma
 
 // ---------- vistas ----------
 const views = {};
+let inSpecial = false;
 let state = { collectionFilter: "", deckSort: store("deckSort") || "meta", marketScope: store("marketScope") || "pauper", marketDays: +(store("marketDays") || 7) };
 
 function render() {
@@ -393,6 +394,8 @@ function render() {
   if (tab !== "life") document.querySelector(".lf-table")?.remove();  // al salir (botón atrás de Android): fuera la mesa
   document.querySelectorAll(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   $("#col-bar")?.remove();
+  // «A la venta» y «Vendidas» solo se miran en Cartas: el resto (inicio, mazos, avisos…) siempre usa tu colección
+  if (tab !== "collection" && inSpecial) { inSpecial = false; cid = 1; store("cid", "1"); loadSummary(); }
   (views[tab] || views.collection)();
   window.scrollTo(0, 0);
 }
@@ -406,6 +409,7 @@ views.collection = async () => {
   const v = $("#view");
   let mode = store("colView") || "grid";
   const binders = await api("/api/collections"), here = binders.find((b) => b.id === cid) || binders[0];
+  inSpecial = here.kind === "sale" || here.kind === "sold";
   v.innerHTML = `<div class="seg" id="col-binder">${binders.filter((b) => b.kind).map((b) => `<button data-b="${b.id}" class="${b.id === cid ? "on" : ""}">${b.kind === "main" ? "Mi colección" : esc(b.name)}${b.kind !== "main" && b.cards ? ` (${b.cards})` : ""}</button>`).join("")}</div>
     ${here.kind === "sale" ? `<div class="hint">Cartas que vas a vender: no cuentan en el valor de tu colección. Abre una y pulsa «La he vendido» al venderla.</div>` : here.kind === "sold" ? `<div class="hint">Cartas que has vendido. El valor es el precio de hoy.</div>` : ""}
     <div class="row-btns" style="margin-top:4px"><button class="btn" id="col-import">${ico("import")}Importar</button><button class="btn" id="col-build">${ico("plus")}Crear mazo</button></div>
@@ -1167,10 +1171,12 @@ async function duplicatesSheet() {
   $("#dp-copy", body)?.addEventListener("click", () => copy(text, "Lista copiada"));
   $("#dp-csv", body)?.addEventListener("click", () => saveFile("repetidas.csv",
     ["Quantity,Name,Set code,Collector number,Price EUR", ...r.items.map((x) => [x.extra, `"${x.name.replace(/"/g, '""')}"`, x.set, x.number, x.eur ?? ""].join(","))].join("\n"), "text/csv"));
-  // Vender: Cardmarket no deja subir una lista a la venta a particulares; se copia la lista y se abre tu página de venta
+  // Vender: las copias de más pasan a la carpeta «A la venta» (las ediciones más baratas primero)
   $("#dp-sell", body)?.addEventListener("click", async () => {
-    await copy(r.items.map((x) => `${x.extra}x ${x.name} (${x.set}) ~${euro(x.eur)}`).join("\n"), "Lista copiada con precios: ponlas a la venta en Cardmarket");
-    window.open("https://www.cardmarket.com/es/Magic/Stock/Offers/Singles", "_blank", "noopener");
+    if (!confirm(t(`¿Poner a la venta ${plural(r.copies, "copia", "copias")} de más? Pasan a la carpeta «A la venta» (no cuentan en el valor de tu colección), primero las ediciones más baratas.`))) return;
+    let n = 0;
+    for (const x of r.items) n += (await api("/api/move", { c: 1, name: x.name, qty: x.extra, to: "sale" })).moved;
+    toast(`${n} en «A la venta»`); loadSummary(); duplicatesSheet();
   });
   body.querySelectorAll("[data-name]").forEach((b) => (b.onclick = () => synergySheet(b.dataset.name)));
   body.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = async () => {
@@ -2064,11 +2070,13 @@ async function startScan() {
         <div class="seg" id="scan-lang">${SCAN_LANGS.map(([k, , n]) => `<button data-l="${k}">${n}</button>`).join("")}</div>
         <button class="sheet-close" id="scan-close" aria-label="Cerrar escáner">${ico("close")}</button>
       </div>
-      <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
-      <div class="scan-burst" id="scan-burst" hidden></div>
-      <div class="scan-ask" id="scan-ask" hidden></div>
+      <div class="scan-bottom">
+        <div class="scan-status" id="scan-status">Abriendo la cámara…</div>
+        <div class="scan-burst" id="scan-burst" hidden></div>
+        <div class="scan-ask" id="scan-ask" hidden></div>
+        <div class="scan-tools" id="scan-tools"></div>
+      </div>
       <div class="scan-result" id="scan-result" hidden></div>
-      <div class="scan-tools" id="scan-tools"></div>
     </div>`);
   const paintLang = () => document.querySelectorAll("#scan-lang button").forEach((b) => b.classList.toggle("on", b.dataset.l === scanLang()[0]));
   paintLang();

@@ -337,11 +337,10 @@ body:has(#col-bar:not([hidden])) .fab { display: none; }
 .scan-frame i:nth-child(4) { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 14px; }
 .scan-top { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; }
 .scan-top .sheet-close { position: static; }
-.scan-status { position: absolute; left: 16px; right: 16px; top: calc(42% + min(39vw * 88 / 63, 23vh * 88 / 63) / 1 + 10px); text-align: center;
+.scan-bottom { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 18px); display: flex; flex-direction: column; gap: 10px; z-index: 1; }
+.scan-status { text-align: center;
   color: #f2e6c9; font: 600 15px var(--display); letter-spacing: .03em; text-shadow: 0 1px 4px #000; }
-.scan-read { position: absolute; left: 16px; right: 16px; bottom: calc(var(--safe-b) + 74px); text-align: center; color: #d8c9a6;
-  font-size: 13px; text-shadow: 0 1px 3px #000; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.scan-tools { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 18px); display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.scan-tools { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .scan-zoom { display: flex; align-items: center; gap: 6px; color: #f2e6c9; background: rgba(0,0,0,.45); padding: 6px 10px; border-radius: 8px; }
 .scan-zoom input { width: 120px; accent-color: var(--gold); }
 .focus-ring { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid var(--gold); border-radius: 50%;
@@ -657,8 +656,9 @@ svg.ico.svg { background: none !important; -webkit-mask: none !important; mask: 
 .lf-dice-btns button { border: 1px solid rgba(214,168,78,.5); background: rgba(255,255,255,.07); color: var(--text); border-radius: 14px; padding: 14px 22px; font: 700 17px var(--display); display: inline-flex; align-items: center; gap: 8px; }
 .lf-dice-btns button[data-again] { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink); border-color: var(--gold); }
 
-.scan-burst { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 84px); display: flex; align-items: center; justify-content: space-between; gap: 10px;
+.scan-burst { display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: rgba(16,11,7,.88); border: 1px solid rgba(214,168,78,.45); border-radius: 14px; padding: 10px 12px; color: var(--text); font-size: 15px; z-index: 1; }
+.scan-burst[hidden], .scan-ask[hidden] { display: none; }
 .scan-burst b { color: var(--gold); font-size: 20px; }
 .scan-burst > div { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scan-burst .btn { flex: none; padding: 9px 12px; }
@@ -691,7 +691,7 @@ button.lf-extra { pointer-events: auto; position: relative; z-index: 2; backgrou
 .scan-result #add-alter .big-tog { flex: 1 1 20%; padding: 6px 4px; font-size: 12.5px; }
 .scan-result .field { margin: 4px 0; }
 .scan-result .art { width: 62px; } .scan-result .cand { width: 70px; } .scan-result .art span, .scan-result .art small { font-size: 10px; }
-.scan-ask { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 84px); z-index: 3; background: rgba(16,11,7,.95); border: 1px solid var(--gold);
+.scan-ask { background: rgba(16,11,7,.95); border: 1px solid var(--gold);
   border-radius: 16px; padding: 14px; color: var(--text); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
 .scan-ask .sub { margin-top: 4px; }
 .sell-list { width: 100%; font: 13px/1.5 ui-monospace, monospace; white-space: pre; overflow: auto; margin: 8px 0; }
