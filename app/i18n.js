@@ -15,6 +15,7 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Moneda", "Coin", "Moneda"], ["Otra vez", "Again", "Un altre cop"], ["¡Crítico!", "Critical!", "Crític!"], ["Pifia", "Fumble", "Pífia"], ["Cara", "Heads", "Cara"], ["Cruz", "Tails", "Creu"], ["Ediciones", "Sets", "Edicions"],
   ["Suben más los artistas que ya no firman o que han muerto, y los alteristas conocidos.", "Artists who no longer sign or have died, and well-known alterists, go higher.", "Pugen més els artistes que ja no signen o que han mort, i els alteristes coneguts."],
   ["En Cardmarket hay que ponerla con foto real.", "On Cardmarket it must be listed with a real photo.", "A Cardmarket s'ha de posar amb foto real."],
   ["¿Alterada?", "Altered?", "Alterada?"],

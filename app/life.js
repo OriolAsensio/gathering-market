@@ -154,6 +154,45 @@ const Life = (() => {
     save("lifeGame", game);
   }
 
+  // ---- dados y moneda a pantalla completa: el dado (con su forma) rueda, cae con un golpe y un destello.
+  // Tocar fuera cierra; «Otra vez» vuelve a tirar el mismo.
+  function roll(d) {
+    const coin = d === "coin", faces = coin ? 2 : +d;
+    el.querySelector(".lf-dice")?.remove();
+    $("#lf-panel", el).hidden = true;  // que no se vea detrás
+    const ov = document.createElement("div");
+    ov.className = `lf-dice ${coin ? "coin" : `d${faces}`}`;
+    ov.innerHTML = `<div class="lf-die-wrap rolling"><div class="lf-die"><b>${coin ? ico("coin") : "?"}</b></div></div>
+      <div class="lf-dice-label">${coin ? "Moneda" : `d${faces}`}</div>
+      <div class="lf-dice-btns"><button data-again="1">${ico("dice")}Otra vez</button><button data-close="1">Cerrar</button></div>`;
+    el.appendChild(ov);
+    const wrap = $(".lf-die-wrap", ov), out = $(".lf-die b", ov);
+    sfx.dice();
+    let k = 0;
+    const spin = setInterval(() => { out.textContent = coin ? (k++ % 2 ? "Cara" : "Cruz") : 1 + rnd(faces); }, 60);
+    setTimeout(() => {
+      clearInterval(spin);
+      if (!ov.isConnected) return;
+      const r = rnd(faces);
+      out.textContent = coin ? (r ? "Cara" : "Cruz") : `${1 + r}`;
+      wrap.classList.remove("rolling");
+      wrap.classList.add("land", ...(faces === 20 && r === 19 ? ["crit"] : faces === 20 && r === 0 ? ["fail"] : []));
+      if (faces === 20 && (r === 19 || r === 0)) $(".lf-dice-label", ov).textContent = r ? "¡Crítico!" : "Pifia";
+      buzz(r === 19 && faces === 20 ? [40, 40, 80] : 40); sfx.pick();
+    }, 900);
+    $("[data-again]", ov).onclick = (e) => { e.stopPropagation(); roll(d); };
+    ov.onclick = () => ov.remove();
+  }
+  function bigResult(icon, text, color) {
+    el.querySelector(".lf-dice")?.remove();
+    const ov = document.createElement("div");
+    ov.className = "lf-dice first";
+    ov.innerHTML = `<div class="lf-die-wrap land"><div class="lf-die" style="--c:${color}"><b>${ico(icon)}</b></div></div><div class="lf-dice-label">${esc(text)}</div>`;
+    el.appendChild(ov);
+    ov.onclick = () => ov.remove();
+    setTimeout(() => ov.remove(), 3500);
+  }
+
   // ---- la barra del centro
   function act(a) {
     const panel = $("#lf-panel", el);
@@ -174,13 +213,8 @@ const Life = (() => {
       $("[data-shuffle]", panel).onclick = () => { for (let i = game.players.length - 1; i > 0; i--) { const j = rnd(i + 1); [game.players[i], game.players[j]] = [game.players[j], game.players[i]]; } save("lifeGame", game); sfx.dice(); paint(); };
       $("[data-sound]", panel).onclick = () => { store("sounds", store("sounds") === "0" ? "1" : "0"); panel.hidden = true; act("set"); };
     } else if (a === "dice") {
-      panel.innerHTML = `<div class="lf-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">${ico("coin")}</button></div><div class="lf-roll" id="lf-roll">${ico("dice")}</div>`;
-      panel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => {
-        const out = $("#lf-roll", panel), coin = b.dataset.d === "coin", faces = coin ? 2 : +b.dataset.d;
-        sfx.dice(); let k = 0;
-        const spin = setInterval(() => { out.textContent = coin ? (k++ % 2 ? "Cara" : "Cruz") : 1 + rnd(faces); out.classList.toggle("spin"); }, 70);
-        setTimeout(() => { clearInterval(spin); const r = rnd(faces); out.textContent = coin ? (r ? "Cara" : "Cruz") : `${1 + r}`; out.classList.add("land"); setTimeout(() => out.classList.remove("land"), 400); buzz(30); sfx.pick(); }, 700);
-      }));
+      panel.innerHTML = `<div class="lf-row lf-dice-row">${[4, 6, 8, 10, 12, 20].map((d) => `<button data-d="${d}">d${d}</button>`).join("")}<button data-d="coin">${ico("coin")}Moneda</button></div>`;
+      panel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => roll(b.dataset.d)));
     } else if (a === "first") {
       // Ruleta: el brillo pasa de asiento en asiento, cada vez más despacio, y se para en uno al azar
       panel.hidden = true;
@@ -190,7 +224,7 @@ const Life = (() => {
         seats.forEach((s, i) => s.classList.toggle("pick", i === k % n));
         Sfx.play([[600 + (k % n) * 80, 0, 0.05, "square", 0.03]]);
         if (k < steps) { k++; setTimeout(tick, 70 + k * 14); }
-        else { sfx.pick(); buzz(40); toast(`Empieza ${game.players[win].name}`); setTimeout(() => seats.forEach((s) => s.classList.remove("pick")), 2400); }
+        else { sfx.pick(); buzz(40); bigResult("crown", `Empieza ${game.players[win].name}`, game.players[win].color); setTimeout(() => seats.forEach((s) => s.classList.remove("pick")), 2400); }
       };
       tick();
     } else if (a === "reset") {
