@@ -35,7 +35,11 @@ const Print = (() => {
     g.font = `600 34px ${font}`; g.fillStyle = "#b8862b"; g.fillText("PROXY", W / 2, 900);
     return (appBackUrl = c.toDataURL("image/jpeg", 0.95));
   }
-  const backSrc = () => (opt.back === "app" ? appBack() : opt.back === "custom" ? backCustom : "");
+  // Dorsos que vienen con la app (print-assets/). No va el dorso oficial de Magic: con él un proxy no se distingue de una carta real.
+  const BACKS = [["back-gather", "Gather in One"], ["back-gather-pixel", "Gather pixel"], ["back-proxy-playtest", "Proxy Playtest"], ["back-proxy-blanco", "Proxy blanco"],
+    ["back-pintado", "Deckmaster pintado"], ["back-pixel", "Pixel"], ["back-modern", "Moderno"], ["back-vitral", "Vitral"], ["back-vitral-plata", "Vitral plata"],
+    ["back-cardmaster", "Cardmaster"], ["back-cursedland", "Cursedland"], ["back-cardmarket-fan", "Cardmarket Fan"], ["back-jerking", "Parodia"]];
+  const backSrc = () => (opt.back === "app" ? appBack() : opt.back === "custom" ? backCustom : opt.back.startsWith("back-") ? `print-assets/${opt.back}.jpg` : "");
   const persist = () => { keep("printList", list); keep("printOpt", opt); };
   const srcOf = (x) => (String(x.img || "").startsWith("custom:") ? customs[x.img.slice(7)] : x.img) || "";
   // La imagen grande de Scryfall (745 × 1040, PNG) para imprimir; la "normal" es pequeña para 300 ppp
@@ -81,8 +85,10 @@ const Print = (() => {
         <div class="field"><label>Papel</label>${seg("paper", Object.entries(PAPERS).map(([k, p]) => [k, p[2]]))}</div>
         <div class="field"><label>Líneas de corte</label>${seg("lines", [["full", "De lado a lado de la hoja"], ["marks", "Solo en los márgenes"]])}${seg("weight", Object.entries(WEIGHTS).map(([k, w]) => [k, w[1]]))}
           <div class="sub">Negras, rectas y entre cada carta, para que la guillotina corte recto.</div></div>
-        <div class="field"><label>Dorso (parte de atrás)</label>${seg("back", [["none", "Sin dorso"], ["app", "Dorso de la app"], ["custom", "El mío"]])}
-          ${opt.back !== "none" ? `<div class="pr-back-row">${backSrc() ? `<img src="${esc(backSrc())}" alt="Dorso">` : ""}${opt.back === "custom" ? `<label class="btn" for="pr-backup">${ico("image")}${backCustom ? "Cambiar mi dorso" : "Subir mi dorso"}</label><input type="file" id="pr-backup" accept="image/*" hidden>` : ""}</div>
+        <div class="field"><label>Dorso (parte de atrás)</label>
+          <div class="pr-backs">${[["none", "Sin dorso", ""], ["app", "De la app", appBack()], ...BACKS.map(([k, n]) => [k, n, `print-assets/${k}.jpg`]), ["custom", "El mío", backCustom]].map(([k, n, src]) =>
+            `<button data-bk="${k}" class="${opt.back === k ? "on" : ""}">${src ? `<img loading="lazy" src="${esc(src)}" alt="">` : `<span class="pr-noback">${k === "custom" ? ico("image") : "—"}</span>`}<span>${esc(n)}</span></button>`).join("")}</div>
+          ${opt.back !== "none" ? `${opt.back === "custom" ? `<label class="btn" for="pr-backup">${ico("image")}${backCustom ? "Cambiar mi dorso" : "Subir mi dorso"}</label><input type="file" id="pr-backup" accept="image/*" hidden>` : ""}
           <div class="sub">Detrás de cada hoja va otra con los dorsos, colocados para imprimir a doble cara girando por el borde largo. Haz primero una hoja de prueba: algunas impresoras mueven un poco la cara de atrás.</div>` : ""}</div>
         <details class="guide"><summary>Más opciones</summary><div class="field"><label>Sangrado</label>${seg("bleed", [[0, "Sin"], [1, "1 mm"], [2, "2 mm"]])}
           <div class="sub">Imagen de más alrededor de cada carta (los bordes se alargan), por si el corte se desvía. Casi nunca hace falta.</div></div></details>
@@ -91,6 +97,7 @@ const Print = (() => {
     v.querySelectorAll("[data-o]").forEach((s) => s.querySelectorAll("button").forEach((b) => (b.onclick = () => {
       opt[s.dataset.o] = s.dataset.o === "bleed" ? +b.dataset.v : b.dataset.v; persist(); view();
     })));
+    v.querySelectorAll("[data-bk]").forEach((b) => (b.onclick = () => { opt.back = b.dataset.bk; persist(); view(); }));
     $("#pr-backup", v)?.addEventListener("change", async (e) => {
       const f = e.target.files[0];
       if (!f) return;
@@ -152,6 +159,8 @@ const Print = (() => {
     ["is:showcase", "Showcase"], ["is:extendedart", "Arte extendido"], ["(frame:1993 or frame:1997)", "Marco antiguo"]];
   const LANGS = [["en", "Inglés"], ["es", "Español"], ["fr", "Francés"], ["de", "Alemán"], ["it", "Italiano"], ["pt", "Portugués"], ["ja", "Japonés"], ["ko", "Coreano"], ["ru", "Ruso"], ["zhs", "Chino simpl."], ["zht", "Chino trad."]];
   const artPick = { kind: "", lang: load("printLang", "en") };
+  // Artes propios de Gather in One (solo en inglés): salen los primeros
+  const WEB_ARTS = { "Sneaky Snacker": [{ id: "", img: "print-assets/sneaky-snacker-gio.jpg", label: "Arte de Gather in One" }] };
   const big = (url) => String(url || "").replace("/normal/", "/large/");  // 672 × 936: se lee el texto
   const imgOf = (c) => (c.image_uris || c.card_faces?.[0]?.image_uris)?.normal;
   async function artSheet(i) {
@@ -196,6 +205,7 @@ const Print = (() => {
       } catch {  // sin internet: las ediciones que conoce la app (en inglés)
         if (!artPick.kind && artPick.lang === "en") cards = (await api(`/api/printings?name=${encodeURIComponent(x.name)}`)).filter((p) => p.image).map((p) => ({ id: p.id, img: p.image, label: `${p.set.toUpperCase()} #${p.number}` }));
       }
+      if (artPick.lang === "en" && !artPick.kind) cards = [...(WEB_ARTS[x.name] || []), ...cards];
       box.innerHTML = cards.map((c) => `<button class="art ${x.img === c.img ? "on" : ""}" data-img="${esc(c.img)}" data-id="${esc(c.id)}"><img loading="lazy" src="${esc(c.img)}" alt=""><span>${esc(c.label)}</span></button>`).join("")
         || `<div class="hint">No hay ${artPick.kind ? "artes de ese tipo" : "imágenes"} de esta carta en ${esc(LANGS.find((l) => l[0] === artPick.lang)[1].toLowerCase())}.</div>`;
       // Tocar: se ve en grande arriba (para leer el texto y ver la calidad); «Usar este arte» lo elige

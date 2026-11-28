@@ -15,6 +15,8 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["De la app", "From the app", "De l'app"],
+  ["Arte de Gather in One", "Gather in One art", "Art de Gather in One"],
   ["Dorso (parte de atrás)", "Card back", "Dors (part del darrere)"],
   ["Sin dorso", "No back", "Sense dors"],
   ["Dorso de la app", "App back", "Dors de l'app"],

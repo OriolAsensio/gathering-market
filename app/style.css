@@ -723,6 +723,11 @@ svg.ico.svg { background: none !important; -webkit-mask: none !important; mask: 
 .pr-big img.zoom { width: 100%; max-width: 680px; cursor: zoom-out; }
 .pr-big:has(img.zoom) { flex-direction: column; }
 .pr-big-side { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.pr-backs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; }
+.pr-backs button { flex: none; width: 76px; border: 2px solid transparent; border-radius: 8px; background: none; padding: 0; color: var(--muted); font-size: 11px; line-height: 1.2; }
+.pr-backs button.on { border-color: var(--gold); color: var(--gold); }
+.pr-backs img, .pr-noback { display: grid; place-items: center; width: 100%; aspect-ratio: 63/88; border-radius: 6px; object-fit: cover; background: var(--surface-2); }
+.pr-backs button > span:last-child { display: block; padding: 3px 0; }
 .pr-back-row { display: flex; gap: 10px; align-items: center; margin: 6px 0; }
 .pr-back-row img { width: 64px; aspect-ratio: 63/88; border-radius: 6px; object-fit: cover; }
 .pv-page img { width: 100%; max-width: 520px; box-shadow: 0 4px 18px rgba(0,0,0,.5); background: #fff; }
