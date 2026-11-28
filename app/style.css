@@ -717,6 +717,14 @@ svg.ico.svg { background: none !important; -webkit-mask: none !important; mask: 
 .seg.wrap { flex-wrap: wrap; }
 .arts.wrap { flex-wrap: wrap; overflow: visible; justify-content: flex-start; }
 .pv-page { margin: 12px 0; text-align: center; }
+.pv-page.back img { outline: 2px dashed rgba(214,168,78,.5); }
+.pr-big { display: flex; gap: 12px; align-items: flex-start; margin: 8px 0 12px; }
+.pr-big img { width: 62%; max-width: 360px; aspect-ratio: 488/680; border-radius: 12px; background: var(--surface-2); box-shadow: 0 6px 22px rgba(0,0,0,.5); cursor: zoom-in; object-fit: cover; }
+.pr-big img.zoom { width: 100%; max-width: 680px; cursor: zoom-out; }
+.pr-big:has(img.zoom) { flex-direction: column; }
+.pr-big-side { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.pr-back-row { display: flex; gap: 10px; align-items: center; margin: 6px 0; }
+.pr-back-row img { width: 64px; aspect-ratio: 63/88; border-radius: 6px; object-fit: cover; }
 .pv-page img { width: 100%; max-width: 520px; box-shadow: 0 4px 18px rgba(0,0,0,.5); background: #fff; }
 .pv-page span { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
 .version-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }

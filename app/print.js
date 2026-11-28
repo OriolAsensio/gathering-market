@@ -13,7 +13,29 @@ const Print = (() => {
   const keep = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
   let list = load("printList", []);  // [{ name, n, img, pid }]; img: URL de Scryfall o "custom:<clave>"
   const customs = load("printCustom", {});  // imágenes subidas (data URL)
-  const opt = { paper: "a4", lines: "full", weight: "thick", bleed: 0, ...load("printOpt", {}) };
+  const opt = { paper: "a4", lines: "full", weight: "thick", bleed: 0, back: "none", ...load("printOpt", {}) };
+  let backCustom = load("printBack", "");  // dorso subido (data URL)
+  // Dorso propio de la app (no el oficial de Magic: con ese, un proxy no se distingue de una carta de verdad)
+  let appBackUrl = "";
+  function appBack() {
+    if (appBackUrl) return appBackUrl;
+    const W = 745, H = 1040, c = document.createElement("canvas"), g = c.getContext("2d"), font = getComputedStyle(document.body).getPropertyValue("--display") || "serif";
+    c.width = W; c.height = H;
+    const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+    g.fillStyle = "#0b0704"; g.fillRect(0, 0, W, H);
+    const grd = g.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, 620);
+    grd.addColorStop(0, "#4a3018"); grd.addColorStop(1, "#140c06");
+    g.fillStyle = grd; rr(34, 34, W - 68, H - 68, 26); g.fill();
+    g.strokeStyle = "#d6a84e"; g.lineWidth = 6; rr(46, 46, W - 92, H - 92, 22); g.stroke();
+    g.lineWidth = 2; rr(62, 62, W - 124, H - 124, 18); g.stroke();
+    g.save(); g.translate(W / 2, 430); g.rotate(Math.PI / 4); g.lineWidth = 9; g.strokeRect(-115, -115, 230, 230); g.lineWidth = 3; g.strokeRect(-84, -84, 168, 168);
+    g.fillStyle = "rgba(214,168,78,.18)"; g.fillRect(-84, -84, 168, 168); g.restore();
+    g.fillStyle = "#e7c477"; g.textAlign = "center";
+    g.font = `700 70px ${font}`; g.fillText("GATHER", W / 2, 720); g.fillText("IN ONE", W / 2, 800);
+    g.font = `600 34px ${font}`; g.fillStyle = "#b8862b"; g.fillText("PROXY", W / 2, 900);
+    return (appBackUrl = c.toDataURL("image/jpeg", 0.95));
+  }
+  const backSrc = () => (opt.back === "app" ? appBack() : opt.back === "custom" ? backCustom : "");
   const persist = () => { keep("printList", list); keep("printOpt", opt); };
   const srcOf = (x) => (String(x.img || "").startsWith("custom:") ? customs[x.img.slice(7)] : x.img) || "";
   // La imagen grande de Scryfall (745 × 1040, PNG) para imprimir; la "normal" es pequeña para 300 ppp
@@ -59,6 +81,9 @@ const Print = (() => {
         <div class="field"><label>Papel</label>${seg("paper", Object.entries(PAPERS).map(([k, p]) => [k, p[2]]))}</div>
         <div class="field"><label>Líneas de corte</label>${seg("lines", [["full", "De lado a lado de la hoja"], ["marks", "Solo en los márgenes"]])}${seg("weight", Object.entries(WEIGHTS).map(([k, w]) => [k, w[1]]))}
           <div class="sub">Negras, rectas y entre cada carta, para que la guillotina corte recto.</div></div>
+        <div class="field"><label>Dorso (parte de atrás)</label>${seg("back", [["none", "Sin dorso"], ["app", "Dorso de la app"], ["custom", "El mío"]])}
+          ${opt.back !== "none" ? `<div class="pr-back-row">${backSrc() ? `<img src="${esc(backSrc())}" alt="Dorso">` : ""}${opt.back === "custom" ? `<label class="btn" for="pr-backup">${ico("image")}${backCustom ? "Cambiar mi dorso" : "Subir mi dorso"}</label><input type="file" id="pr-backup" accept="image/*" hidden>` : ""}</div>
+          <div class="sub">Detrás de cada hoja va otra con los dorsos, colocados para imprimir a doble cara girando por el borde largo. Haz primero una hoja de prueba: algunas impresoras mueven un poco la cara de atrás.</div>` : ""}</div>
         <details class="guide"><summary>Más opciones</summary><div class="field"><label>Sangrado</label>${seg("bleed", [[0, "Sin"], [1, "1 mm"], [2, "2 mm"]])}
           <div class="sub">Imagen de más alrededor de cada carta (los bordes se alargan), por si el corte se desvía. Casi nunca hace falta.</div></div></details>
         <button class="btn block primary" id="pr-go" ${n ? "" : "disabled"} style="margin-top:12px">${ico("eye")}Ver cómo queda (${plural(n, "carta", "cartas")}, ${plural(pages, "hoja", "hojas")})</button>`
@@ -66,6 +91,16 @@ const Print = (() => {
     v.querySelectorAll("[data-o]").forEach((s) => s.querySelectorAll("button").forEach((b) => (b.onclick = () => {
       opt[s.dataset.o] = s.dataset.o === "bleed" ? +b.dataset.v : b.dataset.v; persist(); view();
     })));
+    $("#pr-backup", v)?.addEventListener("change", async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const im = await loadImg(URL.createObjectURL(f)), s = Math.min(1, 1040 / im.height), c = document.createElement("canvas");
+      c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      backCustom = c.toDataURL("image/jpeg", 0.92);
+      if (!keep("printBack", backCustom)) toast("No cabe para guardarlo: se usará solo esta vez");
+      view();
+    });
     v.querySelectorAll("[data-pn]").forEach((b) => (b.onclick = () => { const x = list[+b.dataset.pn]; x.n = Math.max(0, x.n + +b.dataset.d); persist(); view(); }));
     v.querySelectorAll("[data-art]").forEach((b) => (b.onclick = () => artSheet(+b.dataset.art)));
     $("#pr-clear", v)?.addEventListener("click", () => { if (confirm(t("¿Quitar todas las cartas de Imprimir?"))) { list = []; delete opt.title; persist(); view(); } });
@@ -117,11 +152,14 @@ const Print = (() => {
     ["is:showcase", "Showcase"], ["is:extendedart", "Arte extendido"], ["(frame:1993 or frame:1997)", "Marco antiguo"]];
   const LANGS = [["en", "Inglés"], ["es", "Español"], ["fr", "Francés"], ["de", "Alemán"], ["it", "Italiano"], ["pt", "Portugués"], ["ja", "Japonés"], ["ko", "Coreano"], ["ru", "Ruso"], ["zhs", "Chino simpl."], ["zht", "Chino trad."]];
   const artPick = { kind: "", lang: load("printLang", "en") };
+  const big = (url) => String(url || "").replace("/normal/", "/large/");  // 672 × 936: se lee el texto
   const imgOf = (c) => (c.image_uris || c.card_faces?.[0]?.image_uris)?.normal;
   async function artSheet(i) {
     const x = list[i];
     const body = openSheet(`<button class="btn" id="pr-back">${ico("back")}Volver</button>
       <h3 style="margin-top:8px">Arte de ${esc(x.name)}</h3>
+      <div class="pr-big"><img id="pr-bigimg" src="${esc(big(srcOf(x)))}" alt="${esc(x.name)}"><div class="pr-big-side"><div class="sub" id="pr-biglabel">El arte que tienes ahora. Toca otro abajo para verlo en grande.</div>
+        <button class="btn primary" id="pr-use" hidden>${ico("check")}Usar este arte</button></div></div>
       <div class="field"><label>Tipo de arte</label><div class="seg wrap" id="pr-kind">${KINDS.map(([k, n]) => `<button data-k="${esc(k)}" class="${artPick.kind === k ? "on" : ""}">${n}</button>`).join("")}</div></div>
       <div class="field"><label>Idioma de la carta</label><select class="lang-sel" id="pr-lang">${LANGS.map(([k, n]) => `<option value="${k}" ${artPick.lang === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       <div class="row-btns" style="margin-top:0"><label class="btn" for="pr-up">${ico("image")}Subir mi imagen</label>${x.img?.startsWith("custom:") ? `<button class="btn" id="pr-reset">Quitar mi imagen</button>` : ""}</div>
@@ -129,6 +167,7 @@ const Print = (() => {
       <div class="sub">Tu imagen: la carta entera, mejor de 745 × 1040 px (63 × 88 mm a 300 ppp).</div>
       <div class="arts pr-arts wrap" id="pr-arts">${skeleton(2)}</div>`);
     $("#pr-back", body).onclick = closeSheet;
+    $("#pr-bigimg", body).onclick = (e) => e.currentTarget.classList.toggle("zoom");
     const pick = (img, pid) => { x.img = img; if (pid) x.pid = pid; persist(); closeSheet(); view(); };
     $("#pr-reset", body)?.addEventListener("click", async () => {
       delete customs[x.img.slice(7)]; keep("printCustom", customs);
@@ -159,7 +198,15 @@ const Print = (() => {
       }
       box.innerHTML = cards.map((c) => `<button class="art ${x.img === c.img ? "on" : ""}" data-img="${esc(c.img)}" data-id="${esc(c.id)}"><img loading="lazy" src="${esc(c.img)}" alt=""><span>${esc(c.label)}</span></button>`).join("")
         || `<div class="hint">No hay ${artPick.kind ? "artes de ese tipo" : "imágenes"} de esta carta en ${esc(LANGS.find((l) => l[0] === artPick.lang)[1].toLowerCase())}.</div>`;
-      box.querySelectorAll("[data-img]").forEach((b) => (b.onclick = () => pick(b.dataset.img, b.dataset.id)));
+      // Tocar: se ve en grande arriba (para leer el texto y ver la calidad); «Usar este arte» lo elige
+      box.querySelectorAll("[data-img]").forEach((b) => (b.onclick = () => {
+        $("#pr-bigimg", body).src = big(b.dataset.img);
+        $("#pr-biglabel", body).textContent = b.querySelector("span").textContent;
+        const use = $("#pr-use", body);
+        use.hidden = false; use.onclick = () => pick(b.dataset.img, b.dataset.id);
+        box.querySelectorAll(".art").forEach((y) => y.classList.toggle("on", y === b));
+        $("#pr-bigimg", body).scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }));
     };
     body.querySelectorAll("#pr-kind button").forEach((b) => (b.onclick = () => { artPick.kind = b.dataset.k; body.querySelectorAll("#pr-kind button").forEach((y) => y.classList.toggle("on", y === b)); draw(); }));
     $("#pr-lang", body).onchange = (e) => { artPick.lang = e.target.value; keep("printLang", artPick.lang); draw(); };
@@ -221,10 +268,13 @@ const Print = (() => {
     const srcs = list.flatMap((x) => Array(x.n).fill(srcOf(x))).filter(Boolean);
     if (srcs.length < total()) return toast("Hay cartas sin imagen: tócalas y elige un arte");
     const body = openSheet(`<h3>Cómo quedará</h3><div class="hint" id="pv-msg">Preparando las imágenes…</div><div id="pv-pages"></div>`);
-    const uniq = [...new Set(srcs)], imgs = new Map();
+    const uniq = [...new Set(srcs)], imgs = new Map(), back = backSrc();
+    if (opt.back === "custom" && !back) { closeSheet(); return toast("Sube primero tu dorso (o elige otro)"); }
     try {
       for (const [i, s] of uniq.entries()) { $("#pv-msg", body).textContent = t(`Preparando las imágenes: ${i + 1} de ${uniq.length}`); imgs.set(s, await cardJpeg(s, opt.bleed)); }
+      if (back) imgs.set("back", await cardJpeg(back, opt.bleed));
     } catch (e) { $("#pv-msg", body).textContent = e.message; return; }
+    const mirror = (cells) => cells.map(([x, y, w, h]) => [L.PW - x - w, y, w, h]);  // doble cara (borde largo): las columnas se invierten
     const L = layout(srcs.length), S = 3, lw = WEIGHTS[opt.weight][0];  // vista previa: 3 px por mm
     const pageImgs = [];
     for (const pg of L.pages) {
@@ -234,22 +284,31 @@ const Print = (() => {
       for (const [k, [x, y, w, h]] of pg.cells.entries()) g.drawImage(await loadImg(imgs.get(srcs[pg.from + k]).url), x * S, y * S, w * S, h * S);
       g.strokeStyle = "#000"; g.lineWidth = Math.max(1, lw * S);
       for (const [ax, ay, bx, by] of pg.lines) { g.beginPath(); g.moveTo(ax * S, ay * S); g.lineTo(bx * S, by * S); g.stroke(); }
-      pageImgs.push(c.toDataURL("image/jpeg", 0.8));
+      pageImgs.push([c.toDataURL("image/jpeg", 0.8), `Hoja ${pageImgs.filter((p) => !p[2]).length + 1}`, false]);
+      if (back) {
+        g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+        const bim = await loadImg(imgs.get("back").url);
+        for (const [x, y, w, h] of mirror(pg.cells)) g.drawImage(bim, x * S, y * S, w * S, h * S);
+        pageImgs.push([c.toDataURL("image/jpeg", 0.8), `${pageImgs[pageImgs.length - 1][1]} (detrás)`, true]);
+      }
     }
     const holes = (9 - (srcs.length % 9)) % 9;
     $("#pv-msg", body).innerHTML = `${plural(srcs.length, "carta", "cartas")} en ${plural(L.pages.length, "hoja", "hojas")} ${esc(PAPERS[opt.paper][2])}${holes ? ` · quedan ${plural(holes, "hueco", "huecos")} en la última` : ""}. Al imprimir, elige «Tamaño real» o «100 %» (no «Ajustar a la página»).`;
-    $("#pv-pages", body).innerHTML = `${pageImgs.map((u, i) => `<div class="pv-page"><img src="${u}" alt="Hoja ${i + 1}"><span>Hoja ${i + 1}</span></div>`).join("")}
+    $("#pv-pages", body).innerHTML = `${pageImgs.map(([u, label, isBack]) => `<div class="pv-page ${isBack ? "back" : ""}"><img src="${u}" alt="${esc(label)}"><span>${esc(label)}</span></div>`).join("")}
       <div class="row-btns"><button class="btn" id="pv-back">Volver y cambiar</button><button class="btn primary" id="pv-dl">${ico("export")}Descargar PDF</button></div>`;
     $("#pv-back", body).onclick = closeSheet;
     $("#pv-dl", body).onclick = async () => {
-      const images = uniq.map((s) => imgs.get(s)), f = (n) => (n * PT).toFixed(2), lwPt = (lw * PT).toFixed(2);
+      const images = [...uniq.map((s) => imgs.get(s)), ...(back ? [imgs.get("back")] : [])], f = (n) => (n * PT).toFixed(2), lwPt = (lw * PT).toFixed(2);
       const pages = L.pages.map((pg) => {
         let s = "";
         pg.cells.forEach(([x, y, w, h], k) => { s += `q ${f(w)} 0 0 ${f(h)} ${f(x)} ${f(L.PH - y - h)} cm /Im${uniq.indexOf(srcs[pg.from + k])} Do Q\n`; });
         s += `0 0 0 RG ${lwPt} w 0 J\n`;  // negro puro
         for (const [ax, ay, bx, by] of pg.lines) s += `${f(ax)} ${f(L.PH - ay)} m ${f(bx)} ${f(L.PH - by)} l S\n`;
-        return { content: s, used: [...new Set(pg.cells.map((_, k) => uniq.indexOf(srcs[pg.from + k])))] };
-      });
+        const front = { content: s, used: [...new Set(pg.cells.map((_, k) => uniq.indexOf(srcs[pg.from + k])))] };
+        if (!back) return [front];
+        const bi = uniq.length;
+        return [front, { content: mirror(pg.cells).map(([x, y, w, h]) => `q ${f(w)} 0 0 ${f(h)} ${f(x)} ${f(L.PH - y - h)} cm /Im${bi} Do Q\n`).join(""), used: [bi] }];
+      }).flat();
       const title = String(opt.title || "").replace(/[^\p{L}\p{N} _-]+/gu, "").trim(), name = title ? `${title} - proxies.pdf` : "proxies.pdf";
       const where = await savePdf(name, buildPdf(L.PW * PT, L.PH * PT, images, pages));
       if (where) afterDownload(where, name);
@@ -276,11 +335,14 @@ const Print = (() => {
 
   function afterDownload(where, name) {
     const body = openSheet(`<h3>PDF guardado</h3><div class="hint">Está en <b>${esc(where.label)}</b>.</div>
-      ${where.uri && window.Capacitor?.Plugins?.Share ? `<button class="btn block" id="pd-share">${ico("export")}Abrir o compartir</button>` : ""}
+      ${where.uri ? `<div class="row-btns" style="margin-top:0">${window.Capacitor?.Plugins?.FileOpener ? `<button class="btn" id="pd-open">${ico("eye")}Abrir el PDF</button>` : ""}
+        ${window.Capacitor?.Plugins?.Share ? `<button class="btn primary" id="pd-share">${ico("export")}Enviar (correo, WhatsApp, Drive…)</button>` : ""}</div>` : ""}
       <h2>¿Añadir estas cartas a tu colección como proxies?</h2>
       <div class="hint">Así cuentan para montar tus mazos, pero no suman al valor de tu colección.</div>
       <div class="row-btns"><button class="btn" id="pd-no">No</button><button class="btn primary" id="pd-yes">Sí, como proxies</button></div>`);
-    $("#pd-share", body)?.addEventListener("click", () => window.Capacitor.Plugins.Share.share({ title: name, files: [where.uri] }).catch(() => {}));
+    $("#pd-share", body)?.addEventListener("click", () => window.Capacitor.Plugins.Share.share({ title: name, files: [where.uri], dialogTitle: "Enviar el PDF" }).catch(() => {}));
+    $("#pd-open", body)?.addEventListener("click", () => window.Capacitor.Plugins.FileOpener.open({ filePath: where.uri, contentType: "application/pdf", openWithDefault: true })
+      .catch(() => toast("No hay ninguna app para abrir PDF: usa «Enviar» o ábrelo desde Archivos")));
     $("#pd-no", body).onclick = closeSheet;
     $("#pd-yes", body).onclick = async () => {
       let n = 0;

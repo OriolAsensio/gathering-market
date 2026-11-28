@@ -9,6 +9,7 @@
     "apk": "node scripts/build-web.mjs && npx cap sync android && cd android && gradlew.bat assembleDebug --no-daemon && copy /Y app\\build\\outputs\\apk\\debug\\app-debug.apk ..\\..\\Gathering-Market.apk"
   },
   "dependencies": {
+    "@capacitor-community/file-opener": "^7.0.1",
     "@capacitor/android": "^7.6.10",
     "@capacitor/app": "^7.1.2",
     "@capacitor/background-runner": "^2.3.1",
