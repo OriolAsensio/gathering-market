@@ -1,77 +1,169 @@
 "use strict";
-/* Imprimir proxies: PDF del mazo con las cartas a tamaño real (63 × 88 mm, 9 por hoja), sangrado opcional y líneas de corte
- * gruesas y negras (en la copistería se quejaban de que no se veían). Eliges el arte de cada carta entre todas sus ediciones
- * o subes una imagen tuya. El PDF se escribe aquí mismo (sin librerías): imágenes JPEG a 300 ppp y líneas.
- * Usa lo de app.js: $, esc, toast, api, openSheet, saveFile, ico, store. */
+/* Imprimir (pestaña propia, como MTG Print): pegas una lista, buscas cartas o traes un mazo de la app; eliges el arte de
+ * cada carta (todas las ediciones, por tipo de arte y por idioma) o subes tu imagen; ves cómo quedan las hojas y luego
+ * descargas el PDF. Cartas a 63 × 88 mm, 9 por hoja, con líneas de corte negras de lado a lado de la hoja para la guillotina.
+ * El PDF se escribe aquí mismo (sin librerías): imágenes JPEG a 300 ppp y líneas.
+ * Usa lo de app.js: $, esc, toast, api, openSheet, closeSheet, ico, skeleton, defaultPrint, plural, saveFile, views. */
 
 const Print = (() => {
-  const PT = 72 / 25.4, DPI_MM = 300 / 25.4, CW = 63, CH = 88, LINE = 0.3;  // puntos por mm; píxeles por mm a 300 ppp; grosor de corte (mm)
+  const PT = 72 / 25.4, DPI_MM = 300 / 25.4, CW = 63, CH = 88;  // puntos por mm; píxeles por mm a 300 ppp; carta en mm
   const PAPERS = { a4: [210, 297, "A4"], letter: [215.9, 279.4, "Carta (EE. UU.)"] };
-  const arts = (() => { try { return JSON.parse(localStorage.getItem("printArts")) || {}; } catch { return {}; } })();
-  const saveArts = () => { try { localStorage.setItem("printArts", JSON.stringify(arts)); } catch { /* sin espacio: se queda solo en esta sesión */ } };
+  const WEIGHTS = { thick: [0.5, "Gruesas"], normal: [0.25, "Finas"] };  // grosor de las líneas de corte (mm)
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const keep = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
+  let list = load("printList", []);  // [{ name, n, img, pid }]; img: URL de Scryfall o "custom:<clave>"
+  const customs = load("printCustom", {});  // imágenes subidas (data URL)
+  const opt = { paper: "a4", lines: "full", weight: "thick", bleed: 0, ...load("printOpt", {}) };
+  const persist = () => { keep("printList", list); keep("printOpt", opt); };
+  const srcOf = (x) => (String(x.img || "").startsWith("custom:") ? customs[x.img.slice(7)] : x.img) || "";
   // La imagen grande de Scryfall (745 × 1040, PNG) para imprimir; la "normal" es pequeña para 300 ppp
-  const hiRes = (url) => (/^https:\/\/cards\.scryfall\.io\/normal\//.test(url) ? url.replace("/normal/", "/png/").replace(/\.jpg(\?|$)/, ".png$1") : url);
+  const hiRes = (url) => (/^https:\/\/cards\.scryfall\.io\/(normal|large)\//.test(url) ? url.replace(/\/(normal|large)\//, "/png/").replace(/\.jpg(\?|$)/, ".png$1") : url);
+  const total = () => list.reduce((s, x) => s + x.n, 0);
 
-  async function printSheet(d) {
-    const opt = { paper: store("printPaper") || "a4", bleed: +(store("printBleed") ?? 1), lines: store("printLines") || "full", side: false, missing: false };
-    const cards = [];  // { name, image, qty (del mazo), have, side, n (a imprimir) }
-    for (const c of d.cards) {
-      const x = cards.find((y) => y.name === c.name && y.side === !!c.side);
-      if (x) x.qty += c.qty; else cards.push({ name: c.name, image: c.image, qty: c.qty, have: c.have || 0, side: !!c.side, basic: c.basic, n: c.basic ? 0 : c.qty });
+  async function addCards(rows) {  // rows: [[nombre, copias]]
+    for (const [name, n] of rows) {
+      const ex = list.find((x) => x.name === name);
+      if (ex) { ex.n += n; continue; }
+      const ps = await api(`/api/printings?name=${encodeURIComponent(name)}`).catch(() => []);
+      const id = ps.length ? defaultPrint({ printings: ps }) : null, p = ps.find((x) => x.id === id);
+      list.push({ name, n, img: p?.image || "", pid: id });
     }
-    const draw = () => {
-      for (const c of cards) if (c.side && !opt.side) c.n = 0;
-      const list = cards.filter((c) => opt.side || !c.side), total = list.reduce((s, c) => s + c.n, 0), [pw, ph, pname] = PAPERS[opt.paper];
-      const seg = (k, items) => `<div class="seg" data-o="${k}">${items.map(([v, n]) => `<button data-v="${v}" class="${String(opt[k]) === String(v) ? "on" : ""}">${n}</button>`).join("")}</div>`;
-      const body = openSheet(`<h3>Imprimir proxies</h3>
-        <div class="hint">Cartas a tamaño real (63 × 88 mm), 9 por hoja, con líneas de corte gruesas. Toca una carta para elegir su arte o subir una imagen tuya; con − y + eliges cuántas copias.</div>
-        <div class="field"><label>Papel</label>${seg("paper", Object.entries(PAPERS).map(([k, v]) => [k, v[2]]))}</div>
-        <div class="field"><label>Sangrado</label>${seg("bleed", [[0, "Sin"], [1, "1 mm"], [2, "2 mm"]])}
-          <div class="sub">Lo que sobresale alrededor de cada carta: así, si el corte se desvía un poco, no queda borde blanco. En la copistería suelen pedirlo.</div></div>
-        <div class="field"><label>Líneas de corte</label>${seg("lines", [["full", "Por toda la hoja"], ["marks", "Solo en los márgenes"]])}</div>
-        <div class="row-btns" style="margin-top:0"><button class="btn ${opt.missing ? "primary" : ""}" id="pr-missing">Solo lo que me falta</button>${cards.some((c) => c.side) ? `<button class="btn ${opt.side ? "primary" : ""}" id="pr-side">Con banquillo</button>` : ""}</div>
-        <div class="grid pr-grid">${list.map((c) => `<div class="gcard ${c.n ? "" : "missing"}"><img loading="lazy" src="${esc(arts[c.name] || c.image)}" alt="${esc(c.name)}" data-art="${esc(c.name)}">
-          ${arts[c.name] ? `<span class="badge full">${ico("image")}</span>` : ""}
-          <div class="mini-step"><button data-pn="${esc(c.name)}" data-s="${c.side ? 1 : 0}" data-d="-1" ${c.n ? "" : "disabled"} aria-label="Una menos">−</button><b>${c.n}</b><button data-pn="${esc(c.name)}" data-s="${c.side ? 1 : 0}" data-d="1" aria-label="Una más">+</button></div></div>`).join("")}</div>
-        <button class="btn block primary" id="pr-go" ${total ? "" : "disabled"} style="margin-top:12px">${ico("file")}Generar PDF (${total} cartas, ${Math.ceil(total / 9)} hojas ${esc(pname)})</button>
-        <div class="hint">Al imprimir, elige «Tamaño real» o «100 %» (no «Ajustar a la página»), o las cartas saldrán más pequeñas.</div>`);
-      body.querySelectorAll("[data-o]").forEach((s) => s.querySelectorAll("button").forEach((b) => (b.onclick = () => {
-        const k = s.dataset.o;
-        opt[k] = k === "bleed" ? +b.dataset.v : b.dataset.v;
-        store({ paper: "printPaper", bleed: "printBleed", lines: "printLines" }[k], String(opt[k]));
-        draw();
-      })));
-      $("#pr-missing", body).onclick = () => { opt.missing = !opt.missing; for (const c of cards) c.n = c.basic ? 0 : opt.missing ? Math.max(0, c.qty - c.have) : c.qty; draw(); };
-      $("#pr-side", body)?.addEventListener("click", () => { opt.side = !opt.side; for (const c of cards) if (c.side) c.n = opt.side ? c.qty : 0; draw(); });
-      body.querySelectorAll("[data-pn]").forEach((b) => (b.onclick = () => {
-        const c = cards.find((x) => x.name === b.dataset.pn && x.side === (b.dataset.s === "1"));
-        c.n = Math.max(0, c.n + +b.dataset.d); draw();
-      }));
-      body.querySelectorAll("[data-art]").forEach((im) => (im.onclick = () => artSheet(im.dataset.art, draw)));
-      $("#pr-go", body).onclick = () => makePdf(d.archetype, list.flatMap((c) => Array(c.n).fill(arts[c.name] || c.image)), opt);
-    };
-    draw();
+    persist();
   }
 
-  // Elegir el arte: todas las ediciones de la carta, o una imagen tuya (se recomienda 63 × 88 mm a 300 ppp: 745 × 1040 px)
-  async function artSheet(name, back) {
-    const body = openSheet(`<h3>Arte de ${esc(name)}</h3><div class="hint">Toca la edición que quieras imprimir, o sube tu propia imagen de la carta entera (mejor de 745 × 1040 px).</div>
-      <label class="btn block" for="pr-up">${ico("image")}Subir mi imagen</label><input type="file" id="pr-up" accept="image/*" hidden>
-      ${arts[name] ? `<button class="btn block" id="pr-reset" style="margin-top:8px">Volver al arte normal</button>` : ""}
-      <div class="arts pr-arts" id="pr-arts">${skeleton(2)}</div>`);
-    $("#pr-reset", body)?.addEventListener("click", () => { delete arts[name]; saveArts(); back(); });
+  /** Desde la ficha de un mazo: todo el mazo o solo lo que te falta. Lleva a la pestaña Imprimir. */
+  async function fromDeck(d, onlyMissing) {
+    if (list.length && !confirm(t("Ya tienes cartas en Imprimir. ¿Cambiarlas por las de este mazo?"))) { location.hash = "#print"; return; }
+    list = [];
+    const rows = new Map();
+    for (const c of d.cards) rows.set(c.name, (rows.get(c.name) || 0) + (onlyMissing ? (c.basic ? 0 : Math.max(0, c.qty - c.have)) : c.qty));
+    await addCards([...rows].map(([n, q]) => [n, q]));
+    list.sort((a, b) => (b.n > 0) - (a.n > 0));
+    opt.title = d.archetype; persist();
+    closeSheet();
+    if (location.hash === "#print") view(); else location.hash = "#print";
+    toast(onlyMissing ? "Lo que te falta, listo para imprimir" : "Mazo listo para imprimir");
+  }
+
+  function view() {
+    const v = $("#view"), n = total(), pages = Math.ceil(n / 9), holes = n ? (9 - (n % 9)) % 9 : 0;
+    const seg = (k, items) => `<div class="seg" data-o="${k}">${items.map(([val, label]) => `<button data-v="${val}" class="${String(opt[k]) === String(val) ? "on" : ""}">${label}</button>`).join("")}</div>`;
+    v.innerHTML = `<h2 style="margin-top:6px">${ico("print")}Imprimir proxies</h2>
+      <div class="hint">Pega una lista, busca cartas o trae un mazo desde Mazos. Toca una carta para elegir su arte (edición, tipo de arte, idioma) o subir tu imagen. Antes de descargar ves cómo quedan las hojas.</div>
+      <div class="row-btns" style="margin-top:4px"><button class="btn" id="pr-paste">${ico("list")}Pegar lista</button><button class="btn" id="pr-deck">${ico("swords")}De un mazo</button>${list.length ? `<button class="btn" id="pr-clear">${ico("trash")}Vaciar</button>` : ""}</div>
+      <input class="search" id="pr-q" placeholder="Buscar una carta para añadir…" autocomplete="off"><div class="list" id="pr-res"></div>
+      ${list.length ? `<div class="grid pr-grid">${list.map((x, i) => `<div class="gcard ${x.n ? "" : "missing"}">
+          ${srcOf(x) ? `<img loading="lazy" src="${esc(srcOf(x))}" alt="${esc(x.name)}" data-art="${i}">` : `<button class="pr-noimg" data-art="${i}">${esc(x.name)}</button>`}
+          <div class="mini-step"><button data-pn="${i}" data-d="-1" ${x.n ? "" : "disabled"} aria-label="Una menos">−</button><b>${x.n}</b><button data-pn="${i}" data-d="1" aria-label="Una más">+</button></div></div>`).join("")}</div>
+        ${holes ? `<div class="hint">${ico("warn")}En la última hoja quedan ${plural(holes, "hueco", "huecos")}: busca cartas arriba para aprovecharla.</div>` : ""}
+        <div class="field"><label>Papel</label>${seg("paper", Object.entries(PAPERS).map(([k, p]) => [k, p[2]]))}</div>
+        <div class="field"><label>Líneas de corte</label>${seg("lines", [["full", "De lado a lado de la hoja"], ["marks", "Solo en los márgenes"]])}${seg("weight", Object.entries(WEIGHTS).map(([k, w]) => [k, w[1]]))}
+          <div class="sub">Negras, rectas y entre cada carta, para que la guillotina corte recto.</div></div>
+        <details class="guide"><summary>Más opciones</summary><div class="field"><label>Sangrado</label>${seg("bleed", [[0, "Sin"], [1, "1 mm"], [2, "2 mm"]])}
+          <div class="sub">Imagen de más alrededor de cada carta (los bordes se alargan), por si el corte se desvía. Casi nunca hace falta.</div></div></details>
+        <button class="btn block primary" id="pr-go" ${n ? "" : "disabled"} style="margin-top:12px">${ico("eye")}Ver cómo queda (${plural(n, "carta", "cartas")}, ${plural(pages, "hoja", "hojas")})</button>`
+      : `<div class="empty"><strong>Aún no hay cartas para imprimir</strong>Pega una lista, busca cartas o, en Mazos, abre uno y pulsa «Imprimir».</div>`}`;
+    v.querySelectorAll("[data-o]").forEach((s) => s.querySelectorAll("button").forEach((b) => (b.onclick = () => {
+      opt[s.dataset.o] = s.dataset.o === "bleed" ? +b.dataset.v : b.dataset.v; persist(); view();
+    })));
+    v.querySelectorAll("[data-pn]").forEach((b) => (b.onclick = () => { const x = list[+b.dataset.pn]; x.n = Math.max(0, x.n + +b.dataset.d); persist(); view(); }));
+    v.querySelectorAll("[data-art]").forEach((b) => (b.onclick = () => artSheet(+b.dataset.art)));
+    $("#pr-clear", v)?.addEventListener("click", () => { if (confirm(t("¿Quitar todas las cartas de Imprimir?"))) { list = []; delete opt.title; persist(); view(); } });
+    $("#pr-paste", v).onclick = pasteSheet;
+    $("#pr-deck", v).onclick = deckPick;
+    $("#pr-go", v)?.addEventListener("click", preview);
+    let tq;
+    $("#pr-q", v).oninput = (e) => {
+      clearTimeout(tq);
+      tq = setTimeout(async () => {
+        const q = e.target.value.trim(), box = $("#pr-res", v);
+        if (q.length < 2) { box.innerHTML = ""; return; }
+        const res = (await api(`/api/search?q=${encodeURIComponent(q)}`)).slice(0, 6);
+        box.innerHTML = res.map((r) => `<button class="item" data-add="${esc(r.name)}"><img class="thumb" src="${esc(r.image || "")}" alt=""><div class="item-main"><div class="item-title">${esc(r.name)}</div></div><div class="item-side">${ico("plus")}</div></button>`).join("")
+          || `<div class="hint">No la encuentro.</div>`;
+        box.querySelectorAll("[data-add]").forEach((b) => (b.onclick = async () => { await addCards([[b.dataset.add, 1]]); toast(`${b.dataset.add} añadida`); view(); }));
+      }, 250);
+    };
+  }
+
+  function pasteSheet() {
+    const body = openSheet(`<h3>Pegar una lista</h3><div class="hint">Una carta por línea: <code>4 Lightning Bolt</code> (como en Moxfield, MTGTop8 o Arena). Se suman a las que ya hay.</div>
+      <textarea class="search" id="pr-text" rows="10" placeholder="4 Lightning Bolt&#10;20 Mountain"></textarea>
+      <div class="row-btns"><button class="btn" id="pr-cancel">Volver</button><button class="btn primary" id="pr-ok">Añadir</button></div><div id="pr-bad"></div>`);
+    $("#pr-cancel", body).onclick = closeSheet;
+    $("#pr-ok", body).onclick = async () => {
+      const r = await api("/api/parselist", { text: $("#pr-text", body).value });
+      const rows = new Map();
+      for (const [name, q] of r.cards) rows.set(name, (rows.get(name) || 0) + q);
+      await addCards([...rows]);
+      if (r.unknown.length) { $("#pr-bad", body).innerHTML = `<div class="warn">No he reconocido:<br>${r.unknown.slice(0, 15).map(esc).join("<br>")}</div>`; view(); return; }
+      closeSheet(); view(); toast(`${plural([...rows].reduce((s, [, q]) => s + q, 0), "carta añadida", "cartas añadidas")}`);
+    };
+  }
+
+  async function deckPick() {
+    const mine = await api("/api/mydecks");
+    const body = openSheet(`<h3>De un mazo</h3><div class="hint">Elige uno de tus mazos. Los del meta: ábrelos en Mazos y pulsa «Imprimir».</div>
+      ${mine.length ? `<div class="list">${mine.map((d) => `<div class="item"><div class="item-main"><div class="item-title">${esc(d.archetype)}</div></div>
+        <div class="item-side row-btns" style="margin:0"><button class="btn" data-dk="${esc(d.id)}" data-m="0">Todo</button><button class="btn" data-dk="${esc(d.id)}" data-m="1">Lo que falta</button></div></div>`).join("")}</div>`
+        : `<div class="empty"><strong>No tienes mazos guardados</strong>Ve a Mazos, abre uno y pulsa «Imprimir».</div>`}
+      <button class="btn block" id="pr-back" style="margin-top:8px">Volver</button>`);
+    $("#pr-back", body).onclick = closeSheet;
+    body.querySelectorAll("[data-dk]").forEach((b) => (b.onclick = async () => fromDeck(await api(`/api/deck?id=${encodeURIComponent(b.dataset.dk)}`), b.dataset.m === "1")));
+  }
+
+  // ---- Elegir el arte: ediciones de Scryfall filtradas por tipo de arte e idioma, o una imagen tuya
+  const KINDS = [["", "Todas"], ["-is:borderless -is:full -is:showcase -is:extendedart", "Normales"], ["is:borderless", "Sin borde"], ["is:full", "Arte completo"],
+    ["is:showcase", "Showcase"], ["is:extendedart", "Arte extendido"], ["(frame:1993 or frame:1997)", "Marco antiguo"]];
+  const LANGS = [["en", "Inglés"], ["es", "Español"], ["fr", "Francés"], ["de", "Alemán"], ["it", "Italiano"], ["pt", "Portugués"], ["ja", "Japonés"], ["ko", "Coreano"], ["ru", "Ruso"], ["zhs", "Chino simpl."], ["zht", "Chino trad."]];
+  const artPick = { kind: "", lang: load("printLang", "en") };
+  const imgOf = (c) => (c.image_uris || c.card_faces?.[0]?.image_uris)?.normal;
+  async function artSheet(i) {
+    const x = list[i];
+    const body = openSheet(`<button class="btn" id="pr-back">${ico("back")}Volver</button>
+      <h3 style="margin-top:8px">Arte de ${esc(x.name)}</h3>
+      <div class="field"><label>Tipo de arte</label><div class="seg wrap" id="pr-kind">${KINDS.map(([k, n]) => `<button data-k="${esc(k)}" class="${artPick.kind === k ? "on" : ""}">${n}</button>`).join("")}</div></div>
+      <div class="field"><label>Idioma de la carta</label><select class="lang-sel" id="pr-lang">${LANGS.map(([k, n]) => `<option value="${k}" ${artPick.lang === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+      <div class="row-btns" style="margin-top:0"><label class="btn" for="pr-up">${ico("image")}Subir mi imagen</label>${x.img?.startsWith("custom:") ? `<button class="btn" id="pr-reset">Quitar mi imagen</button>` : ""}</div>
+      <input type="file" id="pr-up" accept="image/*" hidden>
+      <div class="sub">Tu imagen: la carta entera, mejor de 745 × 1040 px (63 × 88 mm a 300 ppp).</div>
+      <div class="arts pr-arts wrap" id="pr-arts">${skeleton(2)}</div>`);
+    $("#pr-back", body).onclick = closeSheet;
+    const pick = (img, pid) => { x.img = img; if (pid) x.pid = pid; persist(); closeSheet(); view(); };
+    $("#pr-reset", body)?.addEventListener("click", async () => {
+      delete customs[x.img.slice(7)]; keep("printCustom", customs);
+      const ps = await api(`/api/printings?name=${encodeURIComponent(x.name)}`), id = ps.length ? defaultPrint({ printings: ps }) : null;
+      pick(ps.find((p) => p.id === id)?.image || "", id);
+    });
     $("#pr-up", body).onchange = async (e) => {
       const f = e.target.files[0];
       if (!f) return;
       const im = await loadImg(URL.createObjectURL(f)), s = Math.min(1, 1040 / im.height), c = document.createElement("canvas");
       c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
       c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-      arts[name] = c.toDataURL("image/jpeg", 0.92); saveArts(); toast("Imagen puesta"); back();
+      const key = `${Date.now()}`;
+      customs[key] = c.toDataURL("image/jpeg", 0.92);
+      if (!keep("printCustom", customs)) toast("No cabe para guardarla: se usará solo esta vez");
+      pick(`custom:${key}`, null); toast("Imagen puesta");
     };
-    const ps = (await api(`/api/printings?name=${encodeURIComponent(name)}`)).filter((p) => p.image);
-    $("#pr-arts", body).innerHTML = ps.map((p) => `<button class="art ${arts[name] === p.image ? "on" : ""}" data-img="${esc(p.image)}"><img loading="lazy" src="${esc(p.image)}" alt=""><span>${esc(p.set.toUpperCase())} #${esc(p.number)}</span></button>`).join("")
-      || `<div class="hint">No hay imágenes de esta carta.</div>`;
-    body.querySelectorAll("[data-img]").forEach((b) => (b.onclick = () => { arts[name] = b.dataset.img; saveArts(); back(); }));
+    const draw = async () => {
+      const box = $("#pr-arts", body);
+      box.innerHTML = skeleton(2);
+      let cards = [];
+      try {
+        const q = `!"${x.name}" ${artPick.kind} lang:${artPick.lang}`.trim();
+        const r = await fetch(`https://api.scryfall.com/cards/search?unique=prints&order=released&q=${encodeURIComponent(q)}`);
+        cards = r.ok ? (await r.json()).data.filter((c) => imgOf(c) && c.name.split(" // ")[0] === x.name.split(" // ")[0]).map((c) => ({ id: c.id, img: imgOf(c), label: `${c.set.toUpperCase()} #${c.collector_number}` })) : [];
+      } catch {  // sin internet: las ediciones que conoce la app (en inglés)
+        if (!artPick.kind && artPick.lang === "en") cards = (await api(`/api/printings?name=${encodeURIComponent(x.name)}`)).filter((p) => p.image).map((p) => ({ id: p.id, img: p.image, label: `${p.set.toUpperCase()} #${p.number}` }));
+      }
+      box.innerHTML = cards.map((c) => `<button class="art ${x.img === c.img ? "on" : ""}" data-img="${esc(c.img)}" data-id="${esc(c.id)}"><img loading="lazy" src="${esc(c.img)}" alt=""><span>${esc(c.label)}</span></button>`).join("")
+        || `<div class="hint">No hay ${artPick.kind ? "artes de ese tipo" : "imágenes"} de esta carta en ${esc(LANGS.find((l) => l[0] === artPick.lang)[1].toLowerCase())}.</div>`;
+      box.querySelectorAll("[data-img]").forEach((b) => (b.onclick = () => pick(b.dataset.img, b.dataset.id)));
+    };
+    body.querySelectorAll("#pr-kind button").forEach((b) => (b.onclick = () => { artPick.kind = b.dataset.k; body.querySelectorAll("#pr-kind button").forEach((y) => y.classList.toggle("on", y === b)); draw(); }));
+    $("#pr-lang", body).onchange = (e) => { artPick.lang = e.target.value; keep("printLang", artPick.lang); draw(); };
+    draw();
   }
 
   const loadImg = (src) => new Promise((ok, ko) => {
@@ -83,7 +175,10 @@ const Print = (() => {
   });
 
   /** Una carta a 300 ppp con su sangrado: los bordes de la imagen se estiran hacia fuera (sin bordes blancos). */
+  const jpegCache = new Map();
   async function cardJpeg(src, bleed) {
+    const k = `${bleed}|${src}`;
+    if (jpegCache.has(k)) return jpegCache.get(k);
     const im = await loadImg(hiRes(src)).catch(() => loadImg(src));
     const W = Math.round(CW * DPI_MM), H = Math.round(CH * DPI_MM), B = Math.round(bleed * DPI_MM), c = document.createElement("canvas");
     c.width = W + 2 * B; c.height = H + 2 * B;
@@ -99,36 +194,109 @@ const Print = (() => {
     }
     g.drawImage(im, B, B, W, H);
     const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.92));
-    return { w: c.width, h: c.height, bytes: new Uint8Array(await blob.arrayBuffer()) };
+    const out = { w: c.width, h: c.height, bytes: new Uint8Array(await blob.arrayBuffer()), url: URL.createObjectURL(blob) };
+    jpegCache.set(k, out);
+    return out;
   }
 
-  async function makePdf(title, srcs, opt) {
+  /** Dónde va cada carta y cada línea de corte, en mm desde arriba a la izquierda (lo usan la vista previa y el PDF). */
+  function layout(n) {
     const [PW, PH] = PAPERS[opt.paper], b = opt.bleed, cw = CW + 2 * b, ch = CH + 2 * b, x0 = (PW - 3 * cw) / 2, y0 = (PH - 3 * ch) / 2;
-    const uniq = [...new Set(srcs)], images = [];
-    try {
-      for (const [i, s] of uniq.entries()) { toast(`Preparando las imágenes: ${i + 1} de ${uniq.length}`); images.push(await cardJpeg(s, b)); }
-    } catch (e) { return toast(e.message); }
-    const f = (n) => (n * PT).toFixed(2), pages = [];
-    for (let p = 0; p < srcs.length; p += 9) {
-      const chunk = srcs.slice(p, p + 9), rows = Math.ceil(chunk.length / 3);
-      let s = "";
-      chunk.forEach((src, k) => {
-        const x = x0 + (k % 3) * cw, y = y0 + Math.floor(k / 3) * ch;
-        s += `q ${f(cw)} 0 0 ${f(ch)} ${f(x)} ${f(PH - y - ch)} cm /Im${uniq.indexOf(src)} Do Q\n`;
-      });
-      // Líneas de corte: en cada borde de carta, de lado a lado de la hoja o solo en los márgenes
-      const cols = Math.min(3, chunk.length), xs = [], ys = [];
-      for (let c = 0; c < cols; c++) xs.push(x0 + c * cw + b, x0 + c * cw + b + CW);
-      for (let r = 0; r < rows; r++) ys.push(y0 + r * ch + b, y0 + r * ch + b + CH);
-      const gx0 = x0, gx1 = x0 + cols * cw, gy0 = y0, gy1 = y0 + rows * ch, seg = (ax, ay, bx, by) => `${f(ax)} ${f(PH - ay)} m ${f(bx)} ${f(PH - by)} l S\n`;
-      s += `0 0 0 RG ${f(LINE)} w\n`;
-      for (const x of [...new Set(xs.map((v) => v.toFixed(3)))].map(Number)) s += opt.lines === "full" ? seg(x, 0, x, PH) : seg(x, 0, x, gy0 - 1) + seg(x, gy1 + 1, x, PH);
-      for (const y of [...new Set(ys.map((v) => v.toFixed(3)))].map(Number)) s += opt.lines === "full" ? seg(0, y, PW, y) : seg(0, y, gx0 - 1, y) + seg(gx1 + 1, y, PW, y);
-      pages.push({ content: s, used: [...new Set(chunk.map((src) => uniq.indexOf(src)))] });
+    const pages = [];
+    for (let p = 0; p < n; p += 9) {
+      const k = Math.min(9, n - p), rows = Math.ceil(k / 3), cols = Math.min(3, k), cells = [], lines = [];
+      for (let i = 0; i < k; i++) cells.push([x0 + (i % 3) * cw, y0 + Math.floor(i / 3) * ch, cw, ch]);
+      const xs = new Set(), ys = new Set();
+      for (let c = 0; c < cols; c++) { xs.add(+(x0 + c * cw + b).toFixed(3)); xs.add(+(x0 + c * cw + b + CW).toFixed(3)); }
+      for (let r = 0; r < rows; r++) { ys.add(+(y0 + r * ch + b).toFixed(3)); ys.add(+(y0 + r * ch + b + CH).toFixed(3)); }
+      const gx1 = x0 + cols * cw, gy1 = y0 + rows * ch;
+      for (const x of xs) lines.push(...(opt.lines === "full" ? [[x, 0, x, PH]] : [[x, 0, x, y0 - 1], [x, gy1 + 1, x, PH]]));
+      for (const y of ys) lines.push(...(opt.lines === "full" ? [[0, y, PW, y]] : [[0, y, x0 - 1, y], [gx1 + 1, y, PW, y]]));
+      pages.push({ cells, lines, from: p });
     }
-    const name = `${String(title || "mazo").replace(/[^\p{L}\p{N} _-]+/gu, "").trim() || "mazo"} - proxies.pdf`;
-    await saveFile(name, buildPdf(PW * PT, PH * PT, images, pages), "application/pdf");
-    toast(`PDF listo: ${srcs.length} cartas en ${pages.length} hojas`);
+    return { PW, PH, pages };
+  }
+
+  async function preview() {
+    const srcs = list.flatMap((x) => Array(x.n).fill(srcOf(x))).filter(Boolean);
+    if (srcs.length < total()) return toast("Hay cartas sin imagen: tócalas y elige un arte");
+    const body = openSheet(`<h3>Cómo quedará</h3><div class="hint" id="pv-msg">Preparando las imágenes…</div><div id="pv-pages"></div>`);
+    const uniq = [...new Set(srcs)], imgs = new Map();
+    try {
+      for (const [i, s] of uniq.entries()) { $("#pv-msg", body).textContent = t(`Preparando las imágenes: ${i + 1} de ${uniq.length}`); imgs.set(s, await cardJpeg(s, opt.bleed)); }
+    } catch (e) { $("#pv-msg", body).textContent = e.message; return; }
+    const L = layout(srcs.length), S = 3, lw = WEIGHTS[opt.weight][0];  // vista previa: 3 px por mm
+    const pageImgs = [];
+    for (const pg of L.pages) {
+      const c = document.createElement("canvas"), g = c.getContext("2d");
+      c.width = L.PW * S; c.height = L.PH * S;
+      g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+      for (const [k, [x, y, w, h]] of pg.cells.entries()) g.drawImage(await loadImg(imgs.get(srcs[pg.from + k]).url), x * S, y * S, w * S, h * S);
+      g.strokeStyle = "#000"; g.lineWidth = Math.max(1, lw * S);
+      for (const [ax, ay, bx, by] of pg.lines) { g.beginPath(); g.moveTo(ax * S, ay * S); g.lineTo(bx * S, by * S); g.stroke(); }
+      pageImgs.push(c.toDataURL("image/jpeg", 0.8));
+    }
+    const holes = (9 - (srcs.length % 9)) % 9;
+    $("#pv-msg", body).innerHTML = `${plural(srcs.length, "carta", "cartas")} en ${plural(L.pages.length, "hoja", "hojas")} ${esc(PAPERS[opt.paper][2])}${holes ? ` · quedan ${plural(holes, "hueco", "huecos")} en la última` : ""}. Al imprimir, elige «Tamaño real» o «100 %» (no «Ajustar a la página»).`;
+    $("#pv-pages", body).innerHTML = `${pageImgs.map((u, i) => `<div class="pv-page"><img src="${u}" alt="Hoja ${i + 1}"><span>Hoja ${i + 1}</span></div>`).join("")}
+      <div class="row-btns"><button class="btn" id="pv-back">Volver y cambiar</button><button class="btn primary" id="pv-dl">${ico("export")}Descargar PDF</button></div>`;
+    $("#pv-back", body).onclick = closeSheet;
+    $("#pv-dl", body).onclick = async () => {
+      const images = uniq.map((s) => imgs.get(s)), f = (n) => (n * PT).toFixed(2), lwPt = (lw * PT).toFixed(2);
+      const pages = L.pages.map((pg) => {
+        let s = "";
+        pg.cells.forEach(([x, y, w, h], k) => { s += `q ${f(w)} 0 0 ${f(h)} ${f(x)} ${f(L.PH - y - h)} cm /Im${uniq.indexOf(srcs[pg.from + k])} Do Q\n`; });
+        s += `0 0 0 RG ${lwPt} w 0 J\n`;  // negro puro
+        for (const [ax, ay, bx, by] of pg.lines) s += `${f(ax)} ${f(L.PH - ay)} m ${f(bx)} ${f(L.PH - by)} l S\n`;
+        return { content: s, used: [...new Set(pg.cells.map((_, k) => uniq.indexOf(srcs[pg.from + k])))] };
+      });
+      const title = String(opt.title || "").replace(/[^\p{L}\p{N} _-]+/gu, "").trim(), name = title ? `${title} - proxies.pdf` : "proxies.pdf";
+      const where = await savePdf(name, buildPdf(L.PW * PT, L.PH * PT, images, pages));
+      if (where) afterDownload(where, name);
+    };
+  }
+
+  // Guardar: en el móvil, en Documentos/Gather in One (y se dice dónde); en el navegador, se descarga
+  async function savePdf(name, bytes) {
+    const N = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins : null;
+    if (N?.Filesystem) {
+      let b64 = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) b64 += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      try {
+        const w = await N.Filesystem.writeFile({ path: `Gather in One/${name}`, data: btoa(b64), directory: "DOCUMENTS", recursive: true });
+        return { label: `Documentos › Gather in One › ${name}`, uri: w.uri };
+      } catch {
+        await saveFile(name, bytes, "application/pdf");  // si Android no deja escribir en Documentos: «Compartir» para guardarlo donde quieras
+        return { label: "donde lo hayas guardado desde «Compartir»" };
+      }
+    }
+    await saveFile(name, bytes, "application/pdf");
+    return { label: "tu carpeta de Descargas" };
+  }
+
+  function afterDownload(where, name) {
+    const body = openSheet(`<h3>PDF guardado</h3><div class="hint">Está en <b>${esc(where.label)}</b>.</div>
+      ${where.uri && window.Capacitor?.Plugins?.Share ? `<button class="btn block" id="pd-share">${ico("export")}Abrir o compartir</button>` : ""}
+      <h2>¿Añadir estas cartas a tu colección como proxies?</h2>
+      <div class="hint">Así cuentan para montar tus mazos, pero no suman al valor de tu colección.</div>
+      <div class="row-btns"><button class="btn" id="pd-no">No</button><button class="btn primary" id="pd-yes">Sí, como proxies</button></div>`);
+    $("#pd-share", body)?.addEventListener("click", () => window.Capacitor.Plugins.Share.share({ title: name, files: [where.uri] }).catch(() => {}));
+    $("#pd-no", body).onclick = closeSheet;
+    $("#pd-yes", body).onclick = async () => {
+      let n = 0;
+      for (const x of list.filter((y) => y.n)) {
+        try {
+          let id = x.pid;
+          const ps = await api(`/api/printings?name=${encodeURIComponent(x.name)}`);
+          if (!ps.some((p) => p.id === id)) id = ps.length ? defaultPrint({ printings: ps }) : null;  // arte en otro idioma: la edición normal
+          if (!id) continue;
+          await api("/api/collection", { c: 1, card_id: id, foil: false, qty: x.n });
+          await api("/api/proxy", { c: 1, card_id: id, foil: false, delta: x.n });
+          n += x.n;
+        } catch { /* carta que la app no conoce */ }
+      }
+      closeSheet(); loadSummary(); toast(`${plural(n, "proxy añadido", "proxies añadidos")} a tu colección`);
+    };
   }
 
   /** PDF 1.4 mínimo: catálogo, páginas, imágenes JPEG (DCTDecode) y el dibujo de cada página. */
@@ -158,5 +326,7 @@ const Print = (() => {
     return out;
   }
 
-  return { printSheet, buildPdf };
+  return { view, fromDeck, buildPdf, layout };
 })();
+
+views.print = () => Print.view();

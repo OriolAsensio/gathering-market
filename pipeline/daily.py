@@ -45,7 +45,8 @@ def main():
     if weekly or "precons" not in tables or old_precons:
         steps.append(("mazos preconstruidos", precons.main))
     steps.append(("combos", combos.main))  # en cada vuelta (~1 min): los combos nuevos llegan enseguida
-    if weekly or "foreign_names" not in tables:
+    missing_langs = "foreign_names" in tables and foreign_names.LANGS - {r[0] for r in conn.execute("SELECT DISTINCT lang FROM foreign_names")}
+    if weekly or "foreign_names" not in tables or missing_langs:  # también si se añade un idioma nuevo
         steps.append(("nombres en otros idiomas", foreign_names.main))
     steps += [
              ("meta pauper", pauper_meta.main), ("torneos", tournaments.main), ("anuncios de baneos", ban_dates.main), ("avisos", alerts.main),

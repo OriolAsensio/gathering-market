@@ -7,7 +7,7 @@ const euro = (v) => (v == null ? "—" : v.toLocaleString("es-ES", { style: "cur
 const pct = (v) => `${v > 0 ? "+" : ""}${v.toLocaleString("es-ES", { maximumFractionDigits: 1 })}%`;
 // Iconos propios (app/icons/*.png, pintados con el color del tema).
 // Iconos: los de línea del sprite de index.html (SVG) o las máscaras PNG de Flaticon (app/icons). Nada de emojis.
-const SVG_ICONS = new Set(["crest", "camera", "cards", "tome", "swords", "scales", "horn", "heart", "clock", "file", "list", "select", "check", "close", "trash", "hammer", "scroll", "cart", "palette", "dice", "image", "link", "edit", "mask", "mug", "scale", "target", "globe", "sparkle", "bolt", "warn", "book", "save", "crown", "search", "calendar", "medal", "cloud", "bell", "lock", "eye", "export", "refresh", "skull", "sword", "gear", "reset", "shuffle", "sound", "mute", "coin", "cam", "torch", "fire", "undo", "plus2", "chart", "sun", "moon"]);
+const SVG_ICONS = new Set(["crest", "camera", "cards", "tome", "swords", "scales", "horn", "heart", "clock", "file", "list", "select", "check", "close", "trash", "hammer", "scroll", "cart", "palette", "dice", "image", "link", "edit", "mask", "mug", "scale", "target", "globe", "sparkle", "bolt", "warn", "book", "save", "crown", "search", "calendar", "medal", "cloud", "bell", "lock", "eye", "export", "refresh", "skull", "sword", "gear", "reset", "shuffle", "sound", "mute", "coin", "cam", "torch", "fire", "undo", "plus2", "chart", "sun", "moon", "print", "back"]);
 const ico = (name) => (SVG_ICONS.has(name) ? `<svg class="ico svg" aria-hidden="true"><use href="#i-${name}"/></svg>` : `<i class="ico ico-${name}" aria-hidden="true"></i>`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 // Todos los precios son de Cardmarket (en euros), vía Scryfall.
@@ -731,6 +731,25 @@ const deckCard = (d) => `
 const META_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage", PREM: "Premodern",
   PEA: "Peasant", DC: "Duel Commander", cEDH: "cEDH", HIGH: "Highlander", CHL: "Canadian Highlander", EXP: "Explorer", HI: "Historic",
   VV: "Value Vintage", DAN: "Dandân" };
+// Qué es cada formato (se ve arriba de sus mazos)
+const FORMAT_INFO = {
+  PAU: "Pauper: solo cartas que han salido como comunes (en papel o en MTGO). Mazos de 60 cartas y 15 de banquillo, máximo 4 copias. Barato y muy competitivo.",
+  ST: "Estándar: solo las colecciones de los últimos años (rotan cada año). 60 cartas, 15 de banquillo, máximo 4 copias. El formato de los torneos oficiales de tienda.",
+  MO: "Modern: cartas de Octava Edición (2003) en adelante, con su lista de prohibidas. 60 cartas, 15 de banquillo, máximo 4 copias. Potente y muy variado.",
+  PI: "Pioneer: colecciones desde Return to Ravnica (2012). 60 cartas, 15 de banquillo, máximo 4 copias. Entre Estándar y Modern.",
+  LE: "Legacy: casi todas las cartas de la historia, con su lista de prohibidas. 60 cartas, 15 de banquillo, máximo 4 copias. Muy rápido y con mucha interacción.",
+  VI: "Vintage: todas las cartas; las más potentes (Black Lotus, Moxen…) están restringidas a 1 copia. 60 cartas, 15 de banquillo.",
+  PREM: "Premodern: cartas de Cuarta Edición a Scourge (1995-2003), con marco antiguo. 60 cartas, 15 de banquillo, máximo 4 copias. Magic «de los de antes».",
+  PEA: "Peasant: solo comunes y poco comunes. 60 cartas, 15 de banquillo, máximo 4 copias. Un paso por encima de Pauper.",
+  DC: "Duel Commander: Commander a 1 contra 1, con 20 vidas. 100 cartas, todas distintas salvo tierras básicas, y un comandante legendario.",
+  cEDH: "cEDH: Commander competitivo a 4 jugadores. 100 cartas sin repetir y un comandante; se juega a ganar lo antes posible, con combos y mucha interacción.",
+  HIGH: "Highlander (europeo): 100 cartas, una copia de cada una (salvo básicas), sin comandante. Cartas de Vintage con una lista de puntos que limita las más fuertes.",
+  CHL: "Canadian Highlander: 100 cartas, una copia de cada una, sin comandante. Las cartas más fuertes cuestan puntos y solo puedes gastar 10.",
+  EXP: "Explorer: el formato de MTG Arena parecido a Pioneer (solo cartas que están en Arena). 60 cartas, 15 de banquillo, máximo 4 copias.",
+  HI: "Historic: formato de MTG Arena con todas las cartas de Arena (también las digitales). 60 cartas, 15 de banquillo, máximo 4 copias.",
+  VV: "Value Vintage: cartas de Vintage, pero el mazo entero con banquillo cuesta como máximo 30 $. Formato de la comunidad.",
+  DAN: "Dandân (Forgetful Fish): los dos jugadores comparten una única biblioteca y cementerio de 80 cartas. Más juego de mesa que torneo.",
+};
 // Formatos sin meta de torneo: mazos de ejemplo (y sus normas)
 const EXAMPLE_FORMATS = {
   VV: "Value Vintage: cartas de Vintage, pero el mazo entero (con banquillo) cuesta como máximo 30 $. Formato de la comunidad (vvmtg.com), sin meta publicado: aquí tienes listas de ejemplo.",
@@ -793,7 +812,7 @@ views.decks = async () => {
     const BUILD_FMT = { pauper: "PAU", standard: "ST" }, rogue = state.deckSort === "rogue";
     const list = rogue ? [...decks.filter((d) => d.format === tab && d.category === "Rogue"), ...mine.filter((d) => (BUILD_FMT[d.format] || d.format) === tab)]
       : decks.filter((d) => d.format === tab && d.category !== "Rogue");
-    body.innerHTML = `${viewSeg}<div class="hint">${EXAMPLE_FORMATS[tab] ? EXAMPLE_FORMATS[tab] : tab === "PAU"
+    body.innerHTML = `${viewSeg}${FORMAT_INFO[tab] && !EXAMPLE_FORMATS[tab] ? `<div class="format-info">${ico("book")}${esc(FORMAT_INFO[tab])}</div>` : ""}<div class="hint">${EXAMPLE_FORMATS[tab] ? EXAMPLE_FORMATS[tab] : tab === "PAU"
       ? `De cada arquetipo, la lista mejor clasificada (la ganadora si la hay) de los últimos 2 meses en MTGTop8. "Weenie White" es el mono blanco (Convoke, Kor Skyfisher…).`
       : `Los arquetipos más jugados de ${META_FORMATS[tab]} en MTGTop8 y, de cada uno, la lista mejor clasificada (la ganadora si la hay).`}</div>
       <div class="seg" id="deck-sort">
@@ -882,14 +901,16 @@ const PLAY_WHERE = ["Endstep", "En un torneo", "MTGO (Magic Online)", "MTGA (Mag
 /* Tras enviar la reseña de un mazo de prueba: sale de "Mazos para probar" y eliges qué hacer con él.
  * Guardar → "Mis mazos". Rehacer → el constructor con sus cartas base y el nivel que elijas (más o menos potente); el viejo
  * se borra (sus reseñas se quedan para que el constructor aprenda). Borrar → fuera (también se quedan las reseñas). */
-function afterReview(d, id) {
+function afterReview(d, id, done = false) {
   const b = d.built || {}, lvl = +b.power || 3;
   const body = openSheet(`<h3>¿Qué hacemos con ${esc(d.archetype)}?</h3>
-    <div class="hint">Tu reseña ya está guardada: el creador de mazos aprende de ella aunque borres el mazo.</div>
+    <div class="hint">${done && !d.results?.length ? "Sin reseña: si la escribes antes, el creador de mazos aprende de ella." : "Tu reseña ya está guardada: el creador de mazos aprende de ella aunque borres el mazo."}</div>
     <button class="btn block primary" id="ar-keep">${ico("folder")}Me gusta: guardarlo en Mis mazos</button>
     ${b.seeds?.length ? `<h2>Rehacer el mazo</h2><div class="hint">Con las mismas cartas base y lo aprendido de tu reseña.</div>
     <div class="row-btns" style="margin-top:0">${lvl > 1 ? `<button class="btn" data-lvl="${lvl - 1}">${ico("down")}Menos potente</button>` : ""}<button class="btn" data-lvl="${lvl}">Igual</button>${lvl < 6 ? `<button class="btn" data-lvl="${lvl + 1}">${ico("up")}Más potente</button>` : ""}</div>` : ""}
-    <button class="btn block" id="ar-del" style="margin-top:12px">No me gusta: borrarlo</button>`);
+    <button class="btn block" id="ar-del" style="margin-top:12px">No me gusta: borrarlo</button>
+    ${done ? `<button class="btn block" id="ar-more" style="margin-top:8px">Seguir probándolo</button>` : ""}`);
+  $("#ar-more", body)?.addEventListener("click", () => deckSheet(id));
   $("#ar-keep", body).onclick = async () => { await api("/api/mydecks", { keep: id }); store("deckTab", "mine"); toast("Guardado en Mis mazos"); closeSheet(); render(); };
   $("#ar-del", body).onclick = async () => { await api("/api/mydecks", { delete: id }); toast("Mazo borrado (la reseña se queda)"); closeSheet(); render(); };
   body.querySelectorAll("[data-lvl]").forEach((x) => (x.onclick = async () => {
@@ -941,8 +962,8 @@ async function deckSheet(id, keep = null) {
     <h2>Compartir el mazo</h2>
     <div class="row-btns"><button class="btn" id="dk-img">${ico("image")}Como imagen</button><button class="btn" id="dk-link">${ico("link")}Como enlace</button></div>
     <h2>Imprimir proxies</h2>
-    <div class="hint">Un PDF para imprimir el mazo a tamaño real, con líneas de corte bien visibles y el arte que elijas.</div>
-    <button class="btn block" id="dk-pdf">${ico("file")}Generar PDF para imprimir</button>
+    <div class="hint">Lo lleva a la pestaña Imprimir: eliges los artes, ves cómo quedan las hojas y descargas el PDF.</div>
+    <div class="row-btns" style="margin-top:0"><button class="btn" id="dk-pdf">${ico("print")}Todo el mazo</button><button class="btn" id="dk-pdf-miss" ${missing.length ? "" : "disabled"}>${ico("print")}Lo que me falta</button></div>
     ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
       ${d.built?.level ? `<div class="item-meta">Creado con: <span class="chip gold">${esc(String(d.built.level).replace(/^[^\p{L}]+/u, ""))}</span><span class="chip">${esc(d.built.archetype || "")}</span>${d.built.combo ? '<span class="chip">combo</span>' : ""}</div>` : ""}
       <div class="hint">Juégalo 3 partidas como mínimo (las que quieras) y apunta cuántas has jugado, cuántas has ganado y una frase sobre cómo ha ido el gameplay. El creador de mazos aprende de estas reseñas.</div>
@@ -952,6 +973,8 @@ async function deckSheet(id, keep = null) {
         <select class="lang-sel" id="tr-where">${PLAY_WHERE.map((w) => `<option>${w}</option>`).join("")}</select></div>
       <textarea class="search" id="tr-note" rows="6" maxlength="5000" placeholder="Cómo has visto el gameplay: qué funcionó, qué faltó (p. ej. pocas tierras, le falta robo…)"></textarea>
       <button class="btn block primary" id="tr-save" style="margin-top:6px">Guardar resultado</button>
+      <button class="btn block" id="tr-done" style="margin-top:8px">${ico("check")}Ya lo he probado</button>
+      <div class="hint">Cuando no quieras probarlo más: te pregunta si lo pasas a Mis mazos (con sus resultados y lo que escribiste) o lo borras.</div>
       ${d.results.length ? `<div class="list" style="margin-top:8px">${d.results.map((r) => `<div class="item"><div class="item-main"><div class="item-title">${r.wins}/${r.games} ganadas${r.where ? ` · ${esc(r.where)}` : ""}</div>
         <div class="item-meta">${esc(r.day)}${r.note ? ` · ${esc(r.note)}` : ""}</div></div></div>`).join("")}</div>` : ""}` : ""}
     ${d.mine ? `<button class="btn block" id="deck-edit" style="margin-top:8px">${ico("edit")}Editar la lista</button>` : ""}
@@ -995,7 +1018,8 @@ async function deckSheet(id, keep = null) {
   $("#dk-hand", body).onclick = () => Play.handSheet(d);
   $("#dk-prob", body).onclick = () => Play.probSheet(d);
   $("#dk-img", body).onclick = () => shareDeckImage(d, main, side);
-  $("#dk-pdf", body).onclick = () => Print.printSheet(d);
+  $("#dk-pdf", body).onclick = () => Print.fromDeck(d, false);
+  $("#dk-pdf-miss", body).onclick = () => Print.fromDeck(d, true);
   $("#dk-link", body).onclick = async () => shareText(d.archetype, `${d.archetype}: ${await deckLink(d, main, side)}`);
   $("#deck-all", body).onclick = async () => {
     const add = [...need.entries()].filter(([, x]) => x.have < x.qty).map(([n, x]) => [n, x.qty - x.have]);
@@ -1013,6 +1037,12 @@ async function deckSheet(id, keep = null) {
     await api("/api/mydecks", { result: { id, wins, games, where: $("#tr-where", body).value, note } });
     toast("Resultado guardado");
     afterReview(d, id);
+  });
+  $("#tr-done", body)?.addEventListener("click", async () => {
+    // Si has escrito una reseña y no la has guardado, se guarda antes de decidir
+    const games = +$("#tr-games", body).value, wins = +$("#tr-wins", body).value, note = $("#tr-note", body).value.trim();
+    if (note.length >= 5 && games >= 3 && wins <= games) await api("/api/mydecks", { result: { id, wins, games, where: $("#tr-where", body).value, note } });
+    afterReview(d, id, true);
   });
   $("#deck-edit", body)?.addEventListener("click", () => {
     const listOf = (cs) => cs.map((c) => `${c.qty} ${c.name}`).join("\n");
@@ -1978,11 +2008,11 @@ views.alerts = async () => {
   $("#alert-dot").hidden = true;
   // Dos pestañas: precios de cartas, y baneos y eventos (anuncios de baneos, torneos grandes, colecciones, meta)
   const tab = store("alertTab") || "price";
-  const shown = events.filter((e) => (tab === "price") === (e.kind === "price" || e.kind === "wish"));  // los deseos, con los precios
+  const shown = events.filter((e) => (tab === "price") === (e.kind === "price" || e.kind === "wish" || e.kind === "spike"));  // los deseos y las subidas fuertes, con los precios
   v.innerHTML = `<h2>Avisos</h2>
     <div class="seg" id="al-tab"><button data-t="price" class="${tab === "price" ? "on" : ""}">${ico("up")}Precios de cartas</button><button data-t="events" class="${tab === "events" ? "on" : ""}">${ico("trophy")}Baneos y eventos</button></div>
     ${tab === "price" ? `<div class="alert-set" id="al-set"></div>` : ""}
-    <div class="hint">${tab === "price" ? "Cartas tuyas que suben o bajan mucho, y cartas de los mazos top de Pauper que se mueven." : "Baneos de todos los formatos y la fecha del próximo anuncio, ganadores de torneos grandes (Paupergeddon, Super Pauper, RCQ, Mundial), colecciones nuevas y cambios en el meta."} Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
+    <div class="hint">${tab === "price" ? "Cartas tuyas que suben o bajan mucho, cartas de los mazos top de Pauper que se mueven y cualquier carta que se dispara (más de un 25 % y 2 €)." : "Baneos de todos los formatos y la fecha del próximo anuncio, ganadores de torneos grandes (Paupergeddon, Super Pauper, RCQ, Mundial), colecciones nuevas y cambios en el meta."} Se revisan dos veces al día; en Android te llegan al móvil aunque la app esté cerrada.</div>
     ${shown.length ? `<div class="list">${shown.map((e) => `<div class="event"><div class="t">${evTitle(e.title)}</div>${e.body ? `<div class="b">${esc(e.body).replace(/\n/g, "<br>")}</div>` : ""}<div class="d">${esc(e.day)}</div></div>`).join("")}</div>`
       : `<div class="empty"><strong>Sin avisos todavía</strong>Cuando haya un baneo, una colección nueva o una carta tuya se mueva más de un 10%, aparecerá aquí y en el móvil.</div>`}`;
   v.querySelectorAll("#al-tab button").forEach((b) => (b.onclick = () => { store("alertTab", b.dataset.t); views.alerts(); }));
@@ -2041,7 +2071,9 @@ function refresh() {
 // ---------- escáner en vivo (cámara + OCR en el móvil con Tesseract.js) ----------
 const TESS = window.GM_CONFIG?.tesseractBase;
 // AUTO: nombre en inglés, español, francés, alemán, italiano, portugués o japonés, sin elegir.
-const SCAN_LANGS = [["auto", "eng", "AUTO"], ["en", "eng", "EN"], ["es", "spa", "ES"], ["fr", "fra", "FR"], ["ja", "jpn", "JA"]];
+const SCAN_LANGS = [["auto", "eng", "AUTO"], ["en", "eng", "EN"], ["es", "spa", "ES"], ["fr", "fra", "FR"], ["de", "deu", "DE"], ["it", "ita", "IT"], ["pt", "por", "PT"],
+  ["ja", "jpn", "JA"], ["ko", "kor", "KO"], ["ru", "rus", "RU"], ["zhs", "chi_sim", "简"], ["zht", "chi_tra", "繁"]];
+const NON_LATIN = new Set(["ja", "ko", "ru", "zhs", "zht"]);  // el lector del móvil (ML Kit) solo lee alfabeto latino: estos, con Tesseract
 const ocrWorkers = {};  // el título en el idioma de la carta, la línea inferior siempre en inglés
 async function getWorker(lang = "eng", slot = lang, psm = 0) {
   if (!window.Tesseract) {
@@ -2132,7 +2164,7 @@ async function startScan() {
     camSharp: {}, backToBest: false, blurSince: 0, sharpMax: 0, camSince: Date.now() });
   document.documentElement.classList.add("lock");
   status("Preparando el lector…");
-  (nativeOcr() && scanLang()[0] !== "ja" ? Promise.resolve()
+  (nativeOcr() && !NON_LATIN.has(scanLang()[0]) ? Promise.resolve()
     : Promise.all([getWorker(scanLang()[1], `title:${scanLang()[1]}`, 6), getWorker("eng", "bottom", 6), getWorker(scanLang()[1], `whole:${scanLang()[1]}`, 11)]))
     .then(() => status(canFocus(S.stream) ? "Apunta a la carta (no hace falta encajarla en el marco) · toca para enfocar"
       : "Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)")).catch((e) => status(e.message));
@@ -2267,15 +2299,15 @@ function setupCameraControls(video) {
   }
   if (caps.focusDistance && modes.includes("manual")) {
     const fd = caps.focusDistance;
-    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">${ico("target")}<input type="range" id="scan-focus" min="${fd.min}" max="${fd.max}" step="${fd.step || (fd.max - fd.min) / 50}" value="${track.getSettings().focusDistance ?? fd.min}"></label>
-      ${modes.includes("continuous") ? `<button class="btn" id="scan-af">AF</button>` : ""}`);
+    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom"><span>Enfoque</span><input type="range" id="scan-focus" min="${fd.min}" max="${fd.max}" step="${fd.step || (fd.max - fd.min) / 50}" value="${track.getSettings().focusDistance ?? fd.min}"></label>
+      ${modes.includes("continuous") ? `<button class="btn" id="scan-af">Enfoque auto</button>` : ""}`);
     $("#scan-focus").oninput = (e) => apply({ focusMode: "manual", focusDistance: +e.target.value });
     $("#scan-af")?.addEventListener("click", () => { apply({ focusMode: "continuous" }); toast("Enfoque automático"); });
   }
   if (caps.zoom && caps.zoom.max > caps.zoom.min) {
     const z0 = Math.min(caps.zoom.max, Math.max(caps.zoom.min, +(store("scanZoom") || 1.6)));
     apply({ zoom: z0 });
-    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom">${ico("search")}<input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${z0}"></label>`);
+    bar.insertAdjacentHTML("beforeend", `<label class="scan-zoom"><span>Zoom</span><input type="range" id="scan-zoomr" min="${caps.zoom.min}" max="${Math.min(caps.zoom.max, 5)}" step="${caps.zoom.step || 0.1}" value="${z0}"></label>`);
     $("#scan-zoomr").oninput = (e) => { apply({ zoom: +e.target.value }); store("scanZoom", e.target.value); };
   }
   if (!canFocus(S.stream)) status("Esta cámara no enfoca: prueba «Cámara» o «Foto» (usa el enfoque del móvil)");
@@ -2357,7 +2389,7 @@ async function scanTick() {
     // de más (antes, en AUTO, también el japonés, que en el móvil tardaba muchísimo en cargar y bloqueaba el escáner).
     const wc = lang === "auto" || lang === "en" ? "eng" : code;
     const timeout = new Promise((_, no) => setTimeout(() => no(new Error("lento")), 12000));
-    const ocr = lang !== "ja" && nativeOcr();
+    const ocr = !NON_LATIN.has(lang) && nativeOcr();
     if (ocr) {
       lines = await nativeLines(ocr).catch((e) => { S.noNative = true; console.warn("Lector nativo:", e); return []; });
     } else if (S.n % 3 === 0) {
@@ -2377,6 +2409,7 @@ async function scanTick() {
       S.misses = 0;
       S.readAt = Date.now();  // esta cámara lee algo: no cambiarla
       S.seen = [...(S.seen || []), top.name].slice(-4);
+      S.seenLang = [...(S.seenLang || []), [top.name, top.lang || "en"]].slice(-6);
       S.hits = S.seen.filter((n) => n === top.name).length;
       S.last = top.name;
       status(`Leyendo… ${top.name}`);
@@ -2385,6 +2418,14 @@ async function scanTick() {
       if (S.hits >= 2 || top.best || top.score >= 1.05) {
         const cam = S.stream?.getVideoTracks()[0].getSettings().deviceId;
         if (cam) store("scanCam", cam);  // esta cámara lee: la próxima vez se abre directamente
+        // Idioma: el que hayas elegido arriba; en AUTO, el que más se ha leído en las últimas lecturas de esta carta
+        // (una sola lectura rara ya no lo cambia). Empate: gana el que no es inglés (un nombre extranjero es más claro).
+        if (lang !== "auto") top.lang = lang;
+        else {
+          const votes = {};
+          for (const [n, l] of S.seenLang) if (n === top.name) votes[l] = (votes[l] || 0) + 1;
+          top.lang = Object.entries(votes).sort((a, b) => b[1] - a[1] || (a[0] === "en") - (b[0] === "en"))[0]?.[0] || top.lang;
+        }
         if (S.burstOn) burstAdd(m); else showScanResult(m);
       }
     } else {
@@ -2925,7 +2966,7 @@ async function boot() {
       $("#boot-bar") && ($("#boot-bar").style.width = `${Math.round((p || 0) * 100)}%`);
     });
     // En Android, la tarea en segundo plano ya avisa de los precios: aquí solo lo demás (colecciones que salen hoy…)
-    for (const a of r.alerts) if (!(Runner && (a.kind === "price" || a.kind === "wish"))) notifyLocal(a);  // en Android ya avisa la tarea en segundo plano
+    for (const a of r.alerts) if (!(Runner && (a.kind === "price" || a.kind === "wish" || a.kind === "spike"))) notifyLocal(a);  // en Android ya avisa la tarea en segundo plano
     if (r.offline) toast("Sin conexión: usando los últimos precios guardados");
     await unlock();
   } catch (err) {

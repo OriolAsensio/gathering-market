@@ -3108,7 +3108,7 @@ const Engine = (() => {
     "/api/mydecks": myDecks, "/api/predictions": predictions, "/api/newsets": newSets, "/api/setsynergy": setSynergy,
     "/api/cardsynergy": cardSynergy, "/api/seedhelp": seedHelp,"/api/profile": profile, "/api/medals": medals, "/api/exportcsv": exportCsv, "/api/alterestimate": alterEstimateRoute, "/api/watch": watchList, "/api/staples": staples };
   const POST = { "/api/match": match, "/api/collection": collectionAdd, "/api/import": importCards,
-    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost, "/api/alertprefs": alertPrefsPost, "/api/reserve": reservePost, "/api/move": moveCards };
+    "/api/collections": collectionsPost, "/api/sets": setsPin, "/api/mydecks": myDecksPost, "/api/owncards": ownCards, "/api/proxy": proxyPost, "/api/profile": profilePost, "/api/alter": alterPost, "/api/preconown": preconOwn, "/api/lang": langPost, "/api/watch": watchPost, "/api/alertprefs": alertPrefsPost, "/api/reserve": reservePost, "/api/parselist": ({ text }) => parseDeck(text || ""), "/api/move": moveCards };
 
   async function call(path, body) {
     if (!loaded) throw new Error("Los datos aún no están cargados");

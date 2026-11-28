@@ -30,7 +30,7 @@ for (const f of ["tesseract-core-lstm.wasm.js", "tesseract-core-simd-lstm.wasm.j
   cpSync(join(nm, "tesseract.js-core", f), join(tess, "core", f));
 }
 // Descomprimido: Android quita la extensión .gz de los archivos del APK y Tesseract no lo encontraría.
-for (const lang of ["eng", "spa", "fra", "jpn"]) {  // inglés, español, francés, japonés
+for (const lang of ["eng", "spa", "fra", "jpn", "deu", "ita", "por", "rus", "kor", "chi_sim", "chi_tra"]) {
   writeFileSync(join(tess, "lang", `${lang}.traineddata`),
     gunzipSync(readFileSync(join(nm, "@tesseract.js-data", lang, "4.0.0_best_int", `${lang}.traineddata.gz`))));
 }

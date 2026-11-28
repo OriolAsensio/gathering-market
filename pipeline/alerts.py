@@ -2,6 +2,8 @@
 
 - Cartas de mi colección que se mueven >= 10 % (y al menos 0,50 €).
 - Cartas de los mazos top de Pauper que se mueven >= 15 % (y valen >= 1 €).
+- Cualquier carta que se dispara (>= 25 % y >= 2 €, valiendo >= 3 €), aunque no la tengas: p. ej. una de la Reserved List
+  que sube por una colección nueva. Tipo "spike": el móvil avisa aunque la app esté cerrada.
 """
 from db import add_event, cheapest_by_name, connect, norm
 
@@ -44,6 +46,17 @@ def main():
                           f"{'📈' if pct > 0 else '📉'} {name} {pct:+.0f}% (mazos top Pauper)",
                           f"Precio más barato: {old / 100:.2f} € → {new / 100:.2f} €")
                 count += 1
+        spikes = []
+        for k, new in new_p.items():
+            old = old_p.get(k)
+            if old and new >= 300 and new - old >= 200 and (new - old) / old >= 0.25:
+                spikes.append((new - old, k, old, new))
+        names = {norm(n): n for (n,) in conn.execute("SELECT DISTINCT front_name FROM cards")}
+        for _, k, old, new in sorted(spikes, reverse=True)[:6]:
+            pct = (new - old) * 100 / old
+            add_event(conn, new_day, "spike", f"📈 {names.get(k, k)} se dispara {pct:+.0f}%",
+                      f"Precio más barato: {old / 100:.2f} € → {new / 100:.2f} €")
+            count += 1
     print(f"Avisos de precio: {count} nuevos ({old_day} → {new_day}).")
 
 
