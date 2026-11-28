@@ -15,6 +15,17 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Dorso (parte de atrás)", "Card back", "Dors (part del darrere)"],
+  ["Sin dorso", "No back", "Sense dors"],
+  ["Dorso de la app", "App back", "Dors de l'app"],
+  ["El mío", "My own", "El meu"],
+  ["Subir mi dorso", "Upload my back", "Pujar el meu dors"],
+  ["Cambiar mi dorso", "Change my back", "Canviar el meu dors"],
+  ["Usar este arte", "Use this art", "Fer servir aquest art"],
+  ["El arte que tienes ahora. Toca otro abajo para verlo en grande.", "Your current art. Tap another below to see it big.", "L'art que tens ara. Toca'n un altre a sota per veure'l en gran."],
+  ["Abrir el PDF", "Open the PDF", "Obrir el PDF"],
+  ["Enviar (correo, WhatsApp, Drive…)", "Send (email, WhatsApp, Drive…)", "Enviar (correu, WhatsApp, Drive…)"],
+  ["Detrás de cada hoja va otra con los dorsos, colocados para imprimir a doble cara girando por el borde largo. Haz primero una hoja de prueba: algunas impresoras mueven un poco la cara de atrás.", "After each page comes one with the backs, placed for double-sided printing flipped on the long edge. Print a test page first: some printers shift the back side a little.", "Darrere de cada full en va un altre amb els dorsos, col·locats per imprimir a doble cara girant per la vora llarga. Fes primer un full de prova: algunes impressores mouen una mica la cara del darrere."],
   ["Imprimir proxies", "Print proxies", "Imprimir proxies"],
   ["Un PDF para imprimir el mazo a tamaño real, con líneas de corte bien visibles y el arte que elijas.", "A PDF to print the deck at real size, with clearly visible cut lines and the art you choose.", "Un PDF per imprimir la baralla a mida real, amb línies de tall ben visibles i l'art que triïs."],
   ["Generar PDF para imprimir", "Make a PDF to print", "Generar PDF per imprimir"],
@@ -1183,6 +1194,7 @@ const RULES = [
   [/^PDF listo: (\d+) cartas en (\d+) hojas$/, "PDF ready: $1 cards on $2 pages", "PDF llest: $1 cartes en $2 fulls"],
   [/^Arte de (.+)$/, "Art for $1", "Art de $1"],
   [/^Aún no hay mazos rogue de (.+)$/, "No rogue $1 decks yet", "Encara no hi ha baralles rogue de $1"],
+  [/^Hoja (\d+) \(detrás\)$/, "Page $1 (back)", "Full $1 (darrere)"],
 ];
 
 const COL = { en: 1, ca: 2 };
