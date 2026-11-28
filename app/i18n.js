@@ -15,6 +15,11 @@ const LANG = (() => {
 
 const EXACT = [
   // Añadidos 2026-11-25: orden de cartas y textos que faltaban
+  ["Tokens de tus cartas", "Your cards' tokens", "Tokens de les teves cartes"],
+  ["Buscando los tokens que crean tus cartas…", "Looking for the tokens your cards make…", "Buscant els tokens que creen les teves cartes…"],
+  ["Ninguna carta de la lista crea tokens.", "No card in the list makes tokens.", "Cap carta de la llista crea tokens."],
+  ["Sin internet: no puedo buscar los tokens.", "No internet: I can't look up the tokens.", "Sense internet: no puc buscar els tokens."],
+  ["Elige cuántos imprimir de cada uno (luego puedes cambiar su arte tocándolo en la lista).", "Choose how many of each to print (you can change their art later by tapping them in the list).", "Tria quants n'imprimeixes de cadascun (després pots canviar-ne l'art tocant-lo a la llista)."],
   ["De la app", "From the app", "De l'app"],
   ["Arte de Gather in One", "Gather in One art", "Art de Gather in One"],
   ["Dorso (parte de atrás)", "Card back", "Dors (part del darrere)"],

@@ -48,7 +48,7 @@ const Print = (() => {
 
   async function addCards(rows) {  // rows: [[nombre, copias]]
     for (const [name, n] of rows) {
-      const ex = list.find((x) => x.name === name);
+      const ex = list.find((x) => x.name === name && !x.token);
       if (ex) { ex.n += n; continue; }
       const ps = await api(`/api/printings?name=${encodeURIComponent(name)}`).catch(() => []);
       const id = ps.length ? defaultPrint({ printings: ps }) : null, p = ps.find((x) => x.id === id);
@@ -76,7 +76,7 @@ const Print = (() => {
     const seg = (k, items) => `<div class="seg" data-o="${k}">${items.map(([val, label]) => `<button data-v="${val}" class="${String(opt[k]) === String(val) ? "on" : ""}">${label}</button>`).join("")}</div>`;
     v.innerHTML = `<h2 style="margin-top:6px">${ico("print")}Imprimir proxies</h2>
       <div class="hint">Pega una lista, busca cartas o trae un mazo desde Mazos. Toca una carta para elegir su arte (edición, tipo de arte, idioma) o subir tu imagen. Antes de descargar ves cómo quedan las hojas.</div>
-      <div class="row-btns" style="margin-top:4px"><button class="btn" id="pr-paste">${ico("list")}Pegar lista</button><button class="btn" id="pr-deck">${ico("swords")}De un mazo</button>${list.length ? `<button class="btn" id="pr-clear">${ico("trash")}Vaciar</button>` : ""}</div>
+      <div class="row-btns" style="margin-top:4px"><button class="btn" id="pr-paste">${ico("list")}Pegar lista</button><button class="btn" id="pr-deck">${ico("swords")}De un mazo</button>${list.some((x) => !x.token) ? `<button class="btn" id="pr-tokens">${ico("sparkle")}Tokens</button>` : ""}${list.length ? `<button class="btn" id="pr-clear">${ico("trash")}Vaciar</button>` : ""}</div>
       <input class="search" id="pr-q" placeholder="Buscar una carta para añadir…" autocomplete="off"><div class="list" id="pr-res"></div>
       ${list.length ? `<div class="grid pr-grid">${list.map((x, i) => `<div class="gcard ${x.n ? "" : "missing"}">
           ${srcOf(x) ? `<img loading="lazy" src="${esc(srcOf(x))}" alt="${esc(x.name)}" data-art="${i}">` : `<button class="pr-noimg" data-art="${i}">${esc(x.name)}</button>`}
@@ -113,6 +113,7 @@ const Print = (() => {
     $("#pr-clear", v)?.addEventListener("click", () => { if (confirm(t("¿Quitar todas las cartas de Imprimir?"))) { list = []; delete opt.title; persist(); view(); } });
     $("#pr-paste", v).onclick = pasteSheet;
     $("#pr-deck", v).onclick = deckPick;
+    $("#pr-tokens", v)?.addEventListener("click", tokensSheet);
     $("#pr-go", v)?.addEventListener("click", preview);
     let tq;
     $("#pr-q", v).oninput = (e) => {
@@ -141,6 +142,44 @@ const Print = (() => {
       if (r.unknown.length) { $("#pr-bad", body).innerHTML = `<div class="warn">No he reconocido:<br>${r.unknown.slice(0, 15).map(esc).join("<br>")}</div>`; view(); return; }
       closeSheet(); view(); toast(`${plural([...rows].reduce((s, [, q]) => s + q, 0), "carta añadida", "cartas añadidas")}`);
     };
+  }
+
+  // Tokens: los que crean las cartas de la lista (Scryfall, "all_parts"). Eliges cuántos de cada uno y se añaden al final.
+  async function tokensSheet() {
+    const body = openSheet(`<button class="btn" id="tk-back">${ico("back")}Volver</button><h3 style="margin-top:8px">Tokens de tus cartas</h3><div class="hint" id="tk-msg">Buscando los tokens que crean tus cartas…</div><div id="tk-list"></div>`);
+    $("#tk-back", body).onclick = closeSheet;
+    const found = new Map();  // id del token → { name, img, from: [cartas] }
+    const names = [...new Set(list.filter((x) => !x.token && x.n).map((x) => x.name))];
+    try {
+      for (const [i, n] of names.entries()) {
+        $("#tk-msg", body).textContent = t(`Buscando tokens: ${i + 1} de ${names.length}`);
+        const r = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(n)}`);
+        if (r.ok) for (const p of (await r.json()).all_parts || []) if (p.component === "token") (found.get(p.id) || found.set(p.id, { name: p.name, id: p.id, from: [] }).get(p.id)).from.push(n);
+        await new Promise((ok) => setTimeout(ok, 90));  // Scryfall pide no más de ~10 peticiones por segundo
+      }
+      for (const tk of found.values()) {
+        const c = await (await fetch(`https://api.scryfall.com/cards/${tk.id}`)).json();
+        tk.img = imgOf(c) || "";
+        await new Promise((ok) => setTimeout(ok, 90));
+      }
+    } catch { $("#tk-msg", body).textContent = "Sin internet: no puedo buscar los tokens."; return; }
+    if (!found.size) { $("#tk-msg", body).textContent = "Ninguna carta de la lista crea tokens."; return; }
+    const tks = [...found.values()].map((tk) => ({ ...tk, n: list.find((x) => x.token && x.img === tk.img)?.n ? 0 : 2 }));
+    $("#tk-msg", body).textContent = "Elige cuántos imprimir de cada uno (luego puedes cambiar su arte tocándolo en la lista).";
+    const draw = () => {
+      $("#tk-list", body).innerHTML = `<div class="grid pr-grid">${tks.map((tk, i) => `<div class="gcard ${tk.n ? "" : "missing"}"><img loading="lazy" src="${esc(tk.img)}" alt="${esc(tk.name)}" title="${esc(tk.from.join(", "))}">
+        <div class="mini-step"><button data-tk="${i}" data-d="-1" ${tk.n ? "" : "disabled"}>−</button><b>${tk.n}</b><button data-tk="${i}" data-d="1">+</button></div></div>`).join("")}</div>
+        <button class="btn block primary" id="tk-add" style="margin-top:12px">${ico("plus")}Añadir ${plural(tks.reduce((s, tk) => s + tk.n, 0), "token", "tokens")}</button>`;
+      body.querySelectorAll("[data-tk]").forEach((b) => (b.onclick = () => { const tk = tks[+b.dataset.tk]; tk.n = Math.max(0, tk.n + +b.dataset.d); draw(); }));
+      $("#tk-add", body).onclick = () => {
+        for (const tk of tks.filter((x) => x.n)) {
+          const ex = list.find((x) => x.token && x.img === tk.img);
+          if (ex) ex.n += tk.n; else list.push({ name: tk.name, n: tk.n, img: tk.img, pid: null, token: true });
+        }
+        persist(); closeSheet(); view();
+      };
+    };
+    draw();
   }
 
   async function deckPick() {
@@ -199,7 +238,7 @@ const Print = (() => {
       box.innerHTML = skeleton(2);
       let cards = [];
       try {
-        const q = `!"${x.name}" ${artPick.kind} lang:${artPick.lang}`.trim();
+        const q = `!"${x.name}" ${x.token ? "t:token" : ""} ${artPick.kind} lang:${artPick.lang}`.trim();
         const r = await fetch(`https://api.scryfall.com/cards/search?unique=prints&order=released&q=${encodeURIComponent(q)}`);
         cards = r.ok ? (await r.json()).data.filter((c) => imgOf(c) && c.name.split(" // ")[0] === x.name.split(" // ")[0]).map((c) => ({ id: c.id, img: imgOf(c), label: `${c.set.toUpperCase()} #${c.collector_number}` })) : [];
       } catch {  // sin internet: las ediciones que conoce la app (en inglés)
@@ -356,7 +395,7 @@ const Print = (() => {
     $("#pd-no", body).onclick = closeSheet;
     $("#pd-yes", body).onclick = async () => {
       let n = 0;
-      for (const x of list.filter((y) => y.n)) {
+      for (const x of list.filter((y) => y.n && !y.token)) {  // los tokens no van a la colección
         try {
           let id = x.pid;
           const ps = await api(`/api/printings?name=${encodeURIComponent(x.name)}`);
