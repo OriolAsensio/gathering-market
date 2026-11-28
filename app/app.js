@@ -730,7 +730,7 @@ const deckCard = (d) => `
 
 const META_FORMATS = { PAU: "Pauper", ST: "Estándar", MO: "Modern", PI: "Pioneer", LE: "Legacy", VI: "Vintage", PREM: "Premodern",
   PEA: "Peasant", DC: "Duel Commander", cEDH: "cEDH", HIGH: "Highlander", CHL: "Canadian Highlander", EXP: "Explorer", HI: "Historic",
-  VV: "Value Vintage", DAN: "Dandân" };
+  VV: "Value Vintage", DAN: "Dandân", CUBE: "Cube Draft" };
 // Qué es cada formato (se ve arriba de sus mazos)
 const FORMAT_INFO = {
   PAU: "Pauper: solo cartas que han salido como comunes (en papel o en MTGO). Mazos de 60 cartas y 15 de banquillo, máximo 4 copias. Barato y muy competitivo.",
@@ -749,10 +749,12 @@ const FORMAT_INFO = {
   HI: "Historic: formato de MTG Arena con todas las cartas de Arena (también las digitales). 60 cartas, 15 de banquillo, máximo 4 copias.",
   VV: "Value Vintage: cartas de Vintage, pero el mazo entero con banquillo cuesta como máximo 30 $. Formato de la comunidad.",
   DAN: "Dandân (Forgetful Fish): los dos jugadores comparten una única biblioteca y cementerio de 80 cartas. Más juego de mesa que torneo.",
+  CUBE: "Cube Draft: una colección fija de cartas (normalmente 360-540, una de cada) que alguien monta para hacer drafts con amigos. Se reparten sobres del cubo, se elige una carta y se pasa el sobre, y cada uno monta un mazo de 40.",
 };
 // Formatos sin meta de torneo: mazos de ejemplo (y sus normas)
 const EXAMPLE_FORMATS = {
   VV: "Value Vintage: cartas de Vintage, pero el mazo entero (con banquillo) cuesta como máximo 30 $. Formato de la comunidad (vvmtg.com), sin meta publicado: aquí tienes listas de ejemplo.",
+  CUBE: "Cube Draft: alguien monta un «cubo» (cientos de cartas, una de cada) y con él se hacen drafts entre amigos: sobres de 15 cartas (o los que quieras), cada uno coge una y pasa el sobre, 3 rondas, y luego un mazo de 40 cartas. Aquí tienes cubos conocidos y el tuyo; en cada uno pone para cuántos jugadores da.",
   DAN: "Dandân (Forgetful Fish): los dos jugadores comparten un único mazo de 80 cartas, la biblioteca y el cementerio. Es más un juego de mesa dentro de Magic, para partidas rápidas: estos son los mazos que se usan.",
 };
 views.decks = async () => {
@@ -933,9 +935,10 @@ async function deckSheet(id, keep = null) {
     return `<div class="deck-line"><span class="qty ${cls}">${c.basic ? c.qty : `${c.have}/${c.qty}`}</span><span class="n">${esc(c.name)}</span><span class="${c.basic ? "sub" : "price"}">${c.basic ? "básica" : euro(c.eur)}</span>${stepper(c)}</div>`;
   };
   const main = d.cards.filter((c) => !c.side), side = d.cards.filter((c) => c.side);
+  const g = d.mine ? d.guide : deckGuide(d.format, d.archetype) || (d.format === "CUBE" ? d.note : "");  // cubos: su descripción es la guía
   const missing = d.cards.filter((c) => !c.basic && c.have < c.qty).map((c) => `${c.qty - c.have} ${c.name}`);
   body.innerHTML = `
-    <h3>${esc(d.archetype)}</h3>${d.note ? `<div class="hint">${esc(d.note)}</div>` : ""}
+    <h3>${esc(d.archetype)}</h3>${d.note && d.note !== g ? `<div class="hint">${esc(d.note).replace(/\n/g, "<br>")}</div>` : ""}
     <div class="sub">${d.example ? `Mazo de ejemplo · ${esc(d.event)}` : d.mine ? esc(d.event) : `${esc(d.player)} · ${d.result === "1" ? `${ico("trophy")}Ganadora` : `${esc(d.result)}º`} en ${esc(d.event)} · ${esc(d.date)}`}</div>
     <div class="stats">
       <div class="stat"><b>${euro(d.price)}</b><span>Precio del mazo</span></div>
@@ -943,10 +946,13 @@ async function deckSheet(id, keep = null) {
       <div class="stat"><b>${euro(d.missing_cost)}</b><span>Te falta</span></div>
     </div>
     ${(() => {
-      const g = d.mine ? d.guide : deckGuide(d.format, d.archetype);
       return `<details class="guide deck-guide" ${g ? "open" : ""}><summary>${ico("book")}Cómo se juega</summary>
-        ${g ? `<p>${esc(g)}</p>` : d.mine ? `<p class="sub">Aún no has escrito cómo se juega: pulsa «Editar la lista» y cuéntalo (plan, cartas clave, consejos).</p>` : `<p class="sub">Aún no tengo la explicación de este mazo.</p>`}
-        <p class="sub">Cartas clave: ${d.keys.map(esc).join(", ")} · ${d.lands} tierras · ${d.creatures} criaturas</p></details>`;
+        ${g ? `<p>${esc(g).replace(/\n/g, "<br>")}</p>` : d.mine ? `<p class="sub">Aún no has escrito cómo se juega: pulsa «Editar la lista» y cuéntalo (plan, cartas clave, consejos).</p>` : `<p class="sub">Aún no tengo la explicación de este mazo.</p>`}
+        <p class="sub">Cartas clave: ${d.keys.map(esc).join(", ")} · ${d.lands} tierras · ${d.creatures} criaturas</p></details>
+        ${d.combos?.length ? `<details class="guide deck-guide"><summary>${ico("bolt")}Combos de este mazo (${d.combos.length})</summary><div class="hint">Combos infinitos cuyas piezas están todas en la lista (de Commander Spellbook). Pasos en inglés.</div>
+          ${d.combos.map((k) => `<details class="guide"><summary>${k.cards.map(esc).join(" + ")} · ${esc(k.makes[0] || "")}</summary>
+          ${k.pre || k.needs.length ? `<div class="hint">Necesitas: ${[...k.needs, k.pre].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
+          <ol class="combo-steps">${k.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></details>`).join("")}</details>` : ""}`;
     })()}
     <div class="seg" id="deck-view"><button data-v="img">Imágenes</button><button data-v="list">Lista</button></div>
     <button class="btn block" id="deck-all" ${missing.length ? "" : "disabled"}>${ico("check")}${missing.length ? "Ya tengo todo el mazo" : "Tienes todas las cartas"}</button>

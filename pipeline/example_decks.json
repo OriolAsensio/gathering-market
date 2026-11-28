@@ -1218,5 +1218,13245 @@
     0
    ]
   ]
+ },
+ {
+  "format": "CUBE",
+  "name": "Cube draft duro (CreadorSombrio)",
+  "category": "Cubo",
+  "source": "Moxfield · CreadorSombrio",
+  "player": "CreadorSombrio",
+  "note": "Tu cubo: sobres de 14 cartas (7 comunes, 4 infrecuentes, 2 raras y 1 mítica). Muy variado y potente: power (Black Lotus, Ancestral Recall, Time Walk), combos (Show and Tell, Sneak Attack, Hypergenesis, Underworld Breach), infectar (Glistener Elf, Skithiryx, Inkmoth Nexus), reanimar (Entomb, Reanimate, Atraxa) y mucho aggro de fichas.\nCartas: 429. Con sobres de 14 cartas, 3 sobres por jugador (42 cartas cada uno): da para 10 jugadores (lo normal es jugar 8). Cada jugador monta un mazo de 40 cartas con lo que elige y tierras básicas aparte. (2 cartas muy nuevas o digitales aún no salen en la lista de la app: Scrounging Deathclaw, Seymour Guado.)",
+  "cards": [
+   [
+    "Abhorrent Oculus",
+    1,
+    0
+   ],
+   [
+    "Abrade",
+    1,
+    0
+   ],
+   [
+    "Abrupt Decay",
+    1,
+    0
+   ],
+   [
+    "Abzan Devotee",
+    1,
+    0
+   ],
+   [
+    "Accursed Marauder",
+    1,
+    0
+   ],
+   [
+    "Act of Treason",
+    1,
+    0
+   ],
+   [
+    "Adanto Vanguard",
+    1,
+    0
+   ],
+   [
+    "Aether Adept",
+    1,
+    0
+   ],
+   [
+    "Aether Channeler",
+    1,
+    0
+   ],
+   [
+    "Aether Vial",
+    1,
+    0
+   ],
+   [
+    "Ancestral Recall",
+    1,
+    0
+   ],
+   [
+    "Anticipate",
+    1,
+    0
+   ],
+   [
+    "Arc Runner",
+    1,
+    0
+   ],
+   [
+    "Archmage's Charm",
+    1,
+    0
+   ],
+   [
+    "Atraxa, Grand Unifier",
+    1,
+    0
+   ],
+   [
+    "Banehound",
+    1,
+    0
+   ],
+   [
+    "Basalt Monolith",
+    1,
+    0
+   ],
+   [
+    "Basking Broodscale",
+    1,
+    0
+   ],
+   [
+    "Basking Capybara",
+    1,
+    0
+   ],
+   [
+    "Battle Screech",
+    1,
+    0
+   ],
+   [
+    "Beckon Apparition",
+    1,
+    0
+   ],
+   [
+    "Benevolent Bodyguard",
+    1,
+    0
+   ],
+   [
+    "Bilious Skulldweller",
+    1,
+    0
+   ],
+   [
+    "Bill Ferny, Bree Swindler",
+    1,
+    0
+   ],
+   [
+    "Black Lotus",
+    1,
+    0
+   ],
+   [
+    "Blacksnag Buzzard",
+    1,
+    0
+   ],
+   [
+    "Blade of the Bloodchief",
+    1,
+    0
+   ],
+   [
+    "Bladed Ambassador",
+    1,
+    0
+   ],
+   [
+    "Blech, Loafing Pest",
+    1,
+    0
+   ],
+   [
+    "Blightbelly Rat",
+    1,
+    0
+   ],
+   [
+    "Blighted Agent",
+    1,
+    0
+   ],
+   [
+    "Bloated Contaminator",
+    1,
+    0
+   ],
+   [
+    "Bone Picker",
+    1,
+    0
+   ],
+   [
+    "Booster Tutor",
+    1,
+    0
+   ],
+   [
+    "Brave the Wilds",
+    1,
+    0
+   ],
+   [
+    "Brazen Borrower",
+    1,
+    0
+   ],
+   [
+    "Breya's Apprentice",
+    1,
+    0
+   ],
+   [
+    "Bridled Bighorn",
+    1,
+    0
+   ],
+   [
+    "Brineborn Cutthroat",
+    1,
+    0
+   ],
+   [
+    "Bring the Ending",
+    1,
+    0
+   ],
+   [
+    "Broadcast Rambler",
+    1,
+    0
+   ],
+   [
+    "Burrog Banemaker",
+    1,
+    0
+   ],
+   [
+    "Butcher Ghoul",
+    1,
+    0
+   ],
+   [
+    "Butterbur, Bree Innkeeper",
+    1,
+    0
+   ],
+   [
+    "Cackling Fiend",
+    1,
+    0
+   ],
+   [
+    "Callow Jushi",
+    1,
+    0
+   ],
+   [
+    "Candy Trail",
+    1,
+    0
+   ],
+   [
+    "Cankerbloom",
+    1,
+    0
+   ],
+   [
+    "Carrion Feeder",
+    1,
+    0
+   ],
+   [
+    "Cartouche of Knowledge",
+    1,
+    0
+   ],
+   [
+    "Cast Down",
+    1,
+    0
+   ],
+   [
+    "Cathartic Adept",
+    1,
+    0
+   ],
+   [
+    "Chain Lightning",
+    1,
+    0
+   ],
+   [
+    "Chandra, Awakened Inferno",
+    1,
+    0
+   ],
+   [
+    "Chandra, Torch of Defiance",
+    1,
+    0
+   ],
+   [
+    "Change the Equation",
+    1,
+    0
+   ],
+   [
+    "Channel",
+    1,
+    0
+   ],
+   [
+    "Chatterstorm",
+    1,
+    0
+   ],
+   [
+    "Chromatic Star",
+    1,
+    0
+   ],
+   [
+    "Coastline Marauders",
+    1,
+    0
+   ],
+   [
+    "Collected Company",
+    1,
+    0
+   ],
+   [
+    "Consider",
+    1,
+    0
+   ],
+   [
+    "Consuming Aberration",
+    1,
+    0
+   ],
+   [
+    "Copycrook",
+    1,
+    0
+   ],
+   [
+    "Corpse Churn",
+    1,
+    0
+   ],
+   [
+    "Council's Judgment",
+    1,
+    0
+   ],
+   [
+    "Count on Luck",
+    1,
+    0
+   ],
+   [
+    "Counterspell",
+    1,
+    0
+   ],
+   [
+    "Courser of Kruphix",
+    1,
+    0
+   ],
+   [
+    "Cranial Plating",
+    1,
+    0
+   ],
+   [
+    "Cranial Ram",
+    1,
+    0
+   ],
+   [
+    "Crimson Wisps",
+    1,
+    0
+   ],
+   [
+    "Cut Down",
+    1,
+    0
+   ],
+   [
+    "Dack Fayden",
+    1,
+    0
+   ],
+   [
+    "Daybreak Chaplain",
+    1,
+    0
+   ],
+   [
+    "Dazzling Denial",
+    1,
+    0
+   ],
+   [
+    "Deadly Dispute",
+    1,
+    0
+   ],
+   [
+    "Deal Broker",
+    1,
+    0
+   ],
+   [
+    "Deep Analysis",
+    1,
+    0
+   ],
+   [
+    "Deep Goblin Skulltaker",
+    1,
+    0
+   ],
+   [
+    "Defense of the Heart",
+    1,
+    0
+   ],
+   [
+    "Defiler of Flesh",
+    1,
+    0
+   ],
+   [
+    "Deputy of Acquittals",
+    1,
+    0
+   ],
+   [
+    "Devouring Sugarmaw",
+    1,
+    0
+   ],
+   [
+    "Dig Through Time",
+    1,
+    0
+   ],
+   [
+    "Dina, Soul Steeper",
+    1,
+    0
+   ],
+   [
+    "Dirgur Island Dragon",
+    1,
+    0
+   ],
+   [
+    "Disfigure",
+    1,
+    0
+   ],
+   [
+    "Dismember",
+    1,
+    0
+   ],
+   [
+    "Disturbed Slumber",
+    1,
+    0
+   ],
+   [
+    "Divest",
+    1,
+    0
+   ],
+   [
+    "Dog Umbra",
+    1,
+    0
+   ],
+   [
+    "Doomed Traveler",
+    1,
+    0
+   ],
+   [
+    "Druidic Ritual",
+    1,
+    0
+   ],
+   [
+    "Duress",
+    2,
+    0
+   ],
+   [
+    "Dust Animus",
+    1,
+    0
+   ],
+   [
+    "Dust to Dust",
+    1,
+    0
+   ],
+   [
+    "Elephant Guide",
+    1,
+    0
+   ],
+   [
+    "Elspeth, Sun's Champion",
+    1,
+    0
+   ],
+   [
+    "Elvish Mystic",
+    1,
+    0
+   ],
+   [
+    "Emil, Vastlands Roamer",
+    1,
+    0
+   ],
+   [
+    "Emrakul, the Aeons Torn",
+    1,
+    0
+   ],
+   [
+    "Emrakul, the World Anew",
+    1,
+    0
+   ],
+   [
+    "Enter the God-Eternals",
+    1,
+    0
+   ],
+   [
+    "Enter the Unknown",
+    1,
+    0
+   ],
+   [
+    "Entomb",
+    1,
+    0
+   ],
+   [
+    "Eriette's Tempting Apple",
+    1,
+    0
+   ],
+   [
+    "Erratic Mutation",
+    1,
+    0
+   ],
+   [
+    "Esika's Chariot",
+    1,
+    0
+   ],
+   [
+    "Essence Flux",
+    1,
+    0
+   ],
+   [
+    "Essence Infusion",
+    1,
+    0
+   ],
+   [
+    "Eternal Warrior",
+    1,
+    0
+   ],
+   [
+    "Eternal Witness",
+    1,
+    0
+   ],
+   [
+    "Eureka",
+    1,
+    0
+   ],
+   [
+    "Evolution Witness",
+    1,
+    0
+   ],
+   [
+    "Evolutionary Leap",
+    1,
+    0
+   ],
+   [
+    "Exclude",
+    1,
+    0
+   ],
+   [
+    "Experimental Augury",
+    1,
+    0
+   ],
+   [
+    "Fact or Fiction",
+    1,
+    0
+   ],
+   [
+    "Faithless Looting",
+    1,
+    0
+   ],
+   [
+    "Fake Your Own Death",
+    1,
+    0
+   ],
+   [
+    "Ferocious Pup",
+    1,
+    0
+   ],
+   [
+    "Festival Crasher",
+    1,
+    0
+   ],
+   [
+    "Final Vengeance",
+    1,
+    0
+   ],
+   [
+    "Finale of Devastation",
+    1,
+    0
+   ],
+   [
+    "Fire",
+    1,
+    0
+   ],
+   [
+    "Firebrand Archer",
+    1,
+    0
+   ],
+   [
+    "Flametongue Kavu",
+    1,
+    0
+   ],
+   [
+    "Flick a Coin",
+    1,
+    0
+   ],
+   [
+    "Flood the Engine",
+    1,
+    0
+   ],
+   [
+    "Floodpits Drowner",
+    1,
+    0
+   ],
+   [
+    "Flusterstorm",
+    1,
+    0
+   ],
+   [
+    "Foreboding Ruins",
+    1,
+    0
+   ],
+   [
+    "Forensic Researcher",
+    1,
+    0
+   ],
+   [
+    "Fuss",
+    1,
+    0
+   ],
+   [
+    "Fyndhorn Elves",
+    1,
+    0
+   ],
+   [
+    "Galadriel, Gift-Giver",
+    1,
+    0
+   ],
+   [
+    "Gamble",
+    1,
+    0
+   ],
+   [
+    "Garruk, Apex Predator",
+    1,
+    0
+   ],
+   [
+    "Geralf's Messenger",
+    1,
+    0
+   ],
+   [
+    "Getaway Glamer",
+    1,
+    0
+   ],
+   [
+    "Geyser Drake",
+    1,
+    0
+   ],
+   [
+    "Gideon's Lawkeeper",
+    1,
+    0
+   ],
+   [
+    "Gideon, Ally of Zendikar",
+    1,
+    0
+   ],
+   [
+    "Gigantosaurus",
+    1,
+    0
+   ],
+   [
+    "Glistener Elf",
+    1,
+    0
+   ],
+   [
+    "Glorybringer",
+    1,
+    0
+   ],
+   [
+    "Goblin Guide",
+    1,
+    0
+   ],
+   [
+    "Goblin War Drums",
+    1,
+    0
+   ],
+   [
+    "Goddric, Cloaked Reveler",
+    1,
+    0
+   ],
+   [
+    "Grab the Prize",
+    1,
+    0
+   ],
+   [
+    "Grafted Exoskeleton",
+    1,
+    0
+   ],
+   [
+    "Grasping Longneck",
+    1,
+    0
+   ],
+   [
+    "Ground Seal",
+    1,
+    0
+   ],
+   [
+    "Guardian of New Benalia",
+    1,
+    0
+   ],
+   [
+    "Guardian of the Guildpact",
+    1,
+    0
+   ],
+   [
+    "Guardians' Pledge",
+    1,
+    0
+   ],
+   [
+    "Gurmag Angler",
+    1,
+    0
+   ],
+   [
+    "Guttersnipe",
+    1,
+    0
+   ],
+   [
+    "Harried Spearguard",
+    1,
+    0
+   ],
+   [
+    "Heartless Pillage",
+    1,
+    0
+   ],
+   [
+    "Helping Hand",
+    1,
+    0
+   ],
+   [
+    "Heroic Reinforcements",
+    1,
+    0
+   ],
+   [
+    "Holy Cow",
+    1,
+    0
+   ],
+   [
+    "Hopeless Nightmare",
+    1,
+    0
+   ],
+   [
+    "Hullbreacher",
+    1,
+    0
+   ],
+   [
+    "Humble Budoka",
+    1,
+    0
+   ],
+   [
+    "Hunt for Specimens",
+    1,
+    0
+   ],
+   [
+    "Hyena Umbra",
+    1,
+    0
+   ],
+   [
+    "Hymn to Tourach",
+    1,
+    0
+   ],
+   [
+    "Hypergenesis",
+    1,
+    0
+   ],
+   [
+    "Icewrought Sentry",
+    1,
+    0
+   ],
+   [
+    "Impact Tremors",
+    1,
+    0
+   ],
+   [
+    "Impervious Greatwurm",
+    1,
+    0
+   ],
+   [
+    "Impulse",
+    1,
+    0
+   ],
+   [
+    "Infantry Veteran",
+    1,
+    0
+   ],
+   [
+    "Inferno Titan",
+    1,
+    0
+   ],
+   [
+    "Ingenious Prodigy",
+    1,
+    0
+   ],
+   [
+    "Inkmoth Nexus",
+    1,
+    0
+   ],
+   [
+    "Inkshield",
+    1,
+    0
+   ],
+   [
+    "Insidious Fungus",
+    1,
+    0
+   ],
+   [
+    "Involuntary Employment",
+    1,
+    0
+   ],
+   [
+    "Irreverent Gremlin",
+    1,
+    0
+   ],
+   [
+    "Jace, the Mind Sculptor",
+    1,
+    0
+   ],
+   [
+    "Jadelight Spelunker",
+    1,
+    0
+   ],
+   [
+    "Jeskai Sage",
+    1,
+    0
+   ],
+   [
+    "Journey to Nowhere",
+    1,
+    0
+   ],
+   [
+    "Kalitas, Traitor of Ghet",
+    1,
+    0
+   ],
+   [
+    "Kappa Tech-Wrecker",
+    1,
+    0
+   ],
+   [
+    "Karametra's Acolyte",
+    1,
+    0
+   ],
+   [
+    "Kari Zev, Skyship Raider",
+    1,
+    0
+   ],
+   [
+    "Kessig Flamebreather",
+    1,
+    0
+   ],
+   [
+    "Kiln Fiend",
+    1,
+    0
+   ],
+   [
+    "Kitchen Finks",
+    1,
+    0
+   ],
+   [
+    "Knotvine Paladin",
+    1,
+    0
+   ],
+   [
+    "Kor Skyfisher",
+    1,
+    0
+   ],
+   [
+    "Kozilek, Butcher of Truth",
+    1,
+    0
+   ],
+   [
+    "Krosan Grip",
+    1,
+    0
+   ],
+   [
+    "Lantern of Insight",
+    1,
+    0
+   ],
+   [
+    "Lightning Axe",
+    1,
+    0
+   ],
+   [
+    "Lightning Bolt",
+    1,
+    0
+   ],
+   [
+    "Lightning Strike",
+    1,
+    0
+   ],
+   [
+    "Likeness Looter",
+    1,
+    0
+   ],
+   [
+    "Liliana of the Veil",
+    1,
+    0
+   ],
+   [
+    "Liliana, the Last Hope",
+    1,
+    0
+   ],
+   [
+    "Llanowar Elves",
+    1,
+    0
+   ],
+   [
+    "Looter il-Kor",
+    1,
+    0
+   ],
+   [
+    "Lotus Petal",
+    1,
+    0
+   ],
+   [
+    "Luminous Rebuke",
+    1,
+    0
+   ],
+   [
+    "Lunarch Veteran",
+    1,
+    0
+   ],
+   [
+    "Lurrus of the Dream-Den",
+    1,
+    0
+   ],
+   [
+    "Magmatic Force",
+    1,
+    0
+   ],
+   [
+    "Malamet Brawler",
+    1,
+    0
+   ],
+   [
+    "Malevolent Rumble",
+    1,
+    0
+   ],
+   [
+    "Man-o'-War",
+    1,
+    0
+   ],
+   [
+    "Mana Drain",
+    1,
+    0
+   ],
+   [
+    "Mana Tithe",
+    1,
+    0
+   ],
+   [
+    "Manamorphose",
+    1,
+    0
+   ],
+   [
+    "Metamorphosis Fanatic",
+    1,
+    0
+   ],
+   [
+    "Midnight Mangler",
+    1,
+    0
+   ],
+   [
+    "Mire Triton",
+    1,
+    0
+   ],
+   [
+    "Mistform Warchief",
+    1,
+    0
+   ],
+   [
+    "Myr Sire",
+    1,
+    0
+   ],
+   [
+    "Mystic Meditation",
+    1,
+    0
+   ],
+   [
+    "Nadir Kraken",
+    1,
+    0
+   ],
+   [
+    "Nasty End",
+    1,
+    0
+   ],
+   [
+    "Necrogen Communion",
+    1,
+    0
+   ],
+   [
+    "Necrotic Ooze",
+    1,
+    0
+   ],
+   [
+    "Nevinyrral's Disk",
+    1,
+    0
+   ],
+   [
+    "Nihil Spellbomb",
+    1,
+    0
+   ],
+   [
+    "Nimraiser Paladin",
+    1,
+    0
+   ],
+   [
+    "Nissa, Who Shakes the World",
+    1,
+    0
+   ],
+   [
+    "No More Lies",
+    1,
+    0
+   ],
+   [
+    "Noxious Revival",
+    1,
+    0
+   ],
+   [
+    "Obstinate Baloth",
+    1,
+    0
+   ],
+   [
+    "Ocelot Pride",
+    1,
+    0
+   ],
+   [
+    "Offer Immortality",
+    1,
+    0
+   ],
+   [
+    "One with Nature",
+    1,
+    0
+   ],
+   [
+    "Opposition",
+    1,
+    0
+   ],
+   [
+    "Orim's Chant",
+    1,
+    0
+   ],
+   [
+    "Outlaw Medic",
+    1,
+    0
+   ],
+   [
+    "Ovinize",
+    1,
+    0
+   ],
+   [
+    "Palace Jailer",
+    1,
+    0
+   ],
+   [
+    "Palladium Myr",
+    1,
+    0
+   ],
+   [
+    "Path to Exile",
+    1,
+    0
+   ],
+   [
+    "Pawpatch Recruit",
+    1,
+    0
+   ],
+   [
+    "Pedal to the Metal",
+    1,
+    0
+   ],
+   [
+    "Pest Summoning",
+    1,
+    0
+   ],
+   [
+    "Pestilent Syphoner",
+    1,
+    0
+   ],
+   [
+    "Petrify",
+    1,
+    0
+   ],
+   [
+    "Phantom Interference",
+    1,
+    0
+   ],
+   [
+    "Phantom Wings",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Crusader",
+    1,
+    0
+   ],
+   [
+    "Placid Rottentail",
+    1,
+    0
+   ],
+   [
+    "Plague Stinger",
+    1,
+    0
+   ],
+   [
+    "Plaguecrafter",
+    1,
+    0
+   ],
+   [
+    "Polukranos Reborn",
+    1,
+    0
+   ],
+   [
+    "Ponder",
+    1,
+    0
+   ],
+   [
+    "Prideful Parent",
+    1,
+    0
+   ],
+   [
+    "Priest of Gix",
+    1,
+    0
+   ],
+   [
+    "Primeval Titan",
+    1,
+    0
+   ],
+   [
+    "Prismatic Strands",
+    1,
+    0
+   ],
+   [
+    "Progenitus",
+    1,
+    0
+   ],
+   [
+    "Prologue to Phyresis",
+    1,
+    0
+   ],
+   [
+    "Psychic Frog",
+    1,
+    0
+   ],
+   [
+    "Purity",
+    1,
+    0
+   ],
+   [
+    "Questing Beast",
+    1,
+    0
+   ],
+   [
+    "Questing Druid",
+    1,
+    0
+   ],
+   [
+    "Quicksilver Amulet",
+    1,
+    0
+   ],
+   [
+    "Ragavan, Nimble Pilferer",
+    1,
+    0
+   ],
+   [
+    "Ragost, Deft Gastronaut",
+    1,
+    0
+   ],
+   [
+    "Raise the Alarm",
+    1,
+    0
+   ],
+   [
+    "Rancor",
+    1,
+    0
+   ],
+   [
+    "Ravine Raider",
+    1,
+    0
+   ],
+   [
+    "Razorkin Hordecaller",
+    1,
+    0
+   ],
+   [
+    "Reanimate",
+    1,
+    0
+   ],
+   [
+    "Reassembling Skeleton",
+    1,
+    0
+   ],
+   [
+    "Reckless Impulse",
+    1,
+    0
+   ],
+   [
+    "Reckless Lackey",
+    1,
+    0
+   ],
+   [
+    "Reconnaissance",
+    1,
+    0
+   ],
+   [
+    "Recruiter of the Guard",
+    1,
+    0
+   ],
+   [
+    "Recurring Nightmare",
+    1,
+    0
+   ],
+   [
+    "Reef Worm",
+    1,
+    0
+   ],
+   [
+    "Rekindling Phoenix",
+    1,
+    0
+   ],
+   [
+    "Relic of Progenitus",
+    1,
+    0
+   ],
+   [
+    "Requisition Raid",
+    1,
+    0
+   ],
+   [
+    "Restart Sequence",
+    1,
+    0
+   ],
+   [
+    "Restoration Angel",
+    1,
+    0
+   ],
+   [
+    "Ribskiff",
+    1,
+    0
+   ],
+   [
+    "Rift Bolt",
+    1,
+    0
+   ],
+   [
+    "Righteousness",
+    1,
+    0
+   ],
+   [
+    "Rishkar, Peema Renegade",
+    1,
+    0
+   ],
+   [
+    "Rocky Rebuke",
+    1,
+    0
+   ],
+   [
+    "Rooftop Bypass",
+    1,
+    0
+   ],
+   [
+    "Sadistic Glee",
+    1,
+    0
+   ],
+   [
+    "Sagu Wildling",
+    1,
+    0
+   ],
+   [
+    "Sanguine Syphoner",
+    1,
+    0
+   ],
+   [
+    "Savage Smash",
+    1,
+    0
+   ],
+   [
+    "Savor",
+    1,
+    0
+   ],
+   [
+    "Scalestorm Summoner",
+    1,
+    0
+   ],
+   [
+    "Scavenging Ooze",
+    1,
+    0
+   ],
+   [
+    "Searing Blaze",
+    1,
+    0
+   ],
+   [
+    "Seasoned Pyromancer",
+    1,
+    0
+   ],
+   [
+    "Secure the Wastes",
+    1,
+    0
+   ],
+   [
+    "Seeker of Sunlight",
+    1,
+    0
+   ],
+   [
+    "Seize the Day",
+    1,
+    0
+   ],
+   [
+    "Self-Destruct",
+    1,
+    0
+   ],
+   [
+    "Sensei Golden-Tail",
+    1,
+    0
+   ],
+   [
+    "Serum Visions",
+    1,
+    0
+   ],
+   [
+    "Shabraz, the Skyshark",
+    1,
+    0
+   ],
+   [
+    "Shark Typhoon",
+    1,
+    0
+   ],
+   [
+    "Sheoldred, the Apocalypse",
+    1,
+    0
+   ],
+   [
+    "Shivan Dragon",
+    1,
+    0
+   ],
+   [
+    "Show and Tell",
+    1,
+    0
+   ],
+   [
+    "Siege Rhino",
+    1,
+    0
+   ],
+   [
+    "Sign in Blood",
+    1,
+    0
+   ],
+   [
+    "Skewer Slinger",
+    1,
+    0
+   ],
+   [
+    "Skithiryx, the Blight Dragon",
+    1,
+    0
+   ],
+   [
+    "Skullclamp",
+    1,
+    0
+   ],
+   [
+    "Skyclave Apparition",
+    1,
+    0
+   ],
+   [
+    "Slickshot Show-Off",
+    1,
+    0
+   ],
+   [
+    "Snap",
+    1,
+    0
+   ],
+   [
+    "Snapcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Snarling Gorehound",
+    1,
+    0
+   ],
+   [
+    "Sneak Attack",
+    1,
+    0
+   ],
+   [
+    "Snuff Out",
+    1,
+    0
+   ],
+   [
+    "Sol Ring",
+    1,
+    0
+   ],
+   [
+    "Solitude",
+    1,
+    0
+   ],
+   [
+    "Spectral Procession",
+    1,
+    0
+   ],
+   [
+    "Spelleater Wolverine",
+    1,
+    0
+   ],
+   [
+    "Spellgorger Weird",
+    1,
+    0
+   ],
+   [
+    "Spirited Companion",
+    1,
+    0
+   ],
+   [
+    "Sporogenic Infection",
+    1,
+    0
+   ],
+   [
+    "Springleaf Drum",
+    1,
+    0
+   ],
+   [
+    "Springmane Cervin",
+    1,
+    0
+   ],
+   [
+    "Sprout",
+    1,
+    0
+   ],
+   [
+    "Squirrel Nest",
+    1,
+    0
+   ],
+   [
+    "Stab Wound",
+    1,
+    0
+   ],
+   [
+    "Steadfast Unicorn",
+    1,
+    0
+   ],
+   [
+    "Stinging Lionfish",
+    1,
+    0
+   ],
+   [
+    "Stitcher's Supplier",
+    1,
+    0
+   ],
+   [
+    "Stone Docent",
+    1,
+    0
+   ],
+   [
+    "Stormfist Crusader",
+    1,
+    0
+   ],
+   [
+    "Strength of Isolation",
+    1,
+    0
+   ],
+   [
+    "Strength of the Coalition",
+    1,
+    0
+   ],
+   [
+    "Stroke of Midnight",
+    1,
+    0
+   ],
+   [
+    "Sudden Breakthrough",
+    1,
+    0
+   ],
+   [
+    "Sudden Death",
+    1,
+    0
+   ],
+   [
+    "Sulfuric Vortex",
+    1,
+    0
+   ],
+   [
+    "Sun Titan",
+    1,
+    0
+   ],
+   [
+    "Sundering Titan",
+    1,
+    0
+   ],
+   [
+    "Sunshower Druid",
+    1,
+    0
+   ],
+   [
+    "Swords to Plowshares",
+    1,
+    0
+   ],
+   [
+    "Syr Elenora, the Discerning",
+    1,
+    0
+   ],
+   [
+    "Tainted Strike",
+    1,
+    0
+   ],
+   [
+    "Take Up the Shield",
+    1,
+    0
+   ],
+   [
+    "Tax Collector",
+    1,
+    0
+   ],
+   [
+    "Telepathy",
+    1,
+    0
+   ],
+   [
+    "Tempest Hart",
+    1,
+    0
+   ],
+   [
+    "Terminal Agony",
+    1,
+    0
+   ],
+   [
+    "Terminate",
+    1,
+    0
+   ],
+   [
+    "Terror",
+    1,
+    0
+   ],
+   [
+    "Tetsuko Umezawa, Fugitive",
+    1,
+    0
+   ],
+   [
+    "Tezzeret, Cruel Captain",
+    1,
+    0
+   ],
+   [
+    "Thalia, Guardian of Thraben",
+    1,
+    0
+   ],
+   [
+    "The Hunger Tide Rises",
+    1,
+    0
+   ],
+   [
+    "The Jolly Balloon Man",
+    1,
+    0
+   ],
+   [
+    "The One Ring",
+    1,
+    0
+   ],
+   [
+    "The Stasis Coffin",
+    1,
+    0
+   ],
+   [
+    "Thermo-Alchemist",
+    1,
+    0
+   ],
+   [
+    "Thought Scour",
+    1,
+    0
+   ],
+   [
+    "Thoughtseize",
+    1,
+    0
+   ],
+   [
+    "Thousand Moons Infantry",
+    1,
+    0
+   ],
+   [
+    "Thraben Charm",
+    1,
+    0
+   ],
+   [
+    "Thraben Inspector",
+    1,
+    0
+   ],
+   [
+    "Thrill of Possibility",
+    1,
+    0
+   ],
+   [
+    "Thunderous Orator",
+    1,
+    0
+   ],
+   [
+    "Time Walk",
+    1,
+    0
+   ],
+   [
+    "Tinker's Tote",
+    1,
+    0
+   ],
+   [
+    "Tireless Tracker",
+    1,
+    0
+   ],
+   [
+    "Torbran, Thane of Red Fell",
+    1,
+    0
+   ],
+   [
+    "Torment of Scarabs",
+    1,
+    0
+   ],
+   [
+    "Tortured Existence",
+    1,
+    0
+   ],
+   [
+    "Tranquilize",
+    1,
+    0
+   ],
+   [
+    "Trapped in the Screen",
+    1,
+    0
+   ],
+   [
+    "Treachery",
+    1,
+    0
+   ],
+   [
+    "Treasure Cruise",
+    1,
+    0
+   ],
+   [
+    "Trickster's Elk",
+    1,
+    0
+   ],
+   [
+    "Tumbleweed Rising",
+    1,
+    0
+   ],
+   [
+    "Turn Inside Out",
+    1,
+    0
+   ],
+   [
+    "Tymaret, Chosen from Death",
+    1,
+    0
+   ],
+   [
+    "Tyrox, Saurid Tyrant",
+    1,
+    0
+   ],
+   [
+    "Tyvar's Stand",
+    1,
+    0
+   ],
+   [
+    "Unable to Scream",
+    1,
+    0
+   ],
+   [
+    "Underworld Breach",
+    1,
+    0
+   ],
+   [
+    "Unearth",
+    1,
+    0
+   ],
+   [
+    "Unexpected Fangs",
+    1,
+    0
+   ],
+   [
+    "Uro, Titan of Nature's Wrath",
+    1,
+    0
+   ],
+   [
+    "Valgavoth's Faithful",
+    1,
+    0
+   ],
+   [
+    "Vendilion Clique",
+    1,
+    0
+   ],
+   [
+    "Vial Smasher, Gleeful Grenadier",
+    1,
+    0
+   ],
+   [
+    "Victimize",
+    1,
+    0
+   ],
+   [
+    "Vines of Vastwood",
+    1,
+    0
+   ],
+   [
+    "Virulent Wound",
+    1,
+    0
+   ],
+   [
+    "Viscera Seer",
+    1,
+    0
+   ],
+   [
+    "Vivi Ornitier",
+    1,
+    0
+   ],
+   [
+    "Voice of Victory",
+    1,
+    0
+   ],
+   [
+    "Volt Charge",
+    1,
+    0
+   ],
+   [
+    "Vraska's Fall",
+    1,
+    0
+   ],
+   [
+    "Wall of Vines",
+    1,
+    0
+   ],
+   [
+    "Warped Tusker",
+    1,
+    0
+   ],
+   [
+    "Weather the Storm",
+    1,
+    0
+   ],
+   [
+    "Web",
+    1,
+    0
+   ],
+   [
+    "Wheel of Fortune",
+    1,
+    0
+   ],
+   [
+    "Whitemane Lion",
+    1,
+    0
+   ],
+   [
+    "Wild Ride",
+    1,
+    0
+   ],
+   [
+    "Wolfir Silverheart",
+    1,
+    0
+   ],
+   [
+    "Wose Pathfinder",
+    1,
+    0
+   ],
+   [
+    "Wrenn's Resolve",
+    1,
+    0
+   ],
+   [
+    "Wretched Doll",
+    1,
+    0
+   ],
+   [
+    "Writhing Chrysalis",
+    1,
+    0
+   ],
+   [
+    "Wurmcoil Engine",
+    1,
+    0
+   ],
+   [
+    "Xu-Ifit, Osteoharmonist",
+    1,
+    0
+   ],
+   [
+    "Young Pyromancer",
+    1,
+    0
+   ],
+   [
+    "Young Wolf",
+    1,
+    0
+   ],
+   [
+    "Zada, Hedron Grinder",
+    1,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "CUBE",
+  "name": "The Pauper Cube",
+  "category": "Cubo",
+  "source": "CubeCobra · thepaupercube",
+  "player": "thepaupercube",
+  "note": "El cubo de Pauper más conocido (de Adam Styborski): solo comunes, muy equilibrado y barato de montar. Arquetipos claros por pareja de colores (vuelo azul-blanco, sacrificio negro-rojo, ramp verde…).\nCartas: 450. Con sobres de 15 cartas, 3 sobres por jugador (45 cartas cada uno): da para 10 jugadores (lo normal es jugar 8). Cada jugador monta un mazo de 40 cartas con lo que elige y tierras básicas aparte.",
+  "cards": [
+   [
+    "Abrade",
+    1,
+    0
+   ],
+   [
+    "Abraded Bluffs",
+    1,
+    0
+   ],
+   [
+    "Abundant Harvest",
+    1,
+    0
+   ],
+   [
+    "Accursed Marauder",
+    1,
+    0
+   ],
+   [
+    "Aerie Auxiliary",
+    1,
+    0
+   ],
+   [
+    "Aether Chaser",
+    1,
+    0
+   ],
+   [
+    "Ainok Bond-Kin",
+    1,
+    0
+   ],
+   [
+    "Ainok Wayfarer",
+    1,
+    0
+   ],
+   [
+    "Alabaster Host Intercessor",
+    1,
+    0
+   ],
+   [
+    "Ancestral Blade",
+    1,
+    0
+   ],
+   [
+    "Annoyed Altisaur",
+    1,
+    0
+   ],
+   [
+    "Apostle's Blessing",
+    1,
+    0
+   ],
+   [
+    "Arbor Elf",
+    1,
+    0
+   ],
+   [
+    "Archaeomancer",
+    1,
+    0
+   ],
+   [
+    "Ardent Elementalist",
+    1,
+    0
+   ],
+   [
+    "Ardenvale Tactician",
+    1,
+    0
+   ],
+   [
+    "Armadillo Cloak",
+    1,
+    0
+   ],
+   [
+    "Arms of Hadar",
+    1,
+    0
+   ],
+   [
+    "Ashes to Ashes",
+    1,
+    0
+   ],
+   [
+    "Azorius Chancery",
+    1,
+    0
+   ],
+   [
+    "Baleful Strix",
+    1,
+    0
+   ],
+   [
+    "Bannerhide Krushok",
+    1,
+    0
+   ],
+   [
+    "Barbed Batterfist",
+    1,
+    0
+   ],
+   [
+    "Basilisk Gate",
+    1,
+    0
+   ],
+   [
+    "Basking Broodscale",
+    1,
+    0
+   ],
+   [
+    "Battle Screech",
+    1,
+    0
+   ],
+   [
+    "Beetleback Chief",
+    1,
+    0
+   ],
+   [
+    "Behold the Multiverse",
+    1,
+    0
+   ],
+   [
+    "Bestial Incursion",
+    1,
+    0
+   ],
+   [
+    "Blastoderm",
+    1,
+    0
+   ],
+   [
+    "Blessed Hippogriff",
+    1,
+    0
+   ],
+   [
+    "Blightning",
+    1,
+    0
+   ],
+   [
+    "Blood Aspirant",
+    1,
+    0
+   ],
+   [
+    "Blood Fountain",
+    1,
+    0
+   ],
+   [
+    "Bloodwater Entity",
+    1,
+    0
+   ],
+   [
+    "Bogardan Dragonheart",
+    1,
+    0
+   ],
+   [
+    "Boiling Rock Prison",
+    1,
+    0
+   ],
+   [
+    "Bonder's Ornament",
+    1,
+    0
+   ],
+   [
+    "Bone Picker",
+    1,
+    0
+   ],
+   [
+    "Bonesplitter",
+    1,
+    0
+   ],
+   [
+    "Boros Garrison",
+    1,
+    0
+   ],
+   [
+    "Borrowed Grace",
+    1,
+    0
+   ],
+   [
+    "Bountiful Landscape",
+    1,
+    0
+   ],
+   [
+    "Brainstorm",
+    1,
+    0
+   ],
+   [
+    "Bramble Wurm",
+    1,
+    0
+   ],
+   [
+    "Brambleback Brute",
+    1,
+    0
+   ],
+   [
+    "Brimstone Volley",
+    1,
+    0
+   ],
+   [
+    "Bristling Backwoods",
+    1,
+    0
+   ],
+   [
+    "Burning-Tree Emissary",
+    1,
+    0
+   ],
+   [
+    "Burst Lightning",
+    1,
+    0
+   ],
+   [
+    "Bushwhack",
+    1,
+    0
+   ],
+   [
+    "Candy Grapple",
+    1,
+    0
+   ],
+   [
+    "Capsize",
+    1,
+    0
+   ],
+   [
+    "Captured by Lagacs",
+    1,
+    0
+   ],
+   [
+    "Carnophage",
+    1,
+    0
+   ],
+   [
+    "Carrier Thrall",
+    1,
+    0
+   ],
+   [
+    "Carrion Feeder",
+    1,
+    0
+   ],
+   [
+    "Cast Down",
+    1,
+    0
+   ],
+   [
+    "Cathar Commando",
+    1,
+    0
+   ],
+   [
+    "Cavern Harpy",
+    1,
+    0
+   ],
+   [
+    "Chain Lightning",
+    1,
+    0
+   ],
+   [
+    "Champion of Dusan",
+    1,
+    0
+   ],
+   [
+    "Charge the Sanctum",
+    1,
+    0
+   ],
+   [
+    "Chitin Gravestalker",
+    1,
+    0
+   ],
+   [
+    "Cindering Cutthroat",
+    1,
+    0
+   ],
+   [
+    "Clawing Torment",
+    1,
+    0
+   ],
+   [
+    "Clockwork Percussionist",
+    1,
+    0
+   ],
+   [
+    "Cloudkin Seer",
+    1,
+    0
+   ],
+   [
+    "Coalition Honor Guard",
+    1,
+    0
+   ],
+   [
+    "Coiling Oracle",
+    1,
+    0
+   ],
+   [
+    "Colossal Dreadmask",
+    1,
+    0
+   ],
+   [
+    "Conclave Naturalists",
+    1,
+    0
+   ],
+   [
+    "Condescend",
+    1,
+    0
+   ],
+   [
+    "Conduit Goblin",
+    1,
+    0
+   ],
+   [
+    "Conduit Pylons",
+    1,
+    0
+   ],
+   [
+    "Consider",
+    1,
+    0
+   ],
+   [
+    "Contagious Vorrac",
+    1,
+    0
+   ],
+   [
+    "Contaminated Landscape",
+    1,
+    0
+   ],
+   [
+    "Counterspell",
+    1,
+    0
+   ],
+   [
+    "Cradle of the Accursed",
+    1,
+    0
+   ],
+   [
+    "Cryogen Relic",
+    1,
+    0
+   ],
+   [
+    "Cryoshatter",
+    1,
+    0
+   ],
+   [
+    "Crypt Rats",
+    1,
+    0
+   ],
+   [
+    "Custodi Squire",
+    1,
+    0
+   ],
+   [
+    "Cut Down",
+    1,
+    0
+   ],
+   [
+    "Dark-Dweller Oracle",
+    1,
+    0
+   ],
+   [
+    "Dauntless Unity",
+    1,
+    0
+   ],
+   [
+    "Dauthi Horror",
+    1,
+    0
+   ],
+   [
+    "Dauthi Slayer",
+    1,
+    0
+   ],
+   [
+    "Death Denied",
+    1,
+    0
+   ],
+   [
+    "Deceptive Landscape",
+    1,
+    0
+   ],
+   [
+    "Deep Analysis",
+    1,
+    0
+   ],
+   [
+    "Deftblade Elite",
+    1,
+    0
+   ],
+   [
+    "Deluge Virtuoso",
+    1,
+    0
+   ],
+   [
+    "Deranged Assistant",
+    1,
+    0
+   ],
+   [
+    "Desert",
+    1,
+    0
+   ],
+   [
+    "Dimir Aqueduct",
+    1,
+    0
+   ],
+   [
+    "Dimir Guildmage",
+    1,
+    0
+   ],
+   [
+    "Dinrova Horror",
+    1,
+    0
+   ],
+   [
+    "Diregraf Horde",
+    1,
+    0
+   ],
+   [
+    "Disfigure",
+    1,
+    0
+   ],
+   [
+    "Dog Umbra",
+    1,
+    0
+   ],
+   [
+    "Doom Blade",
+    1,
+    0
+   ],
+   [
+    "Doomed Traveler",
+    1,
+    0
+   ],
+   [
+    "Dread Return",
+    1,
+    0
+   ],
+   [
+    "Dreg Mangler",
+    1,
+    0
+   ],
+   [
+    "Eagles of the North",
+    1,
+    0
+   ],
+   [
+    "Ecstatic Awakener",
+    1,
+    0
+   ],
+   [
+    "Eldrazi Repurposer",
+    1,
+    0
+   ],
+   [
+    "Eldrazi Skyspawner",
+    1,
+    0
+   ],
+   [
+    "Elite Interceptor",
+    1,
+    0
+   ],
+   [
+    "Elite Vanguard",
+    1,
+    0
+   ],
+   [
+    "Elvish Mystic",
+    1,
+    0
+   ],
+   [
+    "Emergency Phytomedic",
+    1,
+    0
+   ],
+   [
+    "Entourage of Trest",
+    1,
+    0
+   ],
+   [
+    "Ephemerate",
+    1,
+    0
+   ],
+   [
+    "Eroded Canyon",
+    1,
+    0
+   ],
+   [
+    "Escape Tunnel",
+    1,
+    0
+   ],
+   [
+    "Evolution Witness",
+    1,
+    0
+   ],
+   [
+    "Exclude",
+    1,
+    0
+   ],
+   [
+    "Expanding Ooze",
+    1,
+    0
+   ],
+   [
+    "Experiment One",
+    1,
+    0
+   ],
+   [
+    "Faceless Butcher",
+    1,
+    0
+   ],
+   [
+    "Faerie Guidemother",
+    1,
+    0
+   ],
+   [
+    "Faerie Seer",
+    1,
+    0
+   ],
+   [
+    "Faith's Fetters",
+    1,
+    0
+   ],
+   [
+    "Faithful Watchdog",
+    1,
+    0
+   ],
+   [
+    "Falkenrath Noble",
+    1,
+    0
+   ],
+   [
+    "Fanatical Firebrand",
+    1,
+    0
+   ],
+   [
+    "Ferocity of the Hunt",
+    1,
+    0
+   ],
+   [
+    "Fertile Ground",
+    1,
+    0
+   ],
+   [
+    "Fields of Strife",
+    1,
+    0
+   ],
+   [
+    "Filigree Familiar",
+    1,
+    0
+   ],
+   [
+    "Fireblade Artist",
+    1,
+    0
+   ],
+   [
+    "Fireblast",
+    1,
+    0
+   ],
+   [
+    "Firebolt",
+    1,
+    0
+   ],
+   [
+    "Fireslinger",
+    1,
+    0
+   ],
+   [
+    "First-Sphere Gargantua",
+    1,
+    0
+   ],
+   [
+    "Flame Slash",
+    1,
+    0
+   ],
+   [
+    "Flayer Husk",
+    1,
+    0
+   ],
+   [
+    "Flesh Burrower",
+    1,
+    0
+   ],
+   [
+    "Focus Fire",
+    1,
+    0
+   ],
+   [
+    "Foreboding Landscape",
+    1,
+    0
+   ],
+   [
+    "Fortress Kin-Guard",
+    1,
+    0
+   ],
+   [
+    "Forum of Amity",
+    1,
+    0
+   ],
+   [
+    "Frenzied Goblin",
+    1,
+    0
+   ],
+   [
+    "Frost Trickster",
+    1,
+    0
+   ],
+   [
+    "Furnace Strider",
+    1,
+    0
+   ],
+   [
+    "Galvanic Discharge",
+    1,
+    0
+   ],
+   [
+    "Generous Ent",
+    1,
+    0
+   ],
+   [
+    "Ghostly Flicker",
+    1,
+    0
+   ],
+   [
+    "Giant Growth",
+    1,
+    0
+   ],
+   [
+    "Giant's Boulder",
+    1,
+    0
+   ],
+   [
+    "Gideon's Lawkeeper",
+    1,
+    0
+   ],
+   [
+    "Gift of Orzhova",
+    1,
+    0
+   ],
+   [
+    "Gingerbrute",
+    1,
+    0
+   ],
+   [
+    "Gitaxian Probe",
+    1,
+    0
+   ],
+   [
+    "Gixian Infiltrator",
+    1,
+    0
+   ],
+   [
+    "Glimmerlight",
+    1,
+    0
+   ],
+   [
+    "Gnarlback Rhino",
+    1,
+    0
+   ],
+   [
+    "Gnarlid Colony",
+    1,
+    0
+   ],
+   [
+    "Gnawing Crescendo",
+    1,
+    0
+   ],
+   [
+    "Go for the Throat",
+    1,
+    0
+   ],
+   [
+    "Goblin Anarchomancer",
+    1,
+    0
+   ],
+   [
+    "Goblin Bushwhacker",
+    1,
+    0
+   ],
+   [
+    "Goblin Motivator",
+    1,
+    0
+   ],
+   [
+    "Goblin Surprise",
+    1,
+    0
+   ],
+   [
+    "Goblin-town Flunkies",
+    1,
+    0
+   ],
+   [
+    "Gods Willing",
+    1,
+    0
+   ],
+   [
+    "Golgari Rot Farm",
+    1,
+    0
+   ],
+   [
+    "Grapple with the Past",
+    1,
+    0
+   ],
+   [
+    "Gravedigger",
+    1,
+    0
+   ],
+   [
+    "Gray Merchant of Asphodel",
+    1,
+    0
+   ],
+   [
+    "Greater Tanuki",
+    1,
+    0
+   ],
+   [
+    "Greatsword of Tyr",
+    1,
+    0
+   ],
+   [
+    "Grim Bauble",
+    1,
+    0
+   ],
+   [
+    "Grim Initiate",
+    1,
+    0
+   ],
+   [
+    "Growth Spiral",
+    1,
+    0
+   ],
+   [
+    "Gruul Turf",
+    1,
+    0
+   ],
+   [
+    "Guardian Idol",
+    1,
+    0
+   ],
+   [
+    "Guardian of the Guildpact",
+    1,
+    0
+   ],
+   [
+    "Guildsworn Prowler",
+    1,
+    0
+   ],
+   [
+    "Gurmag Angler",
+    1,
+    0
+   ],
+   [
+    "Guttersnipe",
+    1,
+    0
+   ],
+   [
+    "Hard Evidence",
+    1,
+    0
+   ],
+   [
+    "Harrier Strix",
+    1,
+    0
+   ],
+   [
+    "Haunted Fengraf",
+    1,
+    0
+   ],
+   [
+    "Heliod's Pilgrim",
+    1,
+    0
+   ],
+   [
+    "Hero of the Pride",
+    1,
+    0
+   ],
+   [
+    "Hickory Woodlot",
+    1,
+    0
+   ],
+   [
+    "Hidden Grotto",
+    1,
+    0
+   ],
+   [
+    "Hissing Iguanar",
+    1,
+    0
+   ],
+   [
+    "Homestead Courage",
+    1,
+    0
+   ],
+   [
+    "Hooting Mandrills",
+    1,
+    0
+   ],
+   [
+    "Hordeling Outburst",
+    1,
+    0
+   ],
+   [
+    "Horrific Assault",
+    1,
+    0
+   ],
+   [
+    "Imperial Oath",
+    1,
+    0
+   ],
+   [
+    "Improvised Club",
+    1,
+    0
+   ],
+   [
+    "Impulse",
+    1,
+    0
+   ],
+   [
+    "Incinerate",
+    1,
+    0
+   ],
+   [
+    "Inspiring Overseer",
+    1,
+    0
+   ],
+   [
+    "Inspiring Paladin",
+    1,
+    0
+   ],
+   [
+    "Into the Roil",
+    1,
+    0
+   ],
+   [
+    "Iron Apprentice",
+    1,
+    0
+   ],
+   [
+    "Ironhoof Boar",
+    1,
+    0
+   ],
+   [
+    "Izzet Boilerworks",
+    1,
+    0
+   ],
+   [
+    "Izzet Charm",
+    1,
+    0
+   ],
+   [
+    "Jackal Pup",
+    1,
+    0
+   ],
+   [
+    "Jewel Thief",
+    1,
+    0
+   ],
+   [
+    "Jhessian Thief",
+    1,
+    0
+   ],
+   [
+    "Journey to Nowhere",
+    1,
+    0
+   ],
+   [
+    "Judge's Familiar",
+    1,
+    0
+   ],
+   [
+    "Kingpin's Pet",
+    1,
+    0
+   ],
+   [
+    "Kor Skyfisher",
+    1,
+    0
+   ],
+   [
+    "Krosan Tusker",
+    1,
+    0
+   ],
+   [
+    "Kyoshi Village",
+    1,
+    0
+   ],
+   [
+    "Leonin Bola",
+    1,
+    0
+   ],
+   [
+    "Lightning Bolt",
+    1,
+    0
+   ],
+   [
+    "Lightning Strike",
+    1,
+    0
+   ],
+   [
+    "Liliana's Specter",
+    1,
+    0
+   ],
+   [
+    "Llanowar Elves",
+    1,
+    0
+   ],
+   [
+    "Llanowar Visionary",
+    1,
+    0
+   ],
+   [
+    "Loathsome Curator",
+    1,
+    0
+   ],
+   [
+    "Looter il-Kor",
+    1,
+    0
+   ],
+   [
+    "Lose Focus",
+    1,
+    0
+   ],
+   [
+    "Lyev Skyknight",
+    1,
+    0
+   ],
+   [
+    "Lys Alana Informant",
+    1,
+    0
+   ],
+   [
+    "Lórien Revealed",
+    1,
+    0
+   ],
+   [
+    "Malevolent Rumble",
+    1,
+    0
+   ],
+   [
+    "Man-o'-War",
+    1,
+    0
+   ],
+   [
+    "Mana Leak",
+    1,
+    0
+   ],
+   [
+    "Mana Tithe",
+    1,
+    0
+   ],
+   [
+    "Mandibular Kite",
+    1,
+    0
+   ],
+   [
+    "Mardu Skullhunter",
+    1,
+    0
+   ],
+   [
+    "Mayhem Patrol",
+    1,
+    0
+   ],
+   [
+    "Mechanozoa",
+    1,
+    0
+   ],
+   [
+    "Merfolk Looter",
+    1,
+    0
+   ],
+   [
+    "Militia Bugler",
+    1,
+    0
+   ],
+   [
+    "Mind Stone",
+    1,
+    0
+   ],
+   [
+    "Miner's Guidewing",
+    1,
+    0
+   ],
+   [
+    "Mire Triton",
+    1,
+    0
+   ],
+   [
+    "Mirkwood Nurturer",
+    1,
+    0
+   ],
+   [
+    "Mirrorshell Crab",
+    1,
+    0
+   ],
+   [
+    "Miscalculation",
+    1,
+    0
+   ],
+   [
+    "Mist Raven",
+    1,
+    0
+   ],
+   [
+    "Mogg War Marshal",
+    1,
+    0
+   ],
+   [
+    "Molten Gatekeeper",
+    1,
+    0
+   ],
+   [
+    "Momentary Blink",
+    1,
+    0
+   ],
+   [
+    "Monastery Swiftspear",
+    1,
+    0
+   ],
+   [
+    "Monstrous Emergence",
+    1,
+    0
+   ],
+   [
+    "Moon-Circuit Hacker",
+    1,
+    0
+   ],
+   [
+    "Moonblade Shinobi",
+    1,
+    0
+   ],
+   [
+    "Mother Bear",
+    1,
+    0
+   ],
+   [
+    "Mulldrifter",
+    1,
+    0
+   ],
+   [
+    "Murmuring Mystic",
+    1,
+    0
+   ],
+   [
+    "Mutagenic Growth",
+    1,
+    0
+   ],
+   [
+    "Mystic Sanctuary",
+    1,
+    0
+   ],
+   [
+    "Nest Invader",
+    1,
+    0
+   ],
+   [
+    "Nested Shambler",
+    1,
+    0
+   ],
+   [
+    "Night Market",
+    1,
+    0
+   ],
+   [
+    "Night's Whisper",
+    1,
+    0
+   ],
+   [
+    "Ninja of the Deep Hours",
+    1,
+    0
+   ],
+   [
+    "Novice Inspector",
+    1,
+    0
+   ],
+   [
+    "Nyxborn Hydra",
+    1,
+    0
+   ],
+   [
+    "Oblivion Ring",
+    1,
+    0
+   ],
+   [
+    "Okiba Reckoner Raid",
+    1,
+    0
+   ],
+   [
+    "Okiba-Gang Shinobi",
+    1,
+    0
+   ],
+   [
+    "Oliphaunt",
+    1,
+    0
+   ],
+   [
+    "Ominous Asylum",
+    1,
+    0
+   ],
+   [
+    "Opt",
+    1,
+    0
+   ],
+   [
+    "Oroku Saki, Shredder Rising",
+    1,
+    0
+   ],
+   [
+    "Orzhov Basilica",
+    1,
+    0
+   ],
+   [
+    "Owlbear",
+    1,
+    0
+   ],
+   [
+    "Palace Sentinels",
+    1,
+    0
+   ],
+   [
+    "Paradox Gardens",
+    1,
+    0
+   ],
+   [
+    "Peregrine Drake",
+    1,
+    0
+   ],
+   [
+    "Perilous Landscape",
+    1,
+    0
+   ],
+   [
+    "Perilous Myr",
+    1,
+    0
+   ],
+   [
+    "Pestermite",
+    1,
+    0
+   ],
+   [
+    "Pestilence",
+    1,
+    0
+   ],
+   [
+    "Petrify",
+    1,
+    0
+   ],
+   [
+    "Phantom Interference",
+    1,
+    0
+   ],
+   [
+    "Phantom Nomad",
+    1,
+    0
+   ],
+   [
+    "Phantom Tiger",
+    1,
+    0
+   ],
+   [
+    "Pillory of the Sleepless",
+    1,
+    0
+   ],
+   [
+    "Pinnacle Kill-Ship",
+    1,
+    0
+   ],
+   [
+    "Planar Disruption",
+    1,
+    0
+   ],
+   [
+    "Plasma Bolt",
+    1,
+    0
+   ],
+   [
+    "Plunder the Trollshaws",
+    1,
+    0
+   ],
+   [
+    "Ponder",
+    1,
+    0
+   ],
+   [
+    "Porcelain Legionnaire",
+    1,
+    0
+   ],
+   [
+    "Preordain",
+    1,
+    0
+   ],
+   [
+    "Priest of Titania",
+    1,
+    0
+   ],
+   [
+    "Prismatic Strands",
+    1,
+    0
+   ],
+   [
+    "Pristine Talisman",
+    1,
+    0
+   ],
+   [
+    "Pulse of Murasa",
+    1,
+    0
+   ],
+   [
+    "Putrid Goblin",
+    1,
+    0
+   ],
+   [
+    "Putrid Leech",
+    1,
+    0
+   ],
+   [
+    "Quandrix Campus",
+    1,
+    0
+   ],
+   [
+    "Quicksand",
+    1,
+    0
+   ],
+   [
+    "Raffine's Informant",
+    1,
+    0
+   ],
+   [
+    "Raid Bombardment",
+    1,
+    0
+   ],
+   [
+    "Raise the Alarm",
+    1,
+    0
+   ],
+   [
+    "Rakdos Carnarium",
+    1,
+    0
+   ],
+   [
+    "Rally at the Hornburg",
+    1,
+    0
+   ],
+   [
+    "Rally the Peasants",
+    1,
+    0
+   ],
+   [
+    "Ram Through",
+    1,
+    0
+   ],
+   [
+    "Rancor",
+    1,
+    0
+   ],
+   [
+    "Raven's Crime",
+    1,
+    0
+   ],
+   [
+    "Reckless Charge",
+    1,
+    0
+   ],
+   [
+    "Reckless Impulse",
+    1,
+    0
+   ],
+   [
+    "Remove Soul",
+    1,
+    0
+   ],
+   [
+    "Renegade Freighter",
+    1,
+    0
+   ],
+   [
+    "Repeal",
+    1,
+    0
+   ],
+   [
+    "Repulse",
+    1,
+    0
+   ],
+   [
+    "Resentful Revelation",
+    1,
+    0
+   ],
+   [
+    "Retrofitted Transmogrant",
+    1,
+    0
+   ],
+   [
+    "Rhox Veteran",
+    1,
+    0
+   ],
+   [
+    "Riling Dawnbreaker",
+    1,
+    0
+   ],
+   [
+    "Rimrock Knight",
+    1,
+    0
+   ],
+   [
+    "River Boa",
+    1,
+    0
+   ],
+   [
+    "Rolling Thunder",
+    1,
+    0
+   ],
+   [
+    "Rubblebelt Maverick",
+    1,
+    0
+   ],
+   [
+    "Sagu Wildling",
+    1,
+    0
+   ],
+   [
+    "Sakura-Tribe Elder",
+    1,
+    0
+   ],
+   [
+    "Salt Road Packbeast",
+    1,
+    0
+   ],
+   [
+    "Sarulf's Packmate",
+    1,
+    0
+   ],
+   [
+    "Savage Mansion",
+    1,
+    0
+   ],
+   [
+    "Savannah Lions",
+    1,
+    0
+   ],
+   [
+    "Scholar of Combustion",
+    1,
+    0
+   ],
+   [
+    "Scorched Rusalka",
+    1,
+    0
+   ],
+   [
+    "Scoured Barrens",
+    1,
+    0
+   ],
+   [
+    "Scrapwork Mutt",
+    1,
+    0
+   ],
+   [
+    "Scurrilous Sentry",
+    1,
+    0
+   ],
+   [
+    "Search Party Captain",
+    1,
+    0
+   ],
+   [
+    "Searing Spear",
+    1,
+    0
+   ],
+   [
+    "Seeker of the Way",
+    1,
+    0
+   ],
+   [
+    "Seething Landscape",
+    1,
+    0
+   ],
+   [
+    "Seize Opportunity",
+    1,
+    0
+   ],
+   [
+    "Selesnya Sanctuary",
+    1,
+    0
+   ],
+   [
+    "Serpent's Pass",
+    1,
+    0
+   ],
+   [
+    "Serrated Arrows",
+    1,
+    0
+   ],
+   [
+    "Serum Visionary",
+    1,
+    0
+   ],
+   [
+    "Serum Visions",
+    1,
+    0
+   ],
+   [
+    "Settle Beyond Reality",
+    1,
+    0
+   ],
+   [
+    "Shardless Outlander",
+    1,
+    0
+   ],
+   [
+    "Shattered Landscape",
+    1,
+    0
+   ],
+   [
+    "Sheltering Landscape",
+    1,
+    0
+   ],
+   [
+    "Shipwreck Dowser",
+    1,
+    0
+   ],
+   [
+    "Shock Brigade",
+    1,
+    0
+   ],
+   [
+    "Shore Up",
+    1,
+    0
+   ],
+   [
+    "Silver Drake",
+    1,
+    0
+   ],
+   [
+    "Simic Growth Chamber",
+    1,
+    0
+   ],
+   [
+    "Sinister Hideout",
+    1,
+    0
+   ],
+   [
+    "Skewer the Critics",
+    1,
+    0
+   ],
+   [
+    "Snakeskin Veil",
+    1,
+    0
+   ],
+   [
+    "Snap",
+    1,
+    0
+   ],
+   [
+    "Snapping Voidcraw",
+    1,
+    0
+   ],
+   [
+    "Snarling Gorehound",
+    1,
+    0
+   ],
+   [
+    "Snuff Out",
+    1,
+    0
+   ],
+   [
+    "Soltari Trooper",
+    1,
+    0
+   ],
+   [
+    "Something Worth Saving",
+    1,
+    0
+   ],
+   [
+    "Soul Manipulation",
+    1,
+    0
+   ],
+   [
+    "Sparksmith",
+    1,
+    0
+   ],
+   [
+    "Spectacle Summit",
+    1,
+    0
+   ],
+   [
+    "Spellbook Seeker",
+    1,
+    0
+   ],
+   [
+    "Spelleater Wolverine",
+    1,
+    0
+   ],
+   [
+    "Sprout Swarm",
+    1,
+    0
+   ],
+   [
+    "Starbreach Whale",
+    1,
+    0
+   ],
+   [
+    "Stormfront Pegasus",
+    1,
+    0
+   ],
+   [
+    "Striped Riverwinder",
+    1,
+    0
+   ],
+   [
+    "Suburban Sanctuary",
+    1,
+    0
+   ],
+   [
+    "Sulfurous Blast",
+    1,
+    0
+   ],
+   [
+    "Sunlance",
+    1,
+    0
+   ],
+   [
+    "Sword Coast Serpent",
+    1,
+    0
+   ],
+   [
+    "Sylvan Might",
+    1,
+    0
+   ],
+   [
+    "Syndic of Tithes",
+    1,
+    0
+   ],
+   [
+    "Tamiyo's Safekeeping",
+    1,
+    0
+   ],
+   [
+    "Teetering Peaks",
+    1,
+    0
+   ],
+   [
+    "Temperamental Oozewagg",
+    1,
+    0
+   ],
+   [
+    "Tempest Angler",
+    1,
+    0
+   ],
+   [
+    "Tenth District Legionnaire",
+    1,
+    0
+   ],
+   [
+    "Territorial Hammerskull",
+    1,
+    0
+   ],
+   [
+    "Tethmos High Priest",
+    1,
+    0
+   ],
+   [
+    "Thorn of the Black Rose",
+    1,
+    0
+   ],
+   [
+    "Thraben Charm",
+    1,
+    0
+   ],
+   [
+    "Thraben Inspector",
+    1,
+    0
+   ],
+   [
+    "Thriving Grubs",
+    1,
+    0
+   ],
+   [
+    "Thunderhead Gunner",
+    1,
+    0
+   ],
+   [
+    "Titan's Grave",
+    1,
+    0
+   ],
+   [
+    "Tithe Drinker",
+    1,
+    0
+   ],
+   [
+    "Tithing Blade",
+    1,
+    0
+   ],
+   [
+    "Tocasia's Dig Site",
+    1,
+    0
+   ],
+   [
+    "Tolarian Terror",
+    1,
+    0
+   ],
+   [
+    "Tortured Existence",
+    1,
+    0
+   ],
+   [
+    "Toxin Analysis",
+    1,
+    0
+   ],
+   [
+    "Tragic Slip",
+    1,
+    0
+   ],
+   [
+    "Tranquil Cove",
+    1,
+    0
+   ],
+   [
+    "Tranquil Landscape",
+    1,
+    0
+   ],
+   [
+    "Trapped in the Screen",
+    1,
+    0
+   ],
+   [
+    "Treasure Cruise",
+    1,
+    0
+   ],
+   [
+    "Treetop Snarespinner",
+    1,
+    0
+   ],
+   [
+    "Triplicate Spirits",
+    1,
+    0
+   ],
+   [
+    "Troll of Khazad-dûm",
+    1,
+    0
+   ],
+   [
+    "Tuskeri Firewalker",
+    1,
+    0
+   ],
+   [
+    "Twinned Vision",
+    1,
+    0
+   ],
+   [
+    "Twisted Landscape",
+    1,
+    0
+   ],
+   [
+    "Ulamog's Crusher",
+    1,
+    0
+   ],
+   [
+    "Unable to Scream",
+    1,
+    0
+   ],
+   [
+    "Unbounded Potential",
+    1,
+    0
+   ],
+   [
+    "Underworld Charger",
+    1,
+    0
+   ],
+   [
+    "Underworld Rage-Hound",
+    1,
+    0
+   ],
+   [
+    "Undying Malice",
+    1,
+    0
+   ],
+   [
+    "Unearth",
+    1,
+    0
+   ],
+   [
+    "University Campus",
+    1,
+    0
+   ],
+   [
+    "Unwilling Ingredient",
+    1,
+    0
+   ],
+   [
+    "Urban Daggertooth",
+    1,
+    0
+   ],
+   [
+    "Utopia Sprawl",
+    1,
+    0
+   ],
+   [
+    "Vampire Lacerator",
+    1,
+    0
+   ],
+   [
+    "Vampire Sovereign",
+    1,
+    0
+   ],
+   [
+    "Vault Skirge",
+    1,
+    0
+   ],
+   [
+    "Vendetta",
+    1,
+    0
+   ],
+   [
+    "Vermin Gorger",
+    1,
+    0
+   ],
+   [
+    "Village Rites",
+    1,
+    0
+   ],
+   [
+    "Vines of Vastwood",
+    1,
+    0
+   ],
+   [
+    "Visionary's Dance",
+    1,
+    0
+   ],
+   [
+    "Vizier of Tumbling Sands",
+    1,
+    0
+   ],
+   [
+    "Voracious Varmint",
+    1,
+    0
+   ],
+   [
+    "Voracious Vermin",
+    1,
+    0
+   ],
+   [
+    "Vulshok Morningstar",
+    1,
+    0
+   ],
+   [
+    "Wall of Roots",
+    1,
+    0
+   ],
+   [
+    "Warship Scout",
+    1,
+    0
+   ],
+   [
+    "Wary Farmer",
+    1,
+    0
+   ],
+   [
+    "Weakstone's Subjugation",
+    1,
+    0
+   ],
+   [
+    "Werebear",
+    1,
+    0
+   ],
+   [
+    "Wild Growth",
+    1,
+    0
+   ],
+   [
+    "Wildfire Elemental",
+    1,
+    0
+   ],
+   [
+    "Winding Way",
+    1,
+    0
+   ],
+   [
+    "Witch's Cottage",
+    1,
+    0
+   ],
+   [
+    "Wither and Bloom",
+    1,
+    0
+   ],
+   [
+    "Witherbloom Campus",
+    1,
+    0
+   ],
+   [
+    "Witness Protection",
+    1,
+    0
+   ],
+   [
+    "Witty Roastmaster",
+    1,
+    0
+   ],
+   [
+    "Wolf Cove Villager",
+    1,
+    0
+   ],
+   [
+    "Wrangle",
+    1,
+    0
+   ],
+   [
+    "Wrenn's Resolve",
+    1,
+    0
+   ],
+   [
+    "Writhing Chrysalis",
+    1,
+    0
+   ],
+   [
+    "You Meet in a Tavern",
+    1,
+    0
+   ],
+   [
+    "Young Blue Dragon",
+    1,
+    0
+   ],
+   [
+    "Zephyr Winder",
+    1,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "CUBE",
+  "name": "MTGO Vintage Cube",
+  "category": "Cubo",
+  "source": "CubeCobra · copia del Vintage Cube de Magic Online",
+  "player": "copia del Vintage Cube de Magic Online",
+  "note": "El cubo «de lujo» de Magic Online: lo más potente de la historia, con el power (Black Lotus, Moxen, Time Walk). Partidas rápidas, combos y control fuerte.\nCartas: 540. Con sobres de 15 cartas, 3 sobres por jugador (45 cartas cada uno): da para 12 jugadores (lo normal es jugar 8). Cada jugador monta un mazo de 40 cartas con lo que elige y tierras básicas aparte.",
+  "cards": [
+   [
+    "Aang's Iceberg",
+    1,
+    0
+   ],
+   [
+    "Aang, Swift Savior",
+    1,
+    0
+   ],
+   [
+    "Abandoned Air Temple",
+    1,
+    0
+   ],
+   [
+    "Abhorrent Oculus",
+    1,
+    0
+   ],
+   [
+    "Abrade",
+    1,
+    0
+   ],
+   [
+    "Absorbing Man",
+    1,
+    0
+   ],
+   [
+    "Adeline, Resplendent Cathar",
+    1,
+    0
+   ],
+   [
+    "Aether Spellbomb",
+    1,
+    0
+   ],
+   [
+    "Agatha's Soul Cauldron",
+    1,
+    0
+   ],
+   [
+    "Ajani, Nacatl Pariah",
+    1,
+    0
+   ],
+   [
+    "Alpha Deathclaw",
+    1,
+    0
+   ],
+   [
+    "Ancestral Recall",
+    1,
+    0
+   ],
+   [
+    "Ancient Tomb",
+    1,
+    0
+   ],
+   [
+    "Animate Dead",
+    1,
+    0
+   ],
+   [
+    "Archon of Cruelty",
+    1,
+    0
+   ],
+   [
+    "Arena of Glory",
+    1,
+    0
+   ],
+   [
+    "Arid Mesa",
+    1,
+    0
+   ],
+   [
+    "Astrologian's Planisphere",
+    1,
+    0
+   ],
+   [
+    "Atraxa, Grand Unifier",
+    1,
+    0
+   ],
+   [
+    "Auriok Salvagers",
+    1,
+    0
+   ],
+   [
+    "Avatar of Burgeoning Echoes",
+    1,
+    0
+   ],
+   [
+    "Badgermole Cub",
+    1,
+    0
+   ],
+   [
+    "Badlands",
+    1,
+    0
+   ],
+   [
+    "Balance",
+    1,
+    0
+   ],
+   [
+    "Baleful Strix",
+    1,
+    0
+   ],
+   [
+    "Baloth Prime",
+    1,
+    0
+   ],
+   [
+    "Barrowgoyf",
+    1,
+    0
+   ],
+   [
+    "Basalt Monolith",
+    1,
+    0
+   ],
+   [
+    "Batroc the Leaper",
+    1,
+    0
+   ],
+   [
+    "Bayou",
+    1,
+    0
+   ],
+   [
+    "Bilbo, Thief in the Night",
+    1,
+    0
+   ],
+   [
+    "Birds of Paradise",
+    1,
+    0
+   ],
+   [
+    "Bitter Triumph",
+    1,
+    0
+   ],
+   [
+    "Black Lotus",
+    1,
+    0
+   ],
+   [
+    "Black Widow, Super Spy",
+    1,
+    0
+   ],
+   [
+    "Blackcleave Cliffs",
+    1,
+    0
+   ],
+   [
+    "Blazemire Verge",
+    1,
+    0
+   ],
+   [
+    "Bleachbone Verge",
+    1,
+    0
+   ],
+   [
+    "Blightsteel Colossus",
+    1,
+    0
+   ],
+   [
+    "Blood Crypt",
+    1,
+    0
+   ],
+   [
+    "Bloodbraid Challenger",
+    1,
+    0
+   ],
+   [
+    "Bloodchief's Thirst",
+    1,
+    0
+   ],
+   [
+    "Bloodstained Mire",
+    1,
+    0
+   ],
+   [
+    "Bloodtithe Harvester",
+    1,
+    0
+   ],
+   [
+    "Blooming Marsh",
+    1,
+    0
+   ],
+   [
+    "Bolas's Citadel",
+    1,
+    0
+   ],
+   [
+    "Bone Shards",
+    1,
+    0
+   ],
+   [
+    "Bonecrusher Giant",
+    1,
+    0
+   ],
+   [
+    "Boomerang Basics",
+    1,
+    0
+   ],
+   [
+    "Boseiju, Who Endures",
+    1,
+    0
+   ],
+   [
+    "Botanical Sanctum",
+    1,
+    0
+   ],
+   [
+    "Brain Freeze",
+    1,
+    0
+   ],
+   [
+    "Brainstorm",
+    1,
+    0
+   ],
+   [
+    "Brazen Borrower",
+    1,
+    0
+   ],
+   [
+    "Breeding Pool",
+    1,
+    0
+   ],
+   [
+    "Brightglass Gearhulk",
+    1,
+    0
+   ],
+   [
+    "Bristly Bill, Spine Sower",
+    1,
+    0
+   ],
+   [
+    "Broadside Bombardiers",
+    1,
+    0
+   ],
+   [
+    "Burst Lightning",
+    1,
+    0
+   ],
+   [
+    "Cabal Ritual",
+    1,
+    0
+   ],
+   [
+    "Candelabra of Tawnos",
+    1,
+    0
+   ],
+   [
+    "Carnage Interpreter",
+    1,
+    0
+   ],
+   [
+    "Carnivorous Cultivator",
+    1,
+    0
+   ],
+   [
+    "Cathar Commando",
+    1,
+    0
+   ],
+   [
+    "Caustic Bronco",
+    1,
+    0
+   ],
+   [
+    "Celestial Colonnade",
+    1,
+    0
+   ],
+   [
+    "Chain Lightning",
+    1,
+    0
+   ],
+   [
+    "Chain of Smog",
+    1,
+    0
+   ],
+   [
+    "Chandra, Torch of Defiance",
+    1,
+    0
+   ],
+   [
+    "Chromatic Star",
+    1,
+    0
+   ],
+   [
+    "Chrome Mox",
+    1,
+    0
+   ],
+   [
+    "City of Traitors",
+    1,
+    0
+   ],
+   [
+    "Cloak and Dagger, Entwined",
+    1,
+    0
+   ],
+   [
+    "Coalition Relic",
+    1,
+    0
+   ],
+   [
+    "Collective Brutality",
+    1,
+    0
+   ],
+   [
+    "Commercial District",
+    1,
+    0
+   ],
+   [
+    "Concealed Courtyard",
+    1,
+    0
+   ],
+   [
+    "Concealing Curtains",
+    1,
+    0
+   ],
+   [
+    "Consider",
+    1,
+    0
+   ],
+   [
+    "Containment Priest",
+    1,
+    0
+   ],
+   [
+    "Copperline Gorge",
+    1,
+    0
+   ],
+   [
+    "Cori-Steel Cutter",
+    1,
+    0
+   ],
+   [
+    "Corpse Dance",
+    1,
+    0
+   ],
+   [
+    "Council's Judgment",
+    1,
+    0
+   ],
+   [
+    "Counterspell",
+    1,
+    0
+   ],
+   [
+    "Coveted Jewel",
+    1,
+    0
+   ],
+   [
+    "Crabomination",
+    1,
+    0
+   ],
+   [
+    "Creeping Tar Pit",
+    1,
+    0
+   ],
+   [
+    "Crop Rotation",
+    1,
+    0
+   ],
+   [
+    "Cryogen Relic",
+    1,
+    0
+   ],
+   [
+    "Currency Converter",
+    1,
+    0
+   ],
+   [
+    "Cut Down",
+    1,
+    0
+   ],
+   [
+    "Dack Fayden",
+    1,
+    0
+   ],
+   [
+    "Damn",
+    1,
+    0
+   ],
+   [
+    "Damnation",
+    1,
+    0
+   ],
+   [
+    "Dark Confidant",
+    1,
+    0
+   ],
+   [
+    "Dark Depths",
+    1,
+    0
+   ],
+   [
+    "Dark Ritual",
+    1,
+    0
+   ],
+   [
+    "Darkslick Shores",
+    1,
+    0
+   ],
+   [
+    "Dauthi Voidwalker",
+    1,
+    0
+   ],
+   [
+    "Daze",
+    1,
+    0
+   ],
+   [
+    "Dead",
+    1,
+    0
+   ],
+   [
+    "Death-Greeter's Champion",
+    1,
+    0
+   ],
+   [
+    "Deathrite Shaman",
+    1,
+    0
+   ],
+   [
+    "Deep-Cavern Bat",
+    1,
+    0
+   ],
+   [
+    "Delayed Blast Fireball",
+    1,
+    0
+   ],
+   [
+    "Delighted Halfling",
+    1,
+    0
+   ],
+   [
+    "Demonic Tutor",
+    1,
+    0
+   ],
+   [
+    "Detective's Phoenix",
+    1,
+    0
+   ],
+   [
+    "Devoted Druid",
+    1,
+    0
+   ],
+   [
+    "Dismember",
+    1,
+    0
+   ],
+   [
+    "Displacer Kitten",
+    1,
+    0
+   ],
+   [
+    "Doomsday",
+    1,
+    0
+   ],
+   [
+    "Dragon's Rage Channeler",
+    1,
+    0
+   ],
+   [
+    "Duress",
+    1,
+    0
+   ],
+   [
+    "Eagles of the North",
+    1,
+    0
+   ],
+   [
+    "Echo of Eons",
+    1,
+    0
+   ],
+   [
+    "Elegant Parlor",
+    1,
+    0
+   ],
+   [
+    "Elite Spellbinder",
+    1,
+    0
+   ],
+   [
+    "Elspeth, Storm Slayer",
+    1,
+    0
+   ],
+   [
+    "Elvish Mystic",
+    1,
+    0
+   ],
+   [
+    "Elvish Reclaimer",
+    1,
+    0
+   ],
+   [
+    "Embereth Shieldbreaker",
+    1,
+    0
+   ],
+   [
+    "Emeritus of Abundance",
+    1,
+    0
+   ],
+   [
+    "Emeritus of Ideation",
+    1,
+    0
+   ],
+   [
+    "Emperor of Bones",
+    1,
+    0
+   ],
+   [
+    "Emrakul, the Aeons Torn",
+    1,
+    0
+   ],
+   [
+    "Emry, Lurker of the Loch",
+    1,
+    0
+   ],
+   [
+    "Endurance",
+    1,
+    0
+   ],
+   [
+    "Enduring Innocence",
+    1,
+    0
+   ],
+   [
+    "Engineered Explosives",
+    1,
+    0
+   ],
+   [
+    "Enlightened Tutor",
+    1,
+    0
+   ],
+   [
+    "Entomb",
+    1,
+    0
+   ],
+   [
+    "Erode",
+    1,
+    0
+   ],
+   [
+    "Escape to the Wilds",
+    1,
+    0
+   ],
+   [
+    "Esika's Chariot",
+    1,
+    0
+   ],
+   [
+    "Etali, Primal Conqueror",
+    1,
+    0
+   ],
+   [
+    "Everflowing Chalice",
+    1,
+    0
+   ],
+   [
+    "Exhume",
+    1,
+    0
+   ],
+   [
+    "Expedition Map",
+    1,
+    0
+   ],
+   [
+    "Expressive Iteration",
+    1,
+    0
+   ],
+   [
+    "Fable of the Mirror-Breaker",
+    1,
+    0
+   ],
+   [
+    "Fabled Passage",
+    1,
+    0
+   ],
+   [
+    "Faerie Mastermind",
+    1,
+    0
+   ],
+   [
+    "Faithless Looting",
+    1,
+    0
+   ],
+   [
+    "Fallen Shinobi",
+    1,
+    0
+   ],
+   [
+    "Fanatic of Rhonas",
+    1,
+    0
+   ],
+   [
+    "Fastbond",
+    1,
+    0
+   ],
+   [
+    "Fatal Push",
+    1,
+    0
+   ],
+   [
+    "Fear of Missing Out",
+    1,
+    0
+   ],
+   [
+    "Fiery Confluence",
+    1,
+    0
+   ],
+   [
+    "Figure of Destiny",
+    1,
+    0
+   ],
+   [
+    "Figure of Fable",
+    1,
+    0
+   ],
+   [
+    "Fire Covenant",
+    1,
+    0
+   ],
+   [
+    "Fireblast",
+    1,
+    0
+   ],
+   [
+    "Firebolt",
+    1,
+    0
+   ],
+   [
+    "Flame Slash",
+    1,
+    0
+   ],
+   [
+    "Flame of Anor",
+    1,
+    0
+   ],
+   [
+    "Flash",
+    1,
+    0
+   ],
+   [
+    "Flashback",
+    1,
+    0
+   ],
+   [
+    "Flickerwisp",
+    1,
+    0
+   ],
+   [
+    "Flooded Strand",
+    1,
+    0
+   ],
+   [
+    "Force of Negation",
+    1,
+    0
+   ],
+   [
+    "Force of Vigor",
+    1,
+    0
+   ],
+   [
+    "Force of Will",
+    1,
+    0
+   ],
+   [
+    "Forensic Gadgeteer",
+    1,
+    0
+   ],
+   [
+    "Formidable Speaker",
+    1,
+    0
+   ],
+   [
+    "Forth Eorlingas!",
+    1,
+    0
+   ],
+   [
+    "Fractured Identity",
+    1,
+    0
+   ],
+   [
+    "Frantic Search",
+    1,
+    0
+   ],
+   [
+    "Fury",
+    1,
+    0
+   ],
+   [
+    "Gaea's Cradle",
+    1,
+    0
+   ],
+   [
+    "Galvanic Discharge",
+    1,
+    0
+   ],
+   [
+    "Gandalf, Goblins' Bane",
+    1,
+    0
+   ],
+   [
+    "Garruk, Curse Breaker",
+    1,
+    0
+   ],
+   [
+    "Gau, Feral Youth",
+    1,
+    0
+   ],
+   [
+    "Generous Ent",
+    1,
+    0
+   ],
+   [
+    "Generous Plunderer",
+    1,
+    0
+   ],
+   [
+    "Get Lost",
+    1,
+    0
+   ],
+   [
+    "Ginger, Queen of Sweets",
+    1,
+    0
+   ],
+   [
+    "Gitaxian Probe",
+    1,
+    0
+   ],
+   [
+    "Giver of Runes",
+    1,
+    0
+   ],
+   [
+    "Glimmer Lens",
+    1,
+    0
+   ],
+   [
+    "Goblin Bombardment",
+    1,
+    0
+   ],
+   [
+    "Goblin Engineer",
+    1,
+    0
+   ],
+   [
+    "Goblin Welder",
+    1,
+    0
+   ],
+   [
+    "Godless Shrine",
+    1,
+    0
+   ],
+   [
+    "Green Sun's Zenith",
+    1,
+    0
+   ],
+   [
+    "Grief",
+    1,
+    0
+   ],
+   [
+    "Grim Monolith",
+    1,
+    0
+   ],
+   [
+    "Grindstone",
+    1,
+    0
+   ],
+   [
+    "Griselbrand",
+    1,
+    0
+   ],
+   [
+    "Grist, the Hunger Tide",
+    1,
+    0
+   ],
+   [
+    "Guardian Scalelord",
+    1,
+    0
+   ],
+   [
+    "Guide of Souls",
+    1,
+    0
+   ],
+   [
+    "Gush",
+    1,
+    0
+   ],
+   [
+    "Gut, True Soul Zealot",
+    1,
+    0
+   ],
+   [
+    "Hallowed Fountain",
+    1,
+    0
+   ],
+   [
+    "Harvester of Misery",
+    1,
+    0
+   ],
+   [
+    "Haywire Mite",
+    1,
+    0
+   ],
+   [
+    "Headliner Scarlett",
+    1,
+    0
+   ],
+   [
+    "Hedge Maze",
+    1,
+    0
+   ],
+   [
+    "Hexdrinker",
+    1,
+    0
+   ],
+   [
+    "Horizon Canopy",
+    1,
+    0
+   ],
+   [
+    "Hullbreacher",
+    1,
+    0
+   ],
+   [
+    "Hymn to Tourach",
+    1,
+    0
+   ],
+   [
+    "Icetill Explorer",
+    1,
+    0
+   ],
+   [
+    "Ignoble Hierarch",
+    1,
+    0
+   ],
+   [
+    "Imperial Seal",
+    1,
+    0
+   ],
+   [
+    "Impractical Joke",
+    1,
+    0
+   ],
+   [
+    "Indatha Triome",
+    1,
+    0
+   ],
+   [
+    "Infernal Grasp",
+    1,
+    0
+   ],
+   [
+    "Inquisition of Kozilek",
+    1,
+    0
+   ],
+   [
+    "Inspiring Vantage",
+    1,
+    0
+   ],
+   [
+    "Inti, Seneschal of the Sun",
+    1,
+    0
+   ],
+   [
+    "Iron Man Armor",
+    1,
+    0
+   ],
+   [
+    "Iron-Shield Elf",
+    1,
+    0
+   ],
+   [
+    "Ivora, Insatiable Heir",
+    1,
+    0
+   ],
+   [
+    "Jace, Vryn's Prodigy",
+    1,
+    0
+   ],
+   [
+    "Jace, Wielder of Mysteries",
+    1,
+    0
+   ],
+   [
+    "Jace, the Mind Sculptor",
+    1,
+    0
+   ],
+   [
+    "Jacked Rabbit",
+    1,
+    0
+   ],
+   [
+    "Jennifer Walters",
+    1,
+    0
+   ],
+   [
+    "Jetmir's Garden",
+    1,
+    0
+   ],
+   [
+    "Kaito, Bane of Nightmares",
+    1,
+    0
+   ],
+   [
+    "Kaldra Compleat",
+    1,
+    0
+   ],
+   [
+    "Kappa Cannoneer",
+    1,
+    0
+   ],
+   [
+    "Karakas",
+    1,
+    0
+   ],
+   [
+    "Karn, Scion of Urza",
+    1,
+    0
+   ],
+   [
+    "Keen-Eyed Curator",
+    1,
+    0
+   ],
+   [
+    "Ketria Triome",
+    1,
+    0
+   ],
+   [
+    "Knight of the Reliquary",
+    1,
+    0
+   ],
+   [
+    "Kolaghan's Command",
+    1,
+    0
+   ],
+   [
+    "Laelia, the Blade Reforged",
+    1,
+    0
+   ],
+   [
+    "Lava Dart",
+    1,
+    0
+   ],
+   [
+    "Ledger Shredder",
+    1,
+    0
+   ],
+   [
+    "Legion Extruder",
+    1,
+    0
+   ],
+   [
+    "Leyline Binding",
+    1,
+    0
+   ],
+   [
+    "Library of Alexandria",
+    1,
+    0
+   ],
+   [
+    "Life",
+    1,
+    0
+   ],
+   [
+    "Lightning Bolt",
+    1,
+    0
+   ],
+   [
+    "Lightning Greaves",
+    1,
+    0
+   ],
+   [
+    "Liliana of the Veil",
+    1,
+    0
+   ],
+   [
+    "Lingering Souls",
+    1,
+    0
+   ],
+   [
+    "Lion Sash",
+    1,
+    0
+   ],
+   [
+    "Lion's Eye Diamond",
+    1,
+    0
+   ],
+   [
+    "Llanowar Elves",
+    1,
+    0
+   ],
+   [
+    "Loran of the Third Path",
+    1,
+    0
+   ],
+   [
+    "Lose Focus",
+    1,
+    0
+   ],
+   [
+    "Lotus Petal",
+    1,
+    0
+   ],
+   [
+    "Luminarch Aspirant",
+    1,
+    0
+   ],
+   [
+    "Lurrus of the Dream-Den",
+    1,
+    0
+   ],
+   [
+    "Lush Portico",
+    1,
+    0
+   ],
+   [
+    "Lutri, the Spellchaser",
+    1,
+    0
+   ],
+   [
+    "Lórien Revealed",
+    1,
+    0
+   ],
+   [
+    "Malcolm, Alluring Scoundrel",
+    1,
+    0
+   ],
+   [
+    "Malevolent Rumble",
+    1,
+    0
+   ],
+   [
+    "Mana Confluence",
+    1,
+    0
+   ],
+   [
+    "Mana Crypt",
+    1,
+    0
+   ],
+   [
+    "Mana Drain",
+    1,
+    0
+   ],
+   [
+    "Mana Leak",
+    1,
+    0
+   ],
+   [
+    "Mana Tithe",
+    1,
+    0
+   ],
+   [
+    "Mana Vault",
+    1,
+    0
+   ],
+   [
+    "Manamorphose",
+    1,
+    0
+   ],
+   [
+    "Manifold Key",
+    1,
+    0
+   ],
+   [
+    "Marsh Flats",
+    1,
+    0
+   ],
+   [
+    "Marwyn, the Preserver",
+    1,
+    0
+   ],
+   [
+    "Memory Jar",
+    1,
+    0
+   ],
+   [
+    "Memory Lapse",
+    1,
+    0
+   ],
+   [
+    "Metamorphosis Fanatic",
+    1,
+    0
+   ],
+   [
+    "Meticulous Archive",
+    1,
+    0
+   ],
+   [
+    "Mind Stone",
+    1,
+    0
+   ],
+   [
+    "Mind Twist",
+    1,
+    0
+   ],
+   [
+    "Mine Collapse",
+    1,
+    0
+   ],
+   [
+    "Minsc & Boo, Timeless Heroes",
+    1,
+    0
+   ],
+   [
+    "Miscalculation",
+    1,
+    0
+   ],
+   [
+    "Mishra's Bauble",
+    1,
+    0
+   ],
+   [
+    "Mishra's Workshop",
+    1,
+    0
+   ],
+   [
+    "Misty Rainforest",
+    1,
+    0
+   ],
+   [
+    "Mole Man, Moloid Master",
+    1,
+    0
+   ],
+   [
+    "Monastery Swiftspear",
+    1,
+    0
+   ],
+   [
+    "Moonshadow",
+    1,
+    0
+   ],
+   [
+    "Mother of Runes",
+    1,
+    0
+   ],
+   [
+    "Mox Diamond",
+    1,
+    0
+   ],
+   [
+    "Mox Emerald",
+    1,
+    0
+   ],
+   [
+    "Mox Jet",
+    1,
+    0
+   ],
+   [
+    "Mox Opal",
+    1,
+    0
+   ],
+   [
+    "Mox Pearl",
+    1,
+    0
+   ],
+   [
+    "Mox Ruby",
+    1,
+    0
+   ],
+   [
+    "Mox Sapphire",
+    1,
+    0
+   ],
+   [
+    "Multiversal Passage",
+    1,
+    0
+   ],
+   [
+    "Mutagenic Growth",
+    1,
+    0
+   ],
+   [
+    "Myr Battlesphere",
+    1,
+    0
+   ],
+   [
+    "Mystic Confluence",
+    1,
+    0
+   ],
+   [
+    "Mystic Forge",
+    1,
+    0
+   ],
+   [
+    "Mystical Tutor",
+    1,
+    0
+   ],
+   [
+    "Nadu, Winged Wisdom",
+    1,
+    0
+   ],
+   [
+    "Narset, Parter of Veils",
+    1,
+    0
+   ],
+   [
+    "Natural Order",
+    1,
+    0
+   ],
+   [
+    "Necromancy",
+    1,
+    0
+   ],
+   [
+    "Nethergoyf",
+    1,
+    0
+   ],
+   [
+    "Nettlecyst",
+    1,
+    0
+   ],
+   [
+    "Night Nurse, Healer of Heroes",
+    1,
+    0
+   ],
+   [
+    "Night's Whisper",
+    1,
+    0
+   ],
+   [
+    "Nissa, Who Shakes the World",
+    1,
+    0
+   ],
+   [
+    "No More Lies",
+    1,
+    0
+   ],
+   [
+    "Noble Hierarch",
+    1,
+    0
+   ],
+   [
+    "Oath of Druids",
+    1,
+    0
+   ],
+   [
+    "Occult Epiphany",
+    1,
+    0
+   ],
+   [
+    "Ocelot Pride",
+    1,
+    0
+   ],
+   [
+    "Oko, Thief of Crowns",
+    1,
+    0
+   ],
+   [
+    "Okoye, Mighty and Adored",
+    1,
+    0
+   ],
+   [
+    "Oliphaunt",
+    1,
+    0
+   ],
+   [
+    "Omnath, Locus of Creation",
+    1,
+    0
+   ],
+   [
+    "Once Upon a Time",
+    1,
+    0
+   ],
+   [
+    "Orcish Bowmasters",
+    1,
+    0
+   ],
+   [
+    "Orcish Lumberjack",
+    1,
+    0
+   ],
+   [
+    "Otawara, Soaring City",
+    1,
+    0
+   ],
+   [
+    "Otharri, Suns' Glory",
+    1,
+    0
+   ],
+   [
+    "Ouroboroid",
+    1,
+    0
+   ],
+   [
+    "Oust",
+    1,
+    0
+   ],
+   [
+    "Overgrown Tomb",
+    1,
+    0
+   ],
+   [
+    "Overlord of the Balemurk",
+    1,
+    0
+   ],
+   [
+    "Overlord of the Mistmoors",
+    1,
+    0
+   ],
+   [
+    "Painter's Servant",
+    1,
+    0
+   ],
+   [
+    "Palace Jailer",
+    1,
+    0
+   ],
+   [
+    "Palantír of Orthanc",
+    1,
+    0
+   ],
+   [
+    "Paradoxical Outcome",
+    1,
+    0
+   ],
+   [
+    "Parallax Wave",
+    1,
+    0
+   ],
+   [
+    "Path to Exile",
+    1,
+    0
+   ],
+   [
+    "Pentad Prism",
+    1,
+    0
+   ],
+   [
+    "Pest Infestation",
+    1,
+    0
+   ],
+   [
+    "Phantasmal Image",
+    1,
+    0
+   ],
+   [
+    "Phelia, Exuberant Shepherd",
+    1,
+    0
+   ],
+   [
+    "Phlage, Titan of Fire's Fury",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Dragon Engine",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Metamorph",
+    1,
+    0
+   ],
+   [
+    "Pillage the Bog",
+    1,
+    0
+   ],
+   [
+    "Plateau",
+    1,
+    0
+   ],
+   [
+    "Polluted Delta",
+    1,
+    0
+   ],
+   [
+    "Pompous Battlemage",
+    1,
+    0
+   ],
+   [
+    "Ponder",
+    1,
+    0
+   ],
+   [
+    "Portable Hole",
+    1,
+    0
+   ],
+   [
+    "Portal to Phyrexia",
+    1,
+    0
+   ],
+   [
+    "Preordain",
+    1,
+    0
+   ],
+   [
+    "Prismatic Ending",
+    1,
+    0
+   ],
+   [
+    "Prismatic Vista",
+    1,
+    0
+   ],
+   [
+    "Proft's Eidetic Memory",
+    1,
+    0
+   ],
+   [
+    "Psychic Frog",
+    1,
+    0
+   ],
+   [
+    "Pyrite Spellbomb",
+    1,
+    0
+   ],
+   [
+    "Pyrogoyf",
+    1,
+    0
+   ],
+   [
+    "Pyrokinesis",
+    1,
+    0
+   ],
+   [
+    "Quantum Riddler",
+    1,
+    0
+   ],
+   [
+    "Questing Beast",
+    1,
+    0
+   ],
+   [
+    "Quirion Ranger",
+    1,
+    0
+   ],
+   [
+    "Raffine's Tower",
+    1,
+    0
+   ],
+   [
+    "Ragavan, Nimble Pilferer",
+    1,
+    0
+   ],
+   [
+    "Raucous Theater",
+    1,
+    0
+   ],
+   [
+    "Raugrin Triome",
+    1,
+    0
+   ],
+   [
+    "Razorverge Thicket",
+    1,
+    0
+   ],
+   [
+    "Reanimate",
+    1,
+    0
+   ],
+   [
+    "Recurring Nightmare",
+    1,
+    0
+   ],
+   [
+    "Relic of Sauron",
+    1,
+    0
+   ],
+   [
+    "Remand",
+    1,
+    0
+   ],
+   [
+    "Reprieve",
+    1,
+    0
+   ],
+   [
+    "Retrofitter Foundry",
+    1,
+    0
+   ],
+   [
+    "Riverpyre Verge",
+    1,
+    0
+   ],
+   [
+    "Sacred Foundry",
+    1,
+    0
+   ],
+   [
+    "Sage of the Skies",
+    1,
+    0
+   ],
+   [
+    "Saheeli, Sublime Artificer",
+    1,
+    0
+   ],
+   [
+    "Samut, Hazoret's Champion",
+    1,
+    0
+   ],
+   [
+    "Sanctum Lurker",
+    1,
+    0
+   ],
+   [
+    "Sanguine Evangelist",
+    1,
+    0
+   ],
+   [
+    "Savai Triome",
+    1,
+    0
+   ],
+   [
+    "Savannah",
+    1,
+    0
+   ],
+   [
+    "Scalding Tarn",
+    1,
+    0
+   ],
+   [
+    "Screaming Nemesis",
+    1,
+    0
+   ],
+   [
+    "Scrubland",
+    1,
+    0
+   ],
+   [
+    "Scythecat Cub",
+    1,
+    0
+   ],
+   [
+    "Seachrome Coast",
+    1,
+    0
+   ],
+   [
+    "Sear",
+    1,
+    0
+   ],
+   [
+    "Seasoned Cryomancer",
+    1,
+    0
+   ],
+   [
+    "Seasoned Pyromancer",
+    1,
+    0
+   ],
+   [
+    "Sedgemoor Witch",
+    1,
+    0
+   ],
+   [
+    "Sensei's Divining Top",
+    1,
+    0
+   ],
+   [
+    "Sentinel of the Nameless City",
+    1,
+    0
+   ],
+   [
+    "Serra Paragon",
+    1,
+    0
+   ],
+   [
+    "Sewer-veillance Cam",
+    1,
+    0
+   ],
+   [
+    "Shadowy Backstreet",
+    1,
+    0
+   ],
+   [
+    "Shallow Grave",
+    1,
+    0
+   ],
+   [
+    "Shelldock Isle",
+    1,
+    0
+   ],
+   [
+    "Sheoldred's Edict",
+    1,
+    0
+   ],
+   [
+    "Sheoldred, the Apocalypse",
+    1,
+    0
+   ],
+   [
+    "Shifting Woodland",
+    1,
+    0
+   ],
+   [
+    "Shorikai, Genesis Engine",
+    1,
+    0
+   ],
+   [
+    "Show and Tell",
+    1,
+    0
+   ],
+   [
+    "Sink into Stupor",
+    1,
+    0
+   ],
+   [
+    "Six",
+    1,
+    0
+   ],
+   [
+    "Skateboard",
+    1,
+    0
+   ],
+   [
+    "Skullclamp",
+    1,
+    0
+   ],
+   [
+    "Skyclave Apparition",
+    1,
+    0
+   ],
+   [
+    "Slickshot Show-Off",
+    1,
+    0
+   ],
+   [
+    "Smuggler's Copter",
+    1,
+    0
+   ],
+   [
+    "Snapcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Sneak Attack",
+    1,
+    0
+   ],
+   [
+    "Snuff Out",
+    1,
+    0
+   ],
+   [
+    "Sol Ring",
+    1,
+    0
+   ],
+   [
+    "Solitude",
+    1,
+    0
+   ],
+   [
+    "Soul-Guide Lantern",
+    1,
+    0
+   ],
+   [
+    "Soul-Scar Mage",
+    1,
+    0
+   ],
+   [
+    "Sowing Mycospawn",
+    1,
+    0
+   ],
+   [
+    "Spara's Headquarters",
+    1,
+    0
+   ],
+   [
+    "Spell Pierce",
+    1,
+    0
+   ],
+   [
+    "Spellseeker",
+    1,
+    0
+   ],
+   [
+    "Sphinx of False Conclusions",
+    1,
+    0
+   ],
+   [
+    "Spider-Woman, Stunning Savior",
+    1,
+    0
+   ],
+   [
+    "Spirebluff Canal",
+    1,
+    0
+   ],
+   [
+    "Springheart Nantuko",
+    1,
+    0
+   ],
+   [
+    "Staff of the Storyteller",
+    1,
+    0
+   ],
+   [
+    "Starting Town",
+    1,
+    0
+   ],
+   [
+    "Steam Vents",
+    1,
+    0
+   ],
+   [
+    "Stern Scolding",
+    1,
+    0
+   ],
+   [
+    "Stingcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Stock Up",
+    1,
+    0
+   ],
+   [
+    "Stomping Ground",
+    1,
+    0
+   ],
+   [
+    "Stoneforge Mystic",
+    1,
+    0
+   ],
+   [
+    "Stormchaser's Talent",
+    1,
+    0
+   ],
+   [
+    "Strip Mine",
+    1,
+    0
+   ],
+   [
+    "Subtlety",
+    1,
+    0
+   ],
+   [
+    "Sunbaked Canyon",
+    1,
+    0
+   ],
+   [
+    "Sunfall",
+    1,
+    0
+   ],
+   [
+    "Super Shredder",
+    1,
+    0
+   ],
+   [
+    "Superior Spider-Man",
+    1,
+    0
+   ],
+   [
+    "Suplex",
+    1,
+    0
+   ],
+   [
+    "Swift Reconfiguration",
+    1,
+    0
+   ],
+   [
+    "Sword of the Meek",
+    1,
+    0
+   ],
+   [
+    "Swords to Plowshares",
+    1,
+    0
+   ],
+   [
+    "Sylvan Safekeeper",
+    1,
+    0
+   ],
+   [
+    "Taiga",
+    1,
+    0
+   ],
+   [
+    "Talisman of Creativity",
+    1,
+    0
+   ],
+   [
+    "Talisman of Curiosity",
+    1,
+    0
+   ],
+   [
+    "Talisman of Dominance",
+    1,
+    0
+   ],
+   [
+    "Talisman of Progress",
+    1,
+    0
+   ],
+   [
+    "Talon Gates of Madara",
+    1,
+    0
+   ],
+   [
+    "Tamiyo's Safekeeping",
+    1,
+    0
+   ],
+   [
+    "Tamiyo, Collector of Tales",
+    1,
+    0
+   ],
+   [
+    "Tamiyo, Inquisitive Student",
+    1,
+    0
+   ],
+   [
+    "Tarfire",
+    1,
+    0
+   ],
+   [
+    "Tear Asunder",
+    1,
+    0
+   ],
+   [
+    "Teferi, Hero of Dominaria",
+    1,
+    0
+   ],
+   [
+    "Teferi, Time Raveler",
+    1,
+    0
+   ],
+   [
+    "Temple Garden",
+    1,
+    0
+   ],
+   [
+    "Tendrils of Agony",
+    1,
+    0
+   ],
+   [
+    "Tezzeret, Cruel Captain",
+    1,
+    0
+   ],
+   [
+    "Thassa's Oracle",
+    1,
+    0
+   ],
+   [
+    "The Echoverse Fulcrum",
+    1,
+    0
+   ],
+   [
+    "The Fantasticar",
+    1,
+    0
+   ],
+   [
+    "The Mightstone and Weakstone",
+    1,
+    0
+   ],
+   [
+    "The One Ring",
+    1,
+    0
+   ],
+   [
+    "The Wandering Emperor",
+    1,
+    0
+   ],
+   [
+    "The Wondrous Wasp",
+    1,
+    0
+   ],
+   [
+    "Thespian's Stage",
+    1,
+    0
+   ],
+   [
+    "Thieving Skydiver",
+    1,
+    0
+   ],
+   [
+    "Third Path Iconoclast",
+    1,
+    0
+   ],
+   [
+    "Thopter Foundry",
+    1,
+    0
+   ],
+   [
+    "Thornspire Verge",
+    1,
+    0
+   ],
+   [
+    "Thought Scour",
+    1,
+    0
+   ],
+   [
+    "Thoughtseize",
+    1,
+    0
+   ],
+   [
+    "Thraben Inspector",
+    1,
+    0
+   ],
+   [
+    "Through the Breach",
+    1,
+    0
+   ],
+   [
+    "Thundering Falls",
+    1,
+    0
+   ],
+   [
+    "Thundertrap Trainer",
+    1,
+    0
+   ],
+   [
+    "Tidehollow Sculler",
+    1,
+    0
+   ],
+   [
+    "Time Spiral",
+    1,
+    0
+   ],
+   [
+    "Time Walk",
+    1,
+    0
+   ],
+   [
+    "Timetwister",
+    1,
+    0
+   ],
+   [
+    "Tinker",
+    1,
+    0
+   ],
+   [
+    "Tireless Tracker",
+    1,
+    0
+   ],
+   [
+    "Tishana's Tidebinder",
+    1,
+    0
+   ],
+   [
+    "Titania, Protector of Argoth",
+    1,
+    0
+   ],
+   [
+    "Tolarian Academy",
+    1,
+    0
+   ],
+   [
+    "Torsten, Founder of Benalia",
+    1,
+    0
+   ],
+   [
+    "Toxic Deluge",
+    1,
+    0
+   ],
+   [
+    "Traumatic Critique",
+    1,
+    0
+   ],
+   [
+    "Treasure Cruise",
+    1,
+    0
+   ],
+   [
+    "Troll of Khazad-dûm",
+    1,
+    0
+   ],
+   [
+    "Tropical Island",
+    1,
+    0
+   ],
+   [
+    "Tundra",
+    1,
+    0
+   ],
+   [
+    "Ugin, Eye of the Storms",
+    1,
+    0
+   ],
+   [
+    "Umezawa's Jitte",
+    1,
+    0
+   ],
+   [
+    "Undercity Sewers",
+    1,
+    0
+   ],
+   [
+    "Underground Mortuary",
+    1,
+    0
+   ],
+   [
+    "Underground Sea",
+    1,
+    0
+   ],
+   [
+    "Underworld Breach",
+    1,
+    0
+   ],
+   [
+    "Unearth",
+    1,
+    0
+   ],
+   [
+    "Unexpectedly Absent",
+    1,
+    0
+   ],
+   [
+    "Unholy Heat",
+    1,
+    0
+   ],
+   [
+    "Upheaval",
+    1,
+    0
+   ],
+   [
+    "Urborg, Tomb of Yawgmoth",
+    1,
+    0
+   ],
+   [
+    "Uro, Titan of Nature's Wrath",
+    1,
+    0
+   ],
+   [
+    "Ursine Monstrosity",
+    1,
+    0
+   ],
+   [
+    "Urza's Bauble",
+    1,
+    0
+   ],
+   [
+    "Urza's Saga",
+    1,
+    0
+   ],
+   [
+    "Urza, Lord High Artificer",
+    1,
+    0
+   ],
+   [
+    "Vampiric Tutor",
+    1,
+    0
+   ],
+   [
+    "Vaultborn Tyrant",
+    1,
+    0
+   ],
+   [
+    "Verdant Catacombs",
+    1,
+    0
+   ],
+   [
+    "Vibrance",
+    1,
+    0
+   ],
+   [
+    "Vicious Rivalry",
+    1,
+    0
+   ],
+   [
+    "Vivi Ornitier",
+    1,
+    0
+   ],
+   [
+    "Voice of Victory",
+    1,
+    0
+   ],
+   [
+    "Volcanic Island",
+    1,
+    0
+   ],
+   [
+    "Voldaren Epicure",
+    1,
+    0
+   ],
+   [
+    "Vraska's Final Mercy",
+    1,
+    0
+   ],
+   [
+    "Walking Ballista",
+    1,
+    0
+   ],
+   [
+    "Wan Shi Tong, All-Knowing",
+    1,
+    0
+   ],
+   [
+    "Wan Shi Tong, Librarian",
+    1,
+    0
+   ],
+   [
+    "Wasteland",
+    1,
+    0
+   ],
+   [
+    "Wastewood Verge",
+    1,
+    0
+   ],
+   [
+    "Waterlogged Grove",
+    1,
+    0
+   ],
+   [
+    "Watery Grave",
+    1,
+    0
+   ],
+   [
+    "Wheel of Fortune",
+    1,
+    0
+   ],
+   [
+    "Wight of the Reliquary",
+    1,
+    0
+   ],
+   [
+    "Winds of Abandon",
+    1,
+    0
+   ],
+   [
+    "Windswept Heath",
+    1,
+    0
+   ],
+   [
+    "Wishclaw Talisman",
+    1,
+    0
+   ],
+   [
+    "Wistfulness",
+    1,
+    0
+   ],
+   [
+    "Witch Enchanter",
+    1,
+    0
+   ],
+   [
+    "Witherbloom Apprentice",
+    1,
+    0
+   ],
+   [
+    "Wooded Foothills",
+    1,
+    0
+   ],
+   [
+    "Woodfall Primus",
+    1,
+    0
+   ],
+   [
+    "Worldspine Wurm",
+    1,
+    0
+   ],
+   [
+    "Wrenn and Six",
+    1,
+    0
+   ],
+   [
+    "Xander's Lounge",
+    1,
+    0
+   ],
+   [
+    "Yavimaya, Cradle of Growth",
+    1,
+    0
+   ],
+   [
+    "Yawgmoth's Will",
+    1,
+    0
+   ],
+   [
+    "Zagoth Triome",
+    1,
+    0
+   ],
+   [
+    "Ziatora's Proving Ground",
+    1,
+    0
+   ],
+   [
+    "Zirda, the Dawnwaker",
+    1,
+    0
+   ],
+   [
+    "Zuran Orb",
+    1,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "CUBE",
+  "name": "LSV Cube",
+  "category": "Cubo",
+  "source": "CubeCobra · LSVCube",
+  "player": "LSVCube",
+  "note": "El cubo de Luis Scott-Vargas: potencia alta pero con arquetipos pensados para que el draft sea interesante y cada color tenga su plan.\nCartas: 516. Con sobres de 15 cartas, 3 sobres por jugador (45 cartas cada uno): da para 11 jugadores (lo normal es jugar 8). Cada jugador monta un mazo de 40 cartas con lo que elige y tierras básicas aparte. (2 cartas muy nuevas o digitales aún no salen en la lista de la app: \"Name Sticker\" Goblin, Gleemox.)",
+  "cards": [
+   [
+    "Aang, Swift Savior",
+    1,
+    0
+   ],
+   [
+    "Abandoned Air Temple",
+    1,
+    0
+   ],
+   [
+    "Abhorrent Oculus",
+    1,
+    0
+   ],
+   [
+    "Abrade",
+    1,
+    0
+   ],
+   [
+    "Aether Spellbomb",
+    1,
+    0
+   ],
+   [
+    "Agent Bishop, Man in Black",
+    1,
+    0
+   ],
+   [
+    "Ajani Unrelenting",
+    1,
+    0
+   ],
+   [
+    "Ajani, Nacatl Pariah",
+    1,
+    0
+   ],
+   [
+    "Alpha Deathclaw",
+    1,
+    0
+   ],
+   [
+    "Ancestral Recall",
+    1,
+    0
+   ],
+   [
+    "Ancient Tomb",
+    1,
+    0
+   ],
+   [
+    "Animate Dead",
+    1,
+    0
+   ],
+   [
+    "Anointed Peacekeeper",
+    1,
+    0
+   ],
+   [
+    "Aragorn, King of Gondor",
+    1,
+    0
+   ],
+   [
+    "Archon of Cruelty",
+    1,
+    0
+   ],
+   [
+    "Archon of Emeria",
+    1,
+    0
+   ],
+   [
+    "Arena of Glory",
+    1,
+    0
+   ],
+   [
+    "Arid Mesa",
+    1,
+    0
+   ],
+   [
+    "Armus, Skin of Evil",
+    1,
+    0
+   ],
+   [
+    "Arwen, Mortal Queen",
+    1,
+    0
+   ],
+   [
+    "Atraxa, Grand Unifier",
+    1,
+    0
+   ],
+   [
+    "Auriok Salvagers",
+    1,
+    0
+   ],
+   [
+    "Avacyn's Pilgrim",
+    1,
+    0
+   ],
+   [
+    "Badgermole Cub",
+    1,
+    0
+   ],
+   [
+    "Badlands",
+    1,
+    0
+   ],
+   [
+    "Balance",
+    1,
+    0
+   ],
+   [
+    "Baleful Strix",
+    1,
+    0
+   ],
+   [
+    "Baloth Prime",
+    1,
+    0
+   ],
+   [
+    "Barrowgoyf",
+    1,
+    0
+   ],
+   [
+    "Basalt Monolith",
+    1,
+    0
+   ],
+   [
+    "Batroc the Leaper",
+    1,
+    0
+   ],
+   [
+    "Bayou",
+    1,
+    0
+   ],
+   [
+    "Bejeweled Warg",
+    1,
+    0
+   ],
+   [
+    "Bilbo, Thief in the Night",
+    1,
+    0
+   ],
+   [
+    "Birds of Paradise",
+    1,
+    0
+   ],
+   [
+    "Bitter Triumph",
+    1,
+    0
+   ],
+   [
+    "Black Lotus",
+    1,
+    0
+   ],
+   [
+    "Black Widow, Super Spy",
+    1,
+    0
+   ],
+   [
+    "Blackcleave Cliffs",
+    1,
+    0
+   ],
+   [
+    "Blazemire Verge",
+    1,
+    0
+   ],
+   [
+    "Bleachbone Verge",
+    1,
+    0
+   ],
+   [
+    "Blood Crypt",
+    1,
+    0
+   ],
+   [
+    "Bloodbraid Challenger",
+    1,
+    0
+   ],
+   [
+    "Bloodstained Mire",
+    1,
+    0
+   ],
+   [
+    "Bloodtithe Harvester",
+    1,
+    0
+   ],
+   [
+    "Blooming Marsh",
+    1,
+    0
+   ],
+   [
+    "Bolas's Citadel",
+    1,
+    0
+   ],
+   [
+    "Bone Shards",
+    1,
+    0
+   ],
+   [
+    "Bonehoard Dracosaur",
+    1,
+    0
+   ],
+   [
+    "Boomerang Basics",
+    1,
+    0
+   ],
+   [
+    "Boseiju, Who Endures",
+    1,
+    0
+   ],
+   [
+    "Botanical Sanctum",
+    1,
+    0
+   ],
+   [
+    "Brain Freeze",
+    1,
+    0
+   ],
+   [
+    "Brainstorm",
+    1,
+    0
+   ],
+   [
+    "Brazen Borrower",
+    1,
+    0
+   ],
+   [
+    "Breeding Pool",
+    1,
+    0
+   ],
+   [
+    "Bristly Bill, Spine Sower",
+    1,
+    0
+   ],
+   [
+    "Broadside Bombardiers",
+    1,
+    0
+   ],
+   [
+    "Burst Lightning",
+    1,
+    0
+   ],
+   [
+    "Cabal Ritual",
+    1,
+    0
+   ],
+   [
+    "Candelabra of Tawnos",
+    1,
+    0
+   ],
+   [
+    "Carnivorous Cultivator",
+    1,
+    0
+   ],
+   [
+    "Cathar Commando",
+    1,
+    0
+   ],
+   [
+    "Caustic Bronco",
+    1,
+    0
+   ],
+   [
+    "Cecil, Dark Knight",
+    1,
+    0
+   ],
+   [
+    "Celestial Colonnade",
+    1,
+    0
+   ],
+   [
+    "Chain Lightning",
+    1,
+    0
+   ],
+   [
+    "Chain of Smog",
+    1,
+    0
+   ],
+   [
+    "Chandra, Torch of Defiance",
+    1,
+    0
+   ],
+   [
+    "Chaos Defiler",
+    1,
+    0
+   ],
+   [
+    "Chromatic Star",
+    1,
+    0
+   ],
+   [
+    "Chrome Mox",
+    1,
+    0
+   ],
+   [
+    "City of Traitors",
+    1,
+    0
+   ],
+   [
+    "Clarion Conqueror",
+    1,
+    0
+   ],
+   [
+    "Cloak and Dagger, Entwined",
+    1,
+    0
+   ],
+   [
+    "Coalition Relic",
+    1,
+    0
+   ],
+   [
+    "Cogwork Librarian",
+    1,
+    0
+   ],
+   [
+    "Collective Brutality",
+    1,
+    0
+   ],
+   [
+    "Comet, Stellar Pup",
+    1,
+    0
+   ],
+   [
+    "Commercial District",
+    1,
+    0
+   ],
+   [
+    "Concealed Courtyard",
+    1,
+    0
+   ],
+   [
+    "Concealing Curtains",
+    1,
+    0
+   ],
+   [
+    "Consider",
+    1,
+    0
+   ],
+   [
+    "Consult the Star Charts",
+    1,
+    0
+   ],
+   [
+    "Containment Priest",
+    1,
+    0
+   ],
+   [
+    "Copperline Gorge",
+    1,
+    0
+   ],
+   [
+    "Cori-Steel Cutter",
+    1,
+    0
+   ],
+   [
+    "Corpse Dance",
+    1,
+    0
+   ],
+   [
+    "Council of Reeds",
+    1,
+    0
+   ],
+   [
+    "Council's Judgment",
+    1,
+    0
+   ],
+   [
+    "Counterspell",
+    1,
+    0
+   ],
+   [
+    "Coveted Jewel",
+    1,
+    0
+   ],
+   [
+    "Crabomination",
+    1,
+    0
+   ],
+   [
+    "Creeping Tar Pit",
+    1,
+    0
+   ],
+   [
+    "Crop Rotation",
+    1,
+    0
+   ],
+   [
+    "Crucible of Worlds",
+    1,
+    0
+   ],
+   [
+    "Cryogen Relic",
+    1,
+    0
+   ],
+   [
+    "Currency Converter",
+    1,
+    0
+   ],
+   [
+    "Cut Down",
+    1,
+    0
+   ],
+   [
+    "Dack Fayden",
+    1,
+    0
+   ],
+   [
+    "Damn",
+    1,
+    0
+   ],
+   [
+    "Dark Confidant",
+    1,
+    0
+   ],
+   [
+    "Dark Ritual",
+    1,
+    0
+   ],
+   [
+    "Darkslick Shores",
+    1,
+    0
+   ],
+   [
+    "Dauthi Voidwalker",
+    1,
+    0
+   ],
+   [
+    "Daze",
+    1,
+    0
+   ],
+   [
+    "Death-Greeter's Champion",
+    1,
+    0
+   ],
+   [
+    "Deep-Cavern Bat",
+    1,
+    0
+   ],
+   [
+    "Delighted Halfling",
+    1,
+    0
+   ],
+   [
+    "Demonic Tutor",
+    1,
+    0
+   ],
+   [
+    "Dismember",
+    1,
+    0
+   ],
+   [
+    "Displacer Kitten",
+    1,
+    0
+   ],
+   [
+    "Does Machines",
+    1,
+    0
+   ],
+   [
+    "Dragon's Rage Channeler",
+    1,
+    0
+   ],
+   [
+    "Duress",
+    1,
+    0
+   ],
+   [
+    "Eagles of the North",
+    1,
+    0
+   ],
+   [
+    "Echo of Eons",
+    1,
+    0
+   ],
+   [
+    "Elegant Parlor",
+    1,
+    0
+   ],
+   [
+    "Elite Spellbinder",
+    1,
+    0
+   ],
+   [
+    "Elspeth, Storm Slayer",
+    1,
+    0
+   ],
+   [
+    "Elvish Spirit Guide",
+    1,
+    0
+   ],
+   [
+    "Embereth Shieldbreaker",
+    1,
+    0
+   ],
+   [
+    "Emberwilde Captain",
+    1,
+    0
+   ],
+   [
+    "Emeritus of Abundance",
+    1,
+    0
+   ],
+   [
+    "Emeritus of Ideation",
+    1,
+    0
+   ],
+   [
+    "Emperor of Bones",
+    1,
+    0
+   ],
+   [
+    "Emrakul, the Aeons Torn",
+    1,
+    0
+   ],
+   [
+    "Endurance",
+    1,
+    0
+   ],
+   [
+    "Enduring Innocence",
+    1,
+    0
+   ],
+   [
+    "Enlightened Tutor",
+    1,
+    0
+   ],
+   [
+    "Entomb",
+    1,
+    0
+   ],
+   [
+    "Erode",
+    1,
+    0
+   ],
+   [
+    "Ertai Resurrected",
+    1,
+    0
+   ],
+   [
+    "Esika's Chariot",
+    1,
+    0
+   ],
+   [
+    "Etali, Primal Conqueror",
+    1,
+    0
+   ],
+   [
+    "Exhume",
+    1,
+    0
+   ],
+   [
+    "Exorcise",
+    1,
+    0
+   ],
+   [
+    "Expedition Map",
+    1,
+    0
+   ],
+   [
+    "Expressive Iteration",
+    1,
+    0
+   ],
+   [
+    "Fable of the Mirror-Breaker",
+    1,
+    0
+   ],
+   [
+    "Faerie Mastermind",
+    1,
+    0
+   ],
+   [
+    "Faithless Looting",
+    1,
+    0
+   ],
+   [
+    "Fallen Shinobi",
+    1,
+    0
+   ],
+   [
+    "Fanatic of Rhonas",
+    1,
+    0
+   ],
+   [
+    "Fastbond",
+    1,
+    0
+   ],
+   [
+    "Fatal Push",
+    1,
+    0
+   ],
+   [
+    "Fear of Missing Out",
+    1,
+    0
+   ],
+   [
+    "Fiery Confluence",
+    1,
+    0
+   ],
+   [
+    "Fiery Islet",
+    1,
+    0
+   ],
+   [
+    "Figure of Destiny",
+    1,
+    0
+   ],
+   [
+    "Figure of Fable",
+    1,
+    0
+   ],
+   [
+    "Fire Covenant",
+    1,
+    0
+   ],
+   [
+    "Flame Slash",
+    1,
+    0
+   ],
+   [
+    "Flametongue Kavu",
+    1,
+    0
+   ],
+   [
+    "Flash",
+    1,
+    0
+   ],
+   [
+    "Flooded Strand",
+    1,
+    0
+   ],
+   [
+    "Force of Negation",
+    1,
+    0
+   ],
+   [
+    "Force of Vigor",
+    1,
+    0
+   ],
+   [
+    "Force of Will",
+    1,
+    0
+   ],
+   [
+    "Forensic Gadgeteer",
+    1,
+    0
+   ],
+   [
+    "Formidable Speaker",
+    1,
+    0
+   ],
+   [
+    "Forth Eorlingas!",
+    1,
+    0
+   ],
+   [
+    "Fractured Identity",
+    1,
+    0
+   ],
+   [
+    "Frantic Search",
+    1,
+    0
+   ],
+   [
+    "Fury",
+    1,
+    0
+   ],
+   [
+    "Gaea's Cradle",
+    1,
+    0
+   ],
+   [
+    "Galvanic Discharge",
+    1,
+    0
+   ],
+   [
+    "Garruk, Curse Breaker",
+    1,
+    0
+   ],
+   [
+    "Gemstone Caverns",
+    1,
+    0
+   ],
+   [
+    "Gemstone Mine",
+    1,
+    0
+   ],
+   [
+    "Generous Ent",
+    1,
+    0
+   ],
+   [
+    "Generous Plunderer",
+    1,
+    0
+   ],
+   [
+    "Get Lost",
+    1,
+    0
+   ],
+   [
+    "Ghost Vacuum",
+    1,
+    0
+   ],
+   [
+    "Gitaxian Probe",
+    1,
+    0
+   ],
+   [
+    "Giver of Runes",
+    1,
+    0
+   ],
+   [
+    "Glen Elendra Guardian",
+    1,
+    0
+   ],
+   [
+    "Glimmer Lens",
+    1,
+    0
+   ],
+   [
+    "Goblin Welder",
+    1,
+    0
+   ],
+   [
+    "Godless Shrine",
+    1,
+    0
+   ],
+   [
+    "Golos, Tireless Pilgrim",
+    1,
+    0
+   ],
+   [
+    "Goryo's Vengeance",
+    1,
+    0
+   ],
+   [
+    "Green Sun's Zenith",
+    1,
+    0
+   ],
+   [
+    "Grief",
+    1,
+    0
+   ],
+   [
+    "Grim Monolith",
+    1,
+    0
+   ],
+   [
+    "Grindstone",
+    1,
+    0
+   ],
+   [
+    "Griselbrand",
+    1,
+    0
+   ],
+   [
+    "Guide of Souls",
+    1,
+    0
+   ],
+   [
+    "Gut, True Soul Zealot",
+    1,
+    0
+   ],
+   [
+    "Hallowed Fountain",
+    1,
+    0
+   ],
+   [
+    "Harvester of Misery",
+    1,
+    0
+   ],
+   [
+    "Haywire Mite",
+    1,
+    0
+   ],
+   [
+    "Headliner Scarlett",
+    1,
+    0
+   ],
+   [
+    "Hedge Maze",
+    1,
+    0
+   ],
+   [
+    "Hero of Bladehold",
+    1,
+    0
+   ],
+   [
+    "Hexdrinker",
+    1,
+    0
+   ],
+   [
+    "Horizon Canopy",
+    1,
+    0
+   ],
+   [
+    "Hullbreacher",
+    1,
+    0
+   ],
+   [
+    "Hymn to Tourach",
+    1,
+    0
+   ],
+   [
+    "Icetill Explorer",
+    1,
+    0
+   ],
+   [
+    "Ignoble Hierarch",
+    1,
+    0
+   ],
+   [
+    "Imperial Seal",
+    1,
+    0
+   ],
+   [
+    "Indatha Triome",
+    1,
+    0
+   ],
+   [
+    "Inquisition of Kozilek",
+    1,
+    0
+   ],
+   [
+    "Inspiring Vantage",
+    1,
+    0
+   ],
+   [
+    "Inti, Seneschal of the Sun",
+    1,
+    0
+   ],
+   [
+    "Invert Polarity",
+    1,
+    0
+   ],
+   [
+    "Iron-Shield Elf",
+    1,
+    0
+   ],
+   [
+    "Ivora, Insatiable Heir",
+    1,
+    0
+   ],
+   [
+    "Jace, Vryn's Prodigy",
+    1,
+    0
+   ],
+   [
+    "Jacked Rabbit",
+    1,
+    0
+   ],
+   [
+    "Jadzia Dax, Living Legacy",
+    1,
+    0
+   ],
+   [
+    "Jennifer Walters",
+    1,
+    0
+   ],
+   [
+    "Jetmir's Garden",
+    1,
+    0
+   ],
+   [
+    "Kaito, Bane of Nightmares",
+    1,
+    0
+   ],
+   [
+    "Kappa Cannoneer",
+    1,
+    0
+   ],
+   [
+    "Karakas",
+    1,
+    0
+   ],
+   [
+    "Karn, Scion of Urza",
+    1,
+    0
+   ],
+   [
+    "Keen-Eyed Curator",
+    1,
+    0
+   ],
+   [
+    "Ketria Triome",
+    1,
+    0
+   ],
+   [
+    "Kolaghan's Command",
+    1,
+    0
+   ],
+   [
+    "Laelia, the Blade Reforged",
+    1,
+    0
+   ],
+   [
+    "Legion Extruder",
+    1,
+    0
+   ],
+   [
+    "Leovold, Emissary of Trest",
+    1,
+    0
+   ],
+   [
+    "Leyline Binding",
+    1,
+    0
+   ],
+   [
+    "Library of Alexandria",
+    1,
+    0
+   ],
+   [
+    "Life",
+    1,
+    0
+   ],
+   [
+    "Lightning Bolt",
+    1,
+    0
+   ],
+   [
+    "Lightning Greaves",
+    1,
+    0
+   ],
+   [
+    "Lingering Souls",
+    1,
+    0
+   ],
+   [
+    "Lion Sash",
+    1,
+    0
+   ],
+   [
+    "Lion's Eye Diamond",
+    1,
+    0
+   ],
+   [
+    "Llanowar Elves",
+    1,
+    0
+   ],
+   [
+    "Loot, the Pathfinder",
+    1,
+    0
+   ],
+   [
+    "Loran of the Third Path",
+    1,
+    0
+   ],
+   [
+    "Lose Focus",
+    1,
+    0
+   ],
+   [
+    "Lotus Cobra",
+    1,
+    0
+   ],
+   [
+    "Lotus Petal",
+    1,
+    0
+   ],
+   [
+    "Luminarch Aspirant",
+    1,
+    0
+   ],
+   [
+    "Lurrus of the Dream-Den",
+    1,
+    0
+   ],
+   [
+    "Lush Portico",
+    1,
+    0
+   ],
+   [
+    "Lutri, the Spellchaser",
+    1,
+    0
+   ],
+   [
+    "Lórien Revealed",
+    1,
+    0
+   ],
+   [
+    "Magda, Brazen Outlaw",
+    1,
+    0
+   ],
+   [
+    "Malcolm, Alluring Scoundrel",
+    1,
+    0
+   ],
+   [
+    "Malevolent Rumble",
+    1,
+    0
+   ],
+   [
+    "Mana Confluence",
+    1,
+    0
+   ],
+   [
+    "Mana Crypt",
+    1,
+    0
+   ],
+   [
+    "Mana Drain",
+    1,
+    0
+   ],
+   [
+    "Mana Leak",
+    1,
+    0
+   ],
+   [
+    "Mana Tithe",
+    1,
+    0
+   ],
+   [
+    "Mana Vault",
+    1,
+    0
+   ],
+   [
+    "Manamorphose",
+    1,
+    0
+   ],
+   [
+    "Manifold Key",
+    1,
+    0
+   ],
+   [
+    "Marsh Flats",
+    1,
+    0
+   ],
+   [
+    "Mawloc",
+    1,
+    0
+   ],
+   [
+    "Memnarch, the Warden",
+    1,
+    0
+   ],
+   [
+    "Memory Deluge",
+    1,
+    0
+   ],
+   [
+    "Memory Jar",
+    1,
+    0
+   ],
+   [
+    "Memory Lapse",
+    1,
+    0
+   ],
+   [
+    "Metamorphosis Fanatic",
+    1,
+    0
+   ],
+   [
+    "Meticulous Archive",
+    1,
+    0
+   ],
+   [
+    "Mind Twist",
+    1,
+    0
+   ],
+   [
+    "Mine Collapse",
+    1,
+    0
+   ],
+   [
+    "Minsc & Boo, Timeless Heroes",
+    1,
+    0
+   ],
+   [
+    "Mishra's Bauble",
+    1,
+    0
+   ],
+   [
+    "Mishra's Workshop",
+    1,
+    0
+   ],
+   [
+    "Misty Rainforest",
+    1,
+    0
+   ],
+   [
+    "Mole Man, Moloid Master",
+    1,
+    0
+   ],
+   [
+    "Monastery Mentor",
+    1,
+    0
+   ],
+   [
+    "Mother of Runes",
+    1,
+    0
+   ],
+   [
+    "Mox Diamond",
+    1,
+    0
+   ],
+   [
+    "Mox Emerald",
+    1,
+    0
+   ],
+   [
+    "Mox Jet",
+    1,
+    0
+   ],
+   [
+    "Mox Opal",
+    1,
+    0
+   ],
+   [
+    "Mox Pearl",
+    1,
+    0
+   ],
+   [
+    "Mox Ruby",
+    1,
+    0
+   ],
+   [
+    "Mox Sapphire",
+    1,
+    0
+   ],
+   [
+    "Multiversal Passage",
+    1,
+    0
+   ],
+   [
+    "Mystic Confluence",
+    1,
+    0
+   ],
+   [
+    "Mystical Tutor",
+    1,
+    0
+   ],
+   [
+    "Nadu, Winged Wisdom",
+    1,
+    0
+   ],
+   [
+    "Narset, Parter of Veils",
+    1,
+    0
+   ],
+   [
+    "Natural Order",
+    1,
+    0
+   ],
+   [
+    "Necromancy",
+    1,
+    0
+   ],
+   [
+    "Nethergoyf",
+    1,
+    0
+   ],
+   [
+    "No More Lies",
+    1,
+    0
+   ],
+   [
+    "Noble Hierarch",
+    1,
+    0
+   ],
+   [
+    "Nog, Ambitious Cadet",
+    1,
+    0
+   ],
+   [
+    "Nurturing Peatland",
+    1,
+    0
+   ],
+   [
+    "Occult Epiphany",
+    1,
+    0
+   ],
+   [
+    "Ocelot Pride",
+    1,
+    0
+   ],
+   [
+    "Oko, Thief of Crowns",
+    1,
+    0
+   ],
+   [
+    "Okoye, Mighty and Adored",
+    1,
+    0
+   ],
+   [
+    "Oliphaunt",
+    1,
+    0
+   ],
+   [
+    "Once Upon a Time",
+    1,
+    0
+   ],
+   [
+    "Orcish Bowmasters",
+    1,
+    0
+   ],
+   [
+    "Orcish Lumberjack",
+    1,
+    0
+   ],
+   [
+    "Otawara, Soaring City",
+    1,
+    0
+   ],
+   [
+    "Otharri, Suns' Glory",
+    1,
+    0
+   ],
+   [
+    "Ouroboroid",
+    1,
+    0
+   ],
+   [
+    "Oust",
+    1,
+    0
+   ],
+   [
+    "Outland Liberator",
+    1,
+    0
+   ],
+   [
+    "Overgrown Tomb",
+    1,
+    0
+   ],
+   [
+    "Painter's Servant",
+    1,
+    0
+   ],
+   [
+    "Palace Jailer",
+    1,
+    0
+   ],
+   [
+    "Palantír of Orthanc",
+    1,
+    0
+   ],
+   [
+    "Parallax Wave",
+    1,
+    0
+   ],
+   [
+    "Path to Exile",
+    1,
+    0
+   ],
+   [
+    "Pentad Prism",
+    1,
+    0
+   ],
+   [
+    "Pest Infestation",
+    1,
+    0
+   ],
+   [
+    "Phelia, Exuberant Shepherd",
+    1,
+    0
+   ],
+   [
+    "Phlage, Titan of Fire's Fury",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Metamorph",
+    1,
+    0
+   ],
+   [
+    "Pillage the Bog",
+    1,
+    0
+   ],
+   [
+    "Plateau",
+    1,
+    0
+   ],
+   [
+    "Polluted Delta",
+    1,
+    0
+   ],
+   [
+    "Ponder",
+    1,
+    0
+   ],
+   [
+    "Portable Hole",
+    1,
+    0
+   ],
+   [
+    "Portal to Phyrexia",
+    1,
+    0
+   ],
+   [
+    "Preordain",
+    1,
+    0
+   ],
+   [
+    "Prismatic Ending",
+    1,
+    0
+   ],
+   [
+    "Prismatic Vista",
+    1,
+    0
+   ],
+   [
+    "Psychic Frog",
+    1,
+    0
+   ],
+   [
+    "Pyrite Spellbomb",
+    1,
+    0
+   ],
+   [
+    "Pyroblast",
+    1,
+    0
+   ],
+   [
+    "Pyrogoyf",
+    1,
+    0
+   ],
+   [
+    "Pyrokinesis",
+    1,
+    0
+   ],
+   [
+    "Q, Stacking the Deck",
+    1,
+    0
+   ],
+   [
+    "Quantum Riddler",
+    1,
+    0
+   ],
+   [
+    "Questing Beast",
+    1,
+    0
+   ],
+   [
+    "Raffine's Tower",
+    1,
+    0
+   ],
+   [
+    "Ragavan, Nimble Pilferer",
+    1,
+    0
+   ],
+   [
+    "Rain of Filth",
+    1,
+    0
+   ],
+   [
+    "Raph & Mikey, Troublemakers",
+    1,
+    0
+   ],
+   [
+    "Raucous Theater",
+    1,
+    0
+   ],
+   [
+    "Raugrin Triome",
+    1,
+    0
+   ],
+   [
+    "Razorverge Thicket",
+    1,
+    0
+   ],
+   [
+    "Reanimate",
+    1,
+    0
+   ],
+   [
+    "Reckoner Bankbuster",
+    1,
+    0
+   ],
+   [
+    "Recurring Nightmare",
+    1,
+    0
+   ],
+   [
+    "Relic of Sauron",
+    1,
+    0
+   ],
+   [
+    "Remand",
+    1,
+    0
+   ],
+   [
+    "Reprieve",
+    1,
+    0
+   ],
+   [
+    "Restless Vinestalk",
+    1,
+    0
+   ],
+   [
+    "Retrofitter Foundry",
+    1,
+    0
+   ],
+   [
+    "Robber of the Rich",
+    1,
+    0
+   ],
+   [
+    "Sacred Foundry",
+    1,
+    0
+   ],
+   [
+    "Sage of the Skies",
+    1,
+    0
+   ],
+   [
+    "Saheeli, Sublime Artificer",
+    1,
+    0
+   ],
+   [
+    "Salt Vampire",
+    1,
+    0
+   ],
+   [
+    "Samut, Hazoret's Champion",
+    1,
+    0
+   ],
+   [
+    "Sanguine Evangelist",
+    1,
+    0
+   ],
+   [
+    "Savai Triome",
+    1,
+    0
+   ],
+   [
+    "Savannah",
+    1,
+    0
+   ],
+   [
+    "Scalding Tarn",
+    1,
+    0
+   ],
+   [
+    "Screaming Nemesis",
+    1,
+    0
+   ],
+   [
+    "Scrubland",
+    1,
+    0
+   ],
+   [
+    "Scythecat Cub",
+    1,
+    0
+   ],
+   [
+    "Seachrome Coast",
+    1,
+    0
+   ],
+   [
+    "Sear",
+    1,
+    0
+   ],
+   [
+    "Seasoned Cryomancer",
+    1,
+    0
+   ],
+   [
+    "Seasoned Pyromancer",
+    1,
+    0
+   ],
+   [
+    "Sedgemoor Witch",
+    1,
+    0
+   ],
+   [
+    "Sensei's Divining Top",
+    1,
+    0
+   ],
+   [
+    "Sentinel of the Nameless City",
+    1,
+    0
+   ],
+   [
+    "Serra Paragon",
+    1,
+    0
+   ],
+   [
+    "Sewer-veillance Cam",
+    1,
+    0
+   ],
+   [
+    "Shadowy Backstreet",
+    1,
+    0
+   ],
+   [
+    "Shallow Grave",
+    1,
+    0
+   ],
+   [
+    "Shelldock Isle",
+    1,
+    0
+   ],
+   [
+    "Sheoldred's Edict",
+    1,
+    0
+   ],
+   [
+    "Sheoldred, the Apocalypse",
+    1,
+    0
+   ],
+   [
+    "Shifting Woodland",
+    1,
+    0
+   ],
+   [
+    "Sicarian Infiltrator",
+    1,
+    0
+   ],
+   [
+    "Simian Spirit Guide",
+    1,
+    0
+   ],
+   [
+    "Simulacrum Shaper",
+    1,
+    0
+   ],
+   [
+    "Sink into Stupor",
+    1,
+    0
+   ],
+   [
+    "Six",
+    1,
+    0
+   ],
+   [
+    "Skateboard",
+    1,
+    0
+   ],
+   [
+    "Skullclamp",
+    1,
+    0
+   ],
+   [
+    "Skyclave Apparition",
+    1,
+    0
+   ],
+   [
+    "Smuggler's Copter",
+    1,
+    0
+   ],
+   [
+    "Snapcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Sneak Attack",
+    1,
+    0
+   ],
+   [
+    "Snuff Out",
+    1,
+    0
+   ],
+   [
+    "Sol Ring",
+    1,
+    0
+   ],
+   [
+    "Solitude",
+    1,
+    0
+   ],
+   [
+    "Soul-Guide Lantern",
+    1,
+    0
+   ],
+   [
+    "Sowing Mycospawn",
+    1,
+    0
+   ],
+   [
+    "Spara's Headquarters",
+    1,
+    0
+   ],
+   [
+    "Spectacular Spider-Man",
+    1,
+    0
+   ],
+   [
+    "Spell Pierce",
+    1,
+    0
+   ],
+   [
+    "Spellseeker",
+    1,
+    0
+   ],
+   [
+    "Sphinx of False Conclusions",
+    1,
+    0
+   ],
+   [
+    "Spider-Woman, Stunning Savior",
+    1,
+    0
+   ],
+   [
+    "Spirebluff Canal",
+    1,
+    0
+   ],
+   [
+    "Springheart Nantuko",
+    1,
+    0
+   ],
+   [
+    "Squandered Resources",
+    1,
+    0
+   ],
+   [
+    "Staff of the Storyteller",
+    1,
+    0
+   ],
+   [
+    "Starting Town",
+    1,
+    0
+   ],
+   [
+    "Steam Vents",
+    1,
+    0
+   ],
+   [
+    "Stern Scolding",
+    1,
+    0
+   ],
+   [
+    "Stingcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Stock Up",
+    1,
+    0
+   ],
+   [
+    "Stomping Ground",
+    1,
+    0
+   ],
+   [
+    "Strip Mine",
+    1,
+    0
+   ],
+   [
+    "Subcommander T'Pol",
+    1,
+    0
+   ],
+   [
+    "Subtlety",
+    1,
+    0
+   ],
+   [
+    "Sunbaked Canyon",
+    1,
+    0
+   ],
+   [
+    "Sunfall",
+    1,
+    0
+   ],
+   [
+    "Sunken Ruins",
+    1,
+    0
+   ],
+   [
+    "Sunset Saboteur",
+    1,
+    0
+   ],
+   [
+    "Suplex",
+    1,
+    0
+   ],
+   [
+    "Surrak, Elusive Hunter",
+    1,
+    0
+   ],
+   [
+    "Swords to Plowshares",
+    1,
+    0
+   ],
+   [
+    "Sylvan Caryatid",
+    1,
+    0
+   ],
+   [
+    "Sylvan Safekeeper",
+    1,
+    0
+   ],
+   [
+    "Taiga",
+    1,
+    0
+   ],
+   [
+    "Talisman of Conviction",
+    1,
+    0
+   ],
+   [
+    "Talisman of Creativity",
+    1,
+    0
+   ],
+   [
+    "Talisman of Curiosity",
+    1,
+    0
+   ],
+   [
+    "Talisman of Dominance",
+    1,
+    0
+   ],
+   [
+    "Talisman of Indulgence",
+    1,
+    0
+   ],
+   [
+    "Talisman of Progress",
+    1,
+    0
+   ],
+   [
+    "Tamiyo, Collector of Tales",
+    1,
+    0
+   ],
+   [
+    "Tamiyo, Inquisitive Student",
+    1,
+    0
+   ],
+   [
+    "Tasha Yar, Out of Time",
+    1,
+    0
+   ],
+   [
+    "Tear Asunder",
+    1,
+    0
+   ],
+   [
+    "Teferi, Hero of Dominaria",
+    1,
+    0
+   ],
+   [
+    "Teferi, Time Raveler",
+    1,
+    0
+   ],
+   [
+    "Temple Garden",
+    1,
+    0
+   ],
+   [
+    "Territorial Kavu",
+    1,
+    0
+   ],
+   [
+    "Tersa Lightshatter",
+    1,
+    0
+   ],
+   [
+    "Test of Courage",
+    1,
+    0
+   ],
+   [
+    "Tezzeret, Cruel Captain",
+    1,
+    0
+   ],
+   [
+    "Thalia, Guardian of Thraben",
+    1,
+    0
+   ],
+   [
+    "The Echoverse Fulcrum",
+    1,
+    0
+   ],
+   [
+    "The Fantasticar",
+    1,
+    0
+   ],
+   [
+    "The Naked Time",
+    1,
+    0
+   ],
+   [
+    "The One Ring",
+    1,
+    0
+   ],
+   [
+    "The Theorist, Jace Beleren",
+    1,
+    0
+   ],
+   [
+    "The Wandering Emperor",
+    1,
+    0
+   ],
+   [
+    "The Wondrous Wasp",
+    1,
+    0
+   ],
+   [
+    "Theorix Charm",
+    1,
+    0
+   ],
+   [
+    "Thieving Skydiver",
+    1,
+    0
+   ],
+   [
+    "Thoughtseize",
+    1,
+    0
+   ],
+   [
+    "Thraben Inspector",
+    1,
+    0
+   ],
+   [
+    "Three Steps Ahead",
+    1,
+    0
+   ],
+   [
+    "Through the Breach",
+    1,
+    0
+   ],
+   [
+    "Thundering Falls",
+    1,
+    0
+   ],
+   [
+    "Tidehollow Sculler",
+    1,
+    0
+   ],
+   [
+    "Time Spiral",
+    1,
+    0
+   ],
+   [
+    "Time Walk",
+    1,
+    0
+   ],
+   [
+    "Timetwister",
+    1,
+    0
+   ],
+   [
+    "Tinker",
+    1,
+    0
+   ],
+   [
+    "Tishana's Tidebinder",
+    1,
+    0
+   ],
+   [
+    "Titania, Protector of Argoth",
+    1,
+    0
+   ],
+   [
+    "Tolarian Academy",
+    1,
+    0
+   ],
+   [
+    "Torsten, Founder of Benalia",
+    1,
+    0
+   ],
+   [
+    "Touch the Spirit Realm",
+    1,
+    0
+   ],
+   [
+    "Toxic Deluge",
+    1,
+    0
+   ],
+   [
+    "Traumatic Critique",
+    1,
+    0
+   ],
+   [
+    "Trinket Mage",
+    1,
+    0
+   ],
+   [
+    "Troll of Khazad-dûm",
+    1,
+    0
+   ],
+   [
+    "Tropical Island",
+    1,
+    0
+   ],
+   [
+    "True-Name Nemesis",
+    1,
+    0
+   ],
+   [
+    "Tundra",
+    1,
+    0
+   ],
+   [
+    "Ugin, Eye of the Storms",
+    1,
+    0
+   ],
+   [
+    "Ulvenwald Oddity",
+    1,
+    0
+   ],
+   [
+    "Undercity Sewers",
+    1,
+    0
+   ],
+   [
+    "Underground Mortuary",
+    1,
+    0
+   ],
+   [
+    "Underground Sea",
+    1,
+    0
+   ],
+   [
+    "Underworld Breach",
+    1,
+    0
+   ],
+   [
+    "Unearth",
+    1,
+    0
+   ],
+   [
+    "Unexpectedly Absent",
+    1,
+    0
+   ],
+   [
+    "Unholy Heat",
+    1,
+    0
+   ],
+   [
+    "Upheaval",
+    1,
+    0
+   ],
+   [
+    "Uro, Titan of Nature's Wrath",
+    1,
+    0
+   ],
+   [
+    "Ursine Monstrosity",
+    1,
+    0
+   ],
+   [
+    "Urza's Bauble",
+    1,
+    0
+   ],
+   [
+    "Urza's Saga",
+    1,
+    0
+   ],
+   [
+    "Urza, Lord High Artificer",
+    1,
+    0
+   ],
+   [
+    "Vampiric Tutor",
+    1,
+    0
+   ],
+   [
+    "Vaultborn Tyrant",
+    1,
+    0
+   ],
+   [
+    "Verdant Catacombs",
+    1,
+    0
+   ],
+   [
+    "Vicious Rivalry",
+    1,
+    0
+   ],
+   [
+    "Vindicate",
+    1,
+    0
+   ],
+   [
+    "Vivi Ornitier",
+    1,
+    0
+   ],
+   [
+    "Voice of Victory",
+    1,
+    0
+   ],
+   [
+    "Volcanic Island",
+    1,
+    0
+   ],
+   [
+    "Voq, Torchbearer",
+    1,
+    0
+   ],
+   [
+    "Walking Ballista",
+    1,
+    0
+   ],
+   [
+    "Wasteland",
+    1,
+    0
+   ],
+   [
+    "Waterlogged Grove",
+    1,
+    0
+   ],
+   [
+    "Watery Grave",
+    1,
+    0
+   ],
+   [
+    "We Say Thee Nay!",
+    1,
+    0
+   ],
+   [
+    "Wheel of Fortune",
+    1,
+    0
+   ],
+   [
+    "Winds of Abandon",
+    1,
+    0
+   ],
+   [
+    "Windswept Heath",
+    1,
+    0
+   ],
+   [
+    "Wishclaw Talisman",
+    1,
+    0
+   ],
+   [
+    "Witch Enchanter",
+    1,
+    0
+   ],
+   [
+    "Witherbloom Apprentice",
+    1,
+    0
+   ],
+   [
+    "Wooded Foothills",
+    1,
+    0
+   ],
+   [
+    "Woodfall Primus",
+    1,
+    0
+   ],
+   [
+    "Worldspine Wurm",
+    1,
+    0
+   ],
+   [
+    "Wrath of God",
+    1,
+    0
+   ],
+   [
+    "Wrenn and Six",
+    1,
+    0
+   ],
+   [
+    "Xander's Lounge",
+    1,
+    0
+   ],
+   [
+    "Yawgmoth's Will",
+    1,
+    0
+   ],
+   [
+    "Zagoth Triome",
+    1,
+    0
+   ],
+   [
+    "Zero, Incorporeal Sensate",
+    1,
+    0
+   ],
+   [
+    "Ziatora's Proving Ground",
+    1,
+    0
+   ],
+   [
+    "Zuran Orb",
+    1,
+    0
+   ]
+  ]
+ },
+ {
+  "format": "CUBE",
+  "name": "wtwlf123's Cube",
+  "category": "Cubo",
+  "source": "CubeCobra · wtwlf123",
+  "player": "wtwlf123",
+  "note": "Uno de los cubos «vintage» más famosos y antiguos de la comunidad: 720 cartas, así que caben muchos jugadores o sobres variados cada vez.\nCartas: 720. Con sobres de 15 cartas, 3 sobres por jugador (45 cartas cada uno): da para 16 jugadores (lo normal es jugar 8). Cada jugador monta un mazo de 40 cartas con lo que elige y tierras básicas aparte. (12 cartas muy nuevas o digitales aún no salen en la lista de la app: Rodents of Unusual Size, 'Tis But a Scratch!, Archaeon the Everchosen, Kefka Palazzo, Battle at the Big Bridge, Amunet, Tyrants' End, Hero of Light, Kefka's Tower, Garnet Til Alexandros 17th, Sephiroth, the Savior, Yuna's Sending Staff, Dogmeat, Constant Companion.)",
+  "cards": [
+   [
+    "Aang's Iceberg",
+    1,
+    0
+   ],
+   [
+    "Aang, Swift Savior",
+    1,
+    0
+   ],
+   [
+    "Aarakocra Sneak",
+    1,
+    0
+   ],
+   [
+    "Abrade",
+    1,
+    0
+   ],
+   [
+    "Adarkar Wastes",
+    1,
+    0
+   ],
+   [
+    "Aether Channeler",
+    1,
+    0
+   ],
+   [
+    "Aether Hub",
+    1,
+    0
+   ],
+   [
+    "Agatha's Soul Cauldron",
+    1,
+    0
+   ],
+   [
+    "Agent Bishop, Man in Black",
+    1,
+    0
+   ],
+   [
+    "Ainok Strike Leader",
+    1,
+    0
+   ],
+   [
+    "Ajani, Nacatl Pariah",
+    1,
+    0
+   ],
+   [
+    "Ajani, Outland Chaperone",
+    1,
+    0
+   ],
+   [
+    "Alpha Deathclaw",
+    1,
+    0
+   ],
+   [
+    "Ambitious Augmenter",
+    1,
+    0
+   ],
+   [
+    "Amped Raptor",
+    1,
+    0
+   ],
+   [
+    "Ancestral Recall",
+    1,
+    0
+   ],
+   [
+    "Ancient Stone Idol",
+    1,
+    0
+   ],
+   [
+    "Ancient Tomb",
+    1,
+    0
+   ],
+   [
+    "Andúril, Flame of the West",
+    1,
+    0
+   ],
+   [
+    "Angel of Invention",
+    1,
+    0
+   ],
+   [
+    "Animate Dead",
+    1,
+    0
+   ],
+   [
+    "Appa, Steadfast Guardian",
+    1,
+    0
+   ],
+   [
+    "Arbor Elf",
+    1,
+    0
+   ],
+   [
+    "Arcane Denial",
+    1,
+    0
+   ],
+   [
+    "Archangel Elspeth",
+    1,
+    0
+   ],
+   [
+    "Archon of Cruelty",
+    1,
+    0
+   ],
+   [
+    "Arid Mesa",
+    1,
+    0
+   ],
+   [
+    "Armageddon",
+    1,
+    0
+   ],
+   [
+    "Armus, Skin of Evil",
+    1,
+    0
+   ],
+   [
+    "Ascendant Packleader",
+    1,
+    0
+   ],
+   [
+    "Ash Barrens",
+    1,
+    0
+   ],
+   [
+    "Assaultron Dominator",
+    1,
+    0
+   ],
+   [
+    "Astrologian's Planisphere",
+    1,
+    0
+   ],
+   [
+    "Avacyn's Pilgrim",
+    1,
+    0
+   ],
+   [
+    "Badgermole Cub",
+    1,
+    0
+   ],
+   [
+    "Badlands",
+    1,
+    0
+   ],
+   [
+    "Balance",
+    1,
+    0
+   ],
+   [
+    "Baleful Strix",
+    1,
+    0
+   ],
+   [
+    "Baloth Prime",
+    1,
+    0
+   ],
+   [
+    "Bard, Heir of Girion",
+    1,
+    0
+   ],
+   [
+    "Barrowgoyf",
+    1,
+    0
+   ],
+   [
+    "Basalt Monolith",
+    1,
+    0
+   ],
+   [
+    "Basim Ibn Ishaq",
+    1,
+    0
+   ],
+   [
+    "Basking Rootwalla",
+    1,
+    0
+   ],
+   [
+    "Basri, Tomorrow's Champion",
+    1,
+    0
+   ],
+   [
+    "Batterskull",
+    1,
+    0
+   ],
+   [
+    "Battlefield Forge",
+    1,
+    0
+   ],
+   [
+    "Bayou",
+    1,
+    0
+   ],
+   [
+    "Bazaar of Baghdad",
+    1,
+    0
+   ],
+   [
+    "Benevolent Hydra",
+    1,
+    0
+   ],
+   [
+    "Bilbo, Thief in the Night",
+    1,
+    0
+   ],
+   [
+    "Birds of Paradise",
+    1,
+    0
+   ],
+   [
+    "Bitter Triumph",
+    1,
+    0
+   ],
+   [
+    "Bitterbloom Bearer",
+    1,
+    0
+   ],
+   [
+    "Bitterblossom",
+    1,
+    0
+   ],
+   [
+    "Black Lotus",
+    1,
+    0
+   ],
+   [
+    "Blackcleave Cliffs",
+    1,
+    0
+   ],
+   [
+    "Blade Splicer",
+    1,
+    0
+   ],
+   [
+    "Blazing Rootwalla",
+    1,
+    0
+   ],
+   [
+    "Blood Crypt",
+    1,
+    0
+   ],
+   [
+    "Bloodchief's Thirst",
+    1,
+    0
+   ],
+   [
+    "Bloodghast",
+    1,
+    0
+   ],
+   [
+    "Bloodsoaked Champion",
+    1,
+    0
+   ],
+   [
+    "Bloodstained Mire",
+    1,
+    0
+   ],
+   [
+    "Blooming Marsh",
+    1,
+    0
+   ],
+   [
+    "Bone Shards",
+    1,
+    0
+   ],
+   [
+    "Bonecrusher Giant",
+    1,
+    0
+   ],
+   [
+    "Bonesplitter",
+    1,
+    0
+   ],
+   [
+    "Borborygmos and Fblthp",
+    1,
+    0
+   ],
+   [
+    "Boseiju, Who Endures",
+    1,
+    0
+   ],
+   [
+    "Botanical Sanctum",
+    1,
+    0
+   ],
+   [
+    "Bountiful Landscape",
+    1,
+    0
+   ],
+   [
+    "Braids, Cabal Minion",
+    1,
+    0
+   ],
+   [
+    "Brain Freeze",
+    1,
+    0
+   ],
+   [
+    "Brainstorm",
+    1,
+    0
+   ],
+   [
+    "Brainsurge",
+    1,
+    0
+   ],
+   [
+    "Brazen Borrower",
+    1,
+    0
+   ],
+   [
+    "Breeding Pool",
+    1,
+    0
+   ],
+   [
+    "Breya, Etherium Shaper",
+    1,
+    0
+   ],
+   [
+    "Bribery",
+    1,
+    0
+   ],
+   [
+    "Bristly Bill, Spine Sower",
+    1,
+    0
+   ],
+   [
+    "Broadside Bombardiers",
+    1,
+    0
+   ],
+   [
+    "Bruce Banner",
+    1,
+    0
+   ],
+   [
+    "Brushland",
+    1,
+    0
+   ],
+   [
+    "Burning of Xinye",
+    1,
+    0
+   ],
+   [
+    "Burst Lightning",
+    1,
+    0
+   ],
+   [
+    "Cabal Ritual",
+    1,
+    0
+   ],
+   [
+    "Caesar, Legion's Emperor",
+    1,
+    0
+   ],
+   [
+    "Captain James T. Kirk",
+    1,
+    0
+   ],
+   [
+    "Captain Jean-Luc Picard",
+    1,
+    0
+   ],
+   [
+    "Captain Marvel, Earth's Protector",
+    1,
+    0
+   ],
+   [
+    "Captain Pike, Fullness of Time",
+    1,
+    0
+   ],
+   [
+    "Carnage Interpreter",
+    1,
+    0
+   ],
+   [
+    "Carnivorous Cultivator",
+    1,
+    0
+   ],
+   [
+    "Cathar Commando",
+    1,
+    0
+   ],
+   [
+    "Caves of Chaos Adventurer",
+    1,
+    0
+   ],
+   [
+    "Caves of Koilos",
+    1,
+    0
+   ],
+   [
+    "Cecil, Dark Knight",
+    1,
+    0
+   ],
+   [
+    "Chain Lightning",
+    1,
+    0
+   ],
+   [
+    "Chandra, Torch of Defiance",
+    1,
+    0
+   ],
+   [
+    "Channel",
+    1,
+    0
+   ],
+   [
+    "Chaos Defiler",
+    1,
+    0
+   ],
+   [
+    "Charming Prince",
+    1,
+    0
+   ],
+   [
+    "Charming Scoundrel",
+    1,
+    0
+   ],
+   [
+    "Chart a Course",
+    1,
+    0
+   ],
+   [
+    "Chromatic Sphere",
+    1,
+    0
+   ],
+   [
+    "Chromatic Star",
+    1,
+    0
+   ],
+   [
+    "Chrome Mox",
+    1,
+    0
+   ],
+   [
+    "City of Brass",
+    1,
+    0
+   ],
+   [
+    "City of Traitors",
+    1,
+    0
+   ],
+   [
+    "Cloak and Dagger, Entwined",
+    1,
+    0
+   ],
+   [
+    "Cloud, Midgar Mercenary",
+    1,
+    0
+   ],
+   [
+    "Coalition Relic",
+    1,
+    0
+   ],
+   [
+    "Collective Brutality",
+    1,
+    0
+   ],
+   [
+    "Commercial District",
+    1,
+    0
+   ],
+   [
+    "Commit",
+    1,
+    0
+   ],
+   [
+    "Concealed Courtyard",
+    1,
+    0
+   ],
+   [
+    "Consider",
+    1,
+    0
+   ],
+   [
+    "Contagion",
+    1,
+    0
+   ],
+   [
+    "Containment Construct",
+    1,
+    0
+   ],
+   [
+    "Containment Priest",
+    1,
+    0
+   ],
+   [
+    "Contaminated Landscape",
+    1,
+    0
+   ],
+   [
+    "Cool but Rude",
+    1,
+    0
+   ],
+   [
+    "Copperline Gorge",
+    1,
+    0
+   ],
+   [
+    "Cori-Steel Cutter",
+    1,
+    0
+   ],
+   [
+    "Council's Judgment",
+    1,
+    0
+   ],
+   [
+    "Counterspell",
+    1,
+    0
+   ],
+   [
+    "Court of Garenbrig",
+    1,
+    0
+   ],
+   [
+    "Coveted Jewel",
+    1,
+    0
+   ],
+   [
+    "Craterhoof Behemoth",
+    1,
+    0
+   ],
+   [
+    "Creeping Tar Pit",
+    1,
+    0
+   ],
+   [
+    "Crop Rotation",
+    1,
+    0
+   ],
+   [
+    "Crucible of Worlds",
+    1,
+    0
+   ],
+   [
+    "Cryptic Command",
+    1,
+    0
+   ],
+   [
+    "Cult Conscript",
+    1,
+    0
+   ],
+   [
+    "Currency Converter",
+    1,
+    0
+   ],
+   [
+    "Cut Down",
+    1,
+    0
+   ],
+   [
+    "Dack Fayden",
+    1,
+    0
+   ],
+   [
+    "Damn",
+    1,
+    0
+   ],
+   [
+    "Damnation",
+    1,
+    0
+   ],
+   [
+    "Dance of the Dead",
+    1,
+    0
+   ],
+   [
+    "Daretti, Ingenious Iconoclast",
+    1,
+    0
+   ],
+   [
+    "Daretti, Scrap Savant",
+    1,
+    0
+   ],
+   [
+    "Dark Confidant",
+    1,
+    0
+   ],
+   [
+    "Dark Depths",
+    1,
+    0
+   ],
+   [
+    "Dark Ritual",
+    1,
+    0
+   ],
+   [
+    "Darkslick Shores",
+    1,
+    0
+   ],
+   [
+    "Data, New Life",
+    1,
+    0
+   ],
+   [
+    "Dauntless Bodyguard",
+    1,
+    0
+   ],
+   [
+    "Dauthi Voidwalker",
+    1,
+    0
+   ],
+   [
+    "Day of Judgment",
+    1,
+    0
+   ],
+   [
+    "Daze",
+    1,
+    0
+   ],
+   [
+    "Deceptive Landscape",
+    1,
+    0
+   ],
+   [
+    "Deep Forest Hermit",
+    1,
+    0
+   ],
+   [
+    "Deep Space 9",
+    1,
+    0
+   ],
+   [
+    "Delayed Blast Fireball",
+    1,
+    0
+   ],
+   [
+    "Delighted Halfling",
+    1,
+    0
+   ],
+   [
+    "Demonic Tutor",
+    1,
+    0
+   ],
+   [
+    "Deranged Hermit",
+    1,
+    0
+   ],
+   [
+    "Descendant of Storms",
+    1,
+    0
+   ],
+   [
+    "Dig Through Time",
+    1,
+    0
+   ],
+   [
+    "Doctor Doom",
+    1,
+    0
+   ],
+   [
+    "Dragon's Rage Channeler",
+    1,
+    0
+   ],
+   [
+    "Dread Fugue",
+    1,
+    0
+   ],
+   [
+    "Dread Wanderer",
+    1,
+    0
+   ],
+   [
+    "Duelist of the Mind",
+    1,
+    0
+   ],
+   [
+    "Duress",
+    1,
+    0
+   ],
+   [
+    "Dust Bowl",
+    1,
+    0
+   ],
+   [
+    "Eagles of the North",
+    1,
+    0
+   ],
+   [
+    "Echo of Eons",
+    1,
+    0
+   ],
+   [
+    "Eddie Brock",
+    1,
+    0
+   ],
+   [
+    "Elegant Parlor",
+    1,
+    0
+   ],
+   [
+    "Elesh Norn, Grand Cenobite",
+    1,
+    0
+   ],
+   [
+    "Ellie, Brick Master",
+    1,
+    0
+   ],
+   [
+    "Elspeth, Storm Slayer",
+    1,
+    0
+   ],
+   [
+    "Elvish Mystic",
+    1,
+    0
+   ],
+   [
+    "Elvish Reclaimer",
+    1,
+    0
+   ],
+   [
+    "Embereth Shieldbreaker",
+    1,
+    0
+   ],
+   [
+    "Emberheart Challenger",
+    1,
+    0
+   ],
+   [
+    "Emeritus of Ideation",
+    1,
+    0
+   ],
+   [
+    "Emperor of Bones",
+    1,
+    0
+   ],
+   [
+    "Emrakul, the Aeons Torn",
+    1,
+    0
+   ],
+   [
+    "Endurance",
+    1,
+    0
+   ],
+   [
+    "Engineered Explosives",
+    1,
+    0
+   ],
+   [
+    "Enlightened Tutor",
+    1,
+    0
+   ],
+   [
+    "Entomb",
+    1,
+    0
+   ],
+   [
+    "Ephemerate",
+    1,
+    0
+   ],
+   [
+    "Erode",
+    1,
+    0
+   ],
+   [
+    "Etali, Primal Conqueror",
+    1,
+    0
+   ],
+   [
+    "Eternal Witness",
+    1,
+    0
+   ],
+   [
+    "Eureka",
+    1,
+    0
+   ],
+   [
+    "Everflowing Chalice",
+    1,
+    0
+   ],
+   [
+    "Exhume",
+    1,
+    0
+   ],
+   [
+    "Expedition Map",
+    1,
+    0
+   ],
+   [
+    "Fable of the Mirror-Breaker",
+    1,
+    0
+   ],
+   [
+    "Fabled Passage",
+    1,
+    0
+   ],
+   [
+    "Faerie Conclave",
+    1,
+    0
+   ],
+   [
+    "Faerie Mastermind",
+    1,
+    0
+   ],
+   [
+    "Faithless Looting",
+    1,
+    0
+   ],
+   [
+    "Fastbond",
+    1,
+    0
+   ],
+   [
+    "Fauna Shaman",
+    1,
+    0
+   ],
+   [
+    "Fear of Missing Out",
+    1,
+    0
+   ],
+   [
+    "Feldon of the Third Path",
+    1,
+    0
+   ],
+   [
+    "Fiery Confluence",
+    1,
+    0
+   ],
+   [
+    "Fiery Islet",
+    1,
+    0
+   ],
+   [
+    "Figure of Destiny",
+    1,
+    0
+   ],
+   [
+    "Figure of Fable",
+    1,
+    0
+   ],
+   [
+    "Fire Covenant",
+    1,
+    0
+   ],
+   [
+    "Fireblast",
+    1,
+    0
+   ],
+   [
+    "Firebolt",
+    1,
+    0
+   ],
+   [
+    "Firestorm",
+    1,
+    0
+   ],
+   [
+    "Flash",
+    1,
+    0
+   ],
+   [
+    "Flickerwisp",
+    1,
+    0
+   ],
+   [
+    "Flooded Strand",
+    1,
+    0
+   ],
+   [
+    "Flowering of the White Tree",
+    1,
+    0
+   ],
+   [
+    "Force Spike",
+    1,
+    0
+   ],
+   [
+    "Force of Negation",
+    1,
+    0
+   ],
+   [
+    "Force of Will",
+    1,
+    0
+   ],
+   [
+    "Foreboding Landscape",
+    1,
+    0
+   ],
+   [
+    "Formidable Speaker",
+    1,
+    0
+   ],
+   [
+    "Forsaken Miner",
+    1,
+    0
+   ],
+   [
+    "Forth Eorlingas!",
+    1,
+    0
+   ],
+   [
+    "Fractured Identity",
+    1,
+    0
+   ],
+   [
+    "Frantic Search",
+    1,
+    0
+   ],
+   [
+    "Fury",
+    1,
+    0
+   ],
+   [
+    "Fyndhorn Elves",
+    1,
+    0
+   ],
+   [
+    "Gaea's Cradle",
+    1,
+    0
+   ],
+   [
+    "Galactus, Devourer of Worlds",
+    1,
+    0
+   ],
+   [
+    "Galvanic Discharge",
+    1,
+    0
+   ],
+   [
+    "Garruk Wildspeaker",
+    1,
+    0
+   ],
+   [
+    "Gau, Feral Youth",
+    1,
+    0
+   ],
+   [
+    "Gemstone Mine",
+    1,
+    0
+   ],
+   [
+    "Generous Ent",
+    1,
+    0
+   ],
+   [
+    "Get Lost",
+    1,
+    0
+   ],
+   [
+    "Gideon, Ally of Zendikar",
+    1,
+    0
+   ],
+   [
+    "Gilded Goose",
+    1,
+    0
+   ],
+   [
+    "Gilded Lotus",
+    1,
+    0
+   ],
+   [
+    "Gitaxian Probe",
+    1,
+    0
+   ],
+   [
+    "Giver of Runes",
+    1,
+    0
+   ],
+   [
+    "Glimmer Lens",
+    1,
+    0
+   ],
+   [
+    "Goblin Bombardment",
+    1,
+    0
+   ],
+   [
+    "Goblin Guide",
+    1,
+    0
+   ],
+   [
+    "Goblin Rabblemaster",
+    1,
+    0
+   ],
+   [
+    "Goblin Welder",
+    1,
+    0
+   ],
+   [
+    "Godless Shrine",
+    1,
+    0
+   ],
+   [
+    "Golos, Tireless Pilgrim",
+    1,
+    0
+   ],
+   [
+    "Grafted Wargear",
+    1,
+    0
+   ],
+   [
+    "Grave Titan",
+    1,
+    0
+   ],
+   [
+    "Gravecrawler",
+    1,
+    0
+   ],
+   [
+    "Greasewrench Goblin",
+    1,
+    0
+   ],
+   [
+    "Greater Gargadon",
+    1,
+    0
+   ],
+   [
+    "Grief",
+    1,
+    0
+   ],
+   [
+    "Grim Lavamancer",
+    1,
+    0
+   ],
+   [
+    "Grim Monolith",
+    1,
+    0
+   ],
+   [
+    "Griselbrand",
+    1,
+    0
+   ],
+   [
+    "Grist, the Hunger Tide",
+    1,
+    0
+   ],
+   [
+    "Guide of Souls",
+    1,
+    0
+   ],
+   [
+    "Gush",
+    1,
+    0
+   ],
+   [
+    "Gut, True Soul Zealot",
+    1,
+    0
+   ],
+   [
+    "Gutterbones",
+    1,
+    0
+   ],
+   [
+    "Gwen Stacy",
+    1,
+    0
+   ],
+   [
+    "Hallowed Fountain",
+    1,
+    0
+   ],
+   [
+    "Hangarback Walker",
+    1,
+    0
+   ],
+   [
+    "Hardened Scales",
+    1,
+    0
+   ],
+   [
+    "Harvester of Misery",
+    1,
+    0
+   ],
+   [
+    "Headliner Scarlett",
+    1,
+    0
+   ],
+   [
+    "Hedge Maze",
+    1,
+    0
+   ],
+   [
+    "Hexdrinker",
+    1,
+    0
+   ],
+   [
+    "High Tide",
+    1,
+    0
+   ],
+   [
+    "Hildibrand Manderville",
+    1,
+    0
+   ],
+   [
+    "Hired Claw",
+    1,
+    0
+   ],
+   [
+    "Hobgoblin, Mantled Marauder",
+    1,
+    0
+   ],
+   [
+    "Hogaak, Arisen Necropolis",
+    1,
+    0
+   ],
+   [
+    "Hollow One",
+    1,
+    0
+   ],
+   [
+    "Horizon Canopy",
+    1,
+    0
+   ],
+   [
+    "Hullbreacher",
+    1,
+    0
+   ],
+   [
+    "Hymn to Tourach",
+    1,
+    0
+   ],
+   [
+    "Icetill Explorer",
+    1,
+    0
+   ],
+   [
+    "Ignoble Hierarch",
+    1,
+    0
+   ],
+   [
+    "Imperial Seal",
+    1,
+    0
+   ],
+   [
+    "Indatha Triome",
+    1,
+    0
+   ],
+   [
+    "Inferno Titan",
+    1,
+    0
+   ],
+   [
+    "Inquisition of Kozilek",
+    1,
+    0
+   ],
+   [
+    "Inspiring Vantage",
+    1,
+    0
+   ],
+   [
+    "Inti, Seneschal of the Sun",
+    1,
+    0
+   ],
+   [
+    "Iron Man Armor",
+    1,
+    0
+   ],
+   [
+    "Iron-Shield Elf",
+    1,
+    0
+   ],
+   [
+    "Isamaru, Hound of Konda",
+    1,
+    0
+   ],
+   [
+    "Ivora, Insatiable Heir",
+    1,
+    0
+   ],
+   [
+    "Izzet Charm",
+    1,
+    0
+   ],
+   [
+    "Jace, Vryn's Prodigy",
+    1,
+    0
+   ],
+   [
+    "Jace, the Mind Sculptor",
+    1,
+    0
+   ],
+   [
+    "Jacked Rabbit",
+    1,
+    0
+   ],
+   [
+    "Jaws, Relentless Predator",
+    1,
+    0
+   ],
+   [
+    "Jennifer Walters",
+    1,
+    0
+   ],
+   [
+    "Jetmir's Garden",
+    1,
+    0
+   ],
+   [
+    "Jeweled Amulet",
+    1,
+    0
+   ],
+   [
+    "Joraga Treespeaker",
+    1,
+    0
+   ],
+   [
+    "Kaldra Compleat",
+    1,
+    0
+   ],
+   [
+    "Kappa Cannoneer",
+    1,
+    0
+   ],
+   [
+    "Karakas",
+    1,
+    0
+   ],
+   [
+    "Kari Zev, Skyship Raider",
+    1,
+    0
+   ],
+   [
+    "Karn, Scion of Urza",
+    1,
+    0
+   ],
+   [
+    "Karplusan Forest",
+    1,
+    0
+   ],
+   [
+    "Kefka, Court Mage",
+    1,
+    0
+   ],
+   [
+    "Kellan, Planar Trailblazer",
+    1,
+    0
+   ],
+   [
+    "Ketria Triome",
+    1,
+    0
+   ],
+   [
+    "King T'Challa",
+    1,
+    0
+   ],
+   [
+    "Kinscaer Sentry",
+    1,
+    0
+   ],
+   [
+    "Kitsa, Otterball Elite",
+    1,
+    0
+   ],
+   [
+    "Knight of the Reliquary",
+    1,
+    0
+   ],
+   [
+    "Knuckles the Echidna",
+    1,
+    0
+   ],
+   [
+    "Kolaghan's Command",
+    1,
+    0
+   ],
+   [
+    "Krang, Utrom Warlord",
+    1,
+    0
+   ],
+   [
+    "Kytheon, Hero of Akros",
+    1,
+    0
+   ],
+   [
+    "Laelia, the Blade Reforged",
+    1,
+    0
+   ],
+   [
+    "Land Tax",
+    1,
+    0
+   ],
+   [
+    "Legion Extruder",
+    1,
+    0
+   ],
+   [
+    "Leonardo, Leader in Blue",
+    1,
+    0
+   ],
+   [
+    "Leovold, Emissary of Trest",
+    1,
+    0
+   ],
+   [
+    "Lethal Scheme",
+    1,
+    0
+   ],
+   [
+    "Library of Alexandria",
+    1,
+    0
+   ],
+   [
+    "Life",
+    1,
+    0
+   ],
+   [
+    "Life from the Loam",
+    1,
+    0
+   ],
+   [
+    "Lightning Bolt",
+    1,
+    0
+   ],
+   [
+    "Lightning Greaves",
+    1,
+    0
+   ],
+   [
+    "Liliana of the Veil",
+    1,
+    0
+   ],
+   [
+    "Lim-Dûl's Vault",
+    1,
+    0
+   ],
+   [
+    "Lingering Souls",
+    1,
+    0
+   ],
+   [
+    "Lion Sash",
+    1,
+    0
+   ],
+   [
+    "Lion's Eye Diamond",
+    1,
+    0
+   ],
+   [
+    "Living Death",
+    1,
+    0
+   ],
+   [
+    "Llanowar Elves",
+    1,
+    0
+   ],
+   [
+    "Llanowar Wastes",
+    1,
+    0
+   ],
+   [
+    "Loki, God of Mischief",
+    1,
+    0
+   ],
+   [
+    "Lord Skitter, Sewer King",
+    1,
+    0
+   ],
+   [
+    "Lose Focus",
+    1,
+    0
+   ],
+   [
+    "Lotus Cobra",
+    1,
+    0
+   ],
+   [
+    "Lotus Petal",
+    1,
+    0
+   ],
+   [
+    "Luminarch Aspirant",
+    1,
+    0
+   ],
+   [
+    "Lush Portico",
+    1,
+    0
+   ],
+   [
+    "Lórien Revealed",
+    1,
+    0
+   ],
+   [
+    "Malcolm, Alluring Scoundrel",
+    1,
+    0
+   ],
+   [
+    "Malevolent Rumble",
+    1,
+    0
+   ],
+   [
+    "Mana Confluence",
+    1,
+    0
+   ],
+   [
+    "Mana Crypt",
+    1,
+    0
+   ],
+   [
+    "Mana Drain",
+    1,
+    0
+   ],
+   [
+    "Mana Leak",
+    1,
+    0
+   ],
+   [
+    "Mana Tithe",
+    1,
+    0
+   ],
+   [
+    "Mana Vault",
+    1,
+    0
+   ],
+   [
+    "Manamorphose",
+    1,
+    0
+   ],
+   [
+    "Marauding Mako",
+    1,
+    0
+   ],
+   [
+    "Marsh Flats",
+    1,
+    0
+   ],
+   [
+    "Marwyn, the Clearcutter",
+    1,
+    0
+   ],
+   [
+    "Mawloc",
+    1,
+    0
+   ],
+   [
+    "Maze of Ith",
+    1,
+    0
+   ],
+   [
+    "Memory Jar",
+    1,
+    0
+   ],
+   [
+    "Memory Lapse",
+    1,
+    0
+   ],
+   [
+    "Metalworker",
+    1,
+    0
+   ],
+   [
+    "Metamorphosis Fanatic",
+    1,
+    0
+   ],
+   [
+    "Meticulous Archive",
+    1,
+    0
+   ],
+   [
+    "Michelangelo, Weirdness to 11",
+    1,
+    0
+   ],
+   [
+    "Miles Morales",
+    1,
+    0
+   ],
+   [
+    "Mind Stone",
+    1,
+    0
+   ],
+   [
+    "Mind Twist",
+    1,
+    0
+   ],
+   [
+    "Minsc & Boo, Timeless Heroes",
+    1,
+    0
+   ],
+   [
+    "Miscalculation",
+    1,
+    0
+   ],
+   [
+    "Mischievous Mystic",
+    1,
+    0
+   ],
+   [
+    "Mishra's Bauble",
+    1,
+    0
+   ],
+   [
+    "Mishra's Factory",
+    1,
+    0
+   ],
+   [
+    "Mishra's Workshop",
+    1,
+    0
+   ],
+   [
+    "Misty Rainforest",
+    1,
+    0
+   ],
+   [
+    "Moat",
+    1,
+    0
+   ],
+   [
+    "Mole Man, Moloid Master",
+    1,
+    0
+   ],
+   [
+    "Monastery Mentor",
+    1,
+    0
+   ],
+   [
+    "Monastery Swiftspear",
+    1,
+    0
+   ],
+   [
+    "Monster Manual",
+    1,
+    0
+   ],
+   [
+    "Monument to Endurance",
+    1,
+    0
+   ],
+   [
+    "Moonshadow",
+    1,
+    0
+   ],
+   [
+    "Mother of Runes",
+    1,
+    0
+   ],
+   [
+    "Mox Amber",
+    1,
+    0
+   ],
+   [
+    "Mox Diamond",
+    1,
+    0
+   ],
+   [
+    "Mox Emerald",
+    1,
+    0
+   ],
+   [
+    "Mox Jet",
+    1,
+    0
+   ],
+   [
+    "Mox Opal",
+    1,
+    0
+   ],
+   [
+    "Mox Pearl",
+    1,
+    0
+   ],
+   [
+    "Mox Ruby",
+    1,
+    0
+   ],
+   [
+    "Mox Sapphire",
+    1,
+    0
+   ],
+   [
+    "Multiversal Passage",
+    1,
+    0
+   ],
+   [
+    "Murderous Rider",
+    1,
+    0
+   ],
+   [
+    "Murktide Regent",
+    1,
+    0
+   ],
+   [
+    "Mutagen Man, Living Ooze",
+    1,
+    0
+   ],
+   [
+    "Mutavault",
+    1,
+    0
+   ],
+   [
+    "Myr Battlesphere",
+    1,
+    0
+   ],
+   [
+    "Mystical Tutor",
+    1,
+    0
+   ],
+   [
+    "Nadu, Winged Wisdom",
+    1,
+    0
+   ],
+   [
+    "Narset, Parter of Veils",
+    1,
+    0
+   ],
+   [
+    "Natural Order",
+    1,
+    0
+   ],
+   [
+    "Necromancy",
+    1,
+    0
+   ],
+   [
+    "Nethergoyf",
+    1,
+    0
+   ],
+   [
+    "Nettlecyst",
+    1,
+    0
+   ],
+   [
+    "Nissa, Voice of Zendikar",
+    1,
+    0
+   ],
+   [
+    "Nissa, Who Shakes the World",
+    1,
+    0
+   ],
+   [
+    "Noble Hierarch",
+    1,
+    0
+   ],
+   [
+    "Nog, Ambitious Cadet",
+    1,
+    0
+   ],
+   [
+    "Norman Osborn",
+    1,
+    0
+   ],
+   [
+    "Notion Thief",
+    1,
+    0
+   ],
+   [
+    "Novice Inspector",
+    1,
+    0
+   ],
+   [
+    "Nurturing Peatland",
+    1,
+    0
+   ],
+   [
+    "Oath of Druids",
+    1,
+    0
+   ],
+   [
+    "Occult Epiphany",
+    1,
+    0
+   ],
+   [
+    "Ocelot Pride",
+    1,
+    0
+   ],
+   [
+    "Oko, Thief of Crowns",
+    1,
+    0
+   ],
+   [
+    "Okoye, Mighty and Adored",
+    1,
+    0
+   ],
+   [
+    "Oliphaunt",
+    1,
+    0
+   ],
+   [
+    "Omnath, Locus of Creation",
+    1,
+    0
+   ],
+   [
+    "Oona's Prowler",
+    1,
+    0
+   ],
+   [
+    "Ophiomancer",
+    1,
+    0
+   ],
+   [
+    "Opposition",
+    1,
+    0
+   ],
+   [
+    "Opt",
+    1,
+    0
+   ],
+   [
+    "Orcish Bowmasters",
+    1,
+    0
+   ],
+   [
+    "Orcish Lumberjack",
+    1,
+    0
+   ],
+   [
+    "Otharri, Suns' Glory",
+    1,
+    0
+   ],
+   [
+    "Ouroboroid",
+    1,
+    0
+   ],
+   [
+    "Oust",
+    1,
+    0
+   ],
+   [
+    "Overgrown Tomb",
+    1,
+    0
+   ],
+   [
+    "Overlord of the Boilerbilges",
+    1,
+    0
+   ],
+   [
+    "Overlord of the Mistmoors",
+    1,
+    0
+   ],
+   [
+    "Palace Jailer",
+    1,
+    0
+   ],
+   [
+    "Palantír of Orthanc",
+    1,
+    0
+   ],
+   [
+    "Parallax Wave",
+    1,
+    0
+   ],
+   [
+    "Passageway Seer",
+    1,
+    0
+   ],
+   [
+    "Path to Exile",
+    1,
+    0
+   ],
+   [
+    "Pawpatch Recruit",
+    1,
+    0
+   ],
+   [
+    "Perilous Landscape",
+    1,
+    0
+   ],
+   [
+    "Pest Infestation",
+    1,
+    0
+   ],
+   [
+    "Peter Parker",
+    1,
+    0
+   ],
+   [
+    "Phelia, Exuberant Shepherd",
+    1,
+    0
+   ],
+   [
+    "Phlage, Titan of Fire's Fury",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Metamorph",
+    1,
+    0
+   ],
+   [
+    "Phyrexian Revoker",
+    1,
+    0
+   ],
+   [
+    "Pia and Kiran Nalaar",
+    1,
+    0
+   ],
+   [
+    "Pithing Needle",
+    1,
+    0
+   ],
+   [
+    "Plateau",
+    1,
+    0
+   ],
+   [
+    "Plaza of Heroes",
+    1,
+    0
+   ],
+   [
+    "Plow Under",
+    1,
+    0
+   ],
+   [
+    "Polluted Delta",
+    1,
+    0
+   ],
+   [
+    "Pompous Battlemage",
+    1,
+    0
+   ],
+   [
+    "Ponder",
+    1,
+    0
+   ],
+   [
+    "Portable Hole",
+    1,
+    0
+   ],
+   [
+    "Portal to Phyrexia",
+    1,
+    0
+   ],
+   [
+    "Preordain",
+    1,
+    0
+   ],
+   [
+    "Primeval Titan",
+    1,
+    0
+   ],
+   [
+    "Prismari Command",
+    1,
+    0
+   ],
+   [
+    "Prismatic Ending",
+    1,
+    0
+   ],
+   [
+    "Prismatic Vista",
+    1,
+    0
+   ],
+   [
+    "Proft's Eidetic Memory",
+    1,
+    0
+   ],
+   [
+    "Psychic Frog",
+    1,
+    0
+   ],
+   [
+    "Putrid Imp",
+    1,
+    0
+   ],
+   [
+    "Pyrogoyf",
+    1,
+    0
+   ],
+   [
+    "Pyrokinesis",
+    1,
+    0
+   ],
+   [
+    "Quantum Riddler",
+    1,
+    0
+   ],
+   [
+    "Questing Beast",
+    1,
+    0
+   ],
+   [
+    "Quicksilver Amulet",
+    1,
+    0
+   ],
+   [
+    "Raffine's Tower",
+    1,
+    0
+   ],
+   [
+    "Ragavan, Nimble Pilferer",
+    1,
+    0
+   ],
+   [
+    "Raging Ravine",
+    1,
+    0
+   ],
+   [
+    "Rain of Filth",
+    1,
+    0
+   ],
+   [
+    "Rancor",
+    1,
+    0
+   ],
+   [
+    "Rankle, Master of Pranks",
+    1,
+    0
+   ],
+   [
+    "Raucous Theater",
+    1,
+    0
+   ],
+   [
+    "Raugrin Triome",
+    1,
+    0
+   ],
+   [
+    "Ravages of War",
+    1,
+    0
+   ],
+   [
+    "Raven Eagle",
+    1,
+    0
+   ],
+   [
+    "Razorlash Transmogrant",
+    1,
+    0
+   ],
+   [
+    "Razorverge Thicket",
+    1,
+    0
+   ],
+   [
+    "Reanimate",
+    1,
+    0
+   ],
+   [
+    "Reclamation Sage",
+    1,
+    0
+   ],
+   [
+    "Recurring Nightmare",
+    1,
+    0
+   ],
+   [
+    "Regrowth",
+    1,
+    0
+   ],
+   [
+    "Remand",
+    1,
+    0
+   ],
+   [
+    "Reprieve",
+    1,
+    0
+   ],
+   [
+    "Restless Anchorage",
+    1,
+    0
+   ],
+   [
+    "Restless Vents",
+    1,
+    0
+   ],
+   [
+    "Restoration Angel",
+    1,
+    0
+   ],
+   [
+    "Retrofitter Foundry",
+    1,
+    0
+   ],
+   [
+    "Rishadan Port",
+    1,
+    0
+   ],
+   [
+    "Rofellos, Llanowar Emissary",
+    1,
+    0
+   ],
+   [
+    "Sacred Foundry",
+    1,
+    0
+   ],
+   [
+    "Sail into the West",
+    1,
+    0
+   ],
+   [
+    "Salt Vampire",
+    1,
+    0
+   ],
+   [
+    "Sandstorm Salvager",
+    1,
+    0
+   ],
+   [
+    "Satya, Aetherflux Genius",
+    1,
+    0
+   ],
+   [
+    "Savai Triome",
+    1,
+    0
+   ],
+   [
+    "Savannah",
+    1,
+    0
+   ],
+   [
+    "Sazh's Chocobo",
+    1,
+    0
+   ],
+   [
+    "Scalding Tarn",
+    1,
+    0
+   ],
+   [
+    "Scavenging Ooze",
+    1,
+    0
+   ],
+   [
+    "Scrapheap Scrounger",
+    1,
+    0
+   ],
+   [
+    "Scrapwork Mutt",
+    1,
+    0
+   ],
+   [
+    "Scrawling Crawler",
+    1,
+    0
+   ],
+   [
+    "Scroll Rack",
+    1,
+    0
+   ],
+   [
+    "Scrounging Skyray",
+    1,
+    0
+   ],
+   [
+    "Scrubland",
+    1,
+    0
+   ],
+   [
+    "Scythecat Cub",
+    1,
+    0
+   ],
+   [
+    "Seachrome Coast",
+    1,
+    0
+   ],
+   [
+    "Seam Rip",
+    1,
+    0
+   ],
+   [
+    "Seasoned Dungeoneer",
+    1,
+    0
+   ],
+   [
+    "Seasoned Pyromancer",
+    1,
+    0
+   ],
+   [
+    "Securitron Squadron",
+    1,
+    0
+   ],
+   [
+    "Seething Landscape",
+    1,
+    0
+   ],
+   [
+    "Selvala's Stampede",
+    1,
+    0
+   ],
+   [
+    "Sensei's Divining Top",
+    1,
+    0
+   ],
+   [
+    "Sentinel of the Nameless City",
+    1,
+    0
+   ],
+   [
+    "Sephiroth, Fabled SOLDIER",
+    1,
+    0
+   ],
+   [
+    "Sevinne's Reclamation",
+    1,
+    0
+   ],
+   [
+    "Shadowy Backstreet",
+    1,
+    0
+   ],
+   [
+    "Shattered Landscape",
+    1,
+    0
+   ],
+   [
+    "Shatterskull Smashing",
+    1,
+    0
+   ],
+   [
+    "Sheltering Landscape",
+    1,
+    0
+   ],
+   [
+    "Sheoldred, the Apocalypse",
+    1,
+    0
+   ],
+   [
+    "Shivan Reef",
+    1,
+    0
+   ],
+   [
+    "Show and Tell",
+    1,
+    0
+   ],
+   [
+    "Shuko",
+    1,
+    0
+   ],
+   [
+    "Siege-Gang Commander",
+    1,
+    0
+   ],
+   [
+    "Silent Clearing",
+    1,
+    0
+   ],
+   [
+    "Sin, Spira's Punishment",
+    1,
+    0
+   ],
+   [
+    "Sink into Stupor",
+    1,
+    0
+   ],
+   [
+    "Sinkhole Surveyor",
+    1,
+    0
+   ],
+   [
+    "Six",
+    1,
+    0
+   ],
+   [
+    "Skateboard",
+    1,
+    0
+   ],
+   [
+    "Skullclamp",
+    1,
+    0
+   ],
+   [
+    "Skyclave Apparition",
+    1,
+    0
+   ],
+   [
+    "Skyclave Shade",
+    1,
+    0
+   ],
+   [
+    "Sleight of Hand",
+    1,
+    0
+   ],
+   [
+    "Slickshot Show-Off",
+    1,
+    0
+   ],
+   [
+    "Smaug the Magnificent",
+    1,
+    0
+   ],
+   [
+    "Smokestack",
+    1,
+    0
+   ],
+   [
+    "Smuggler's Copter",
+    1,
+    0
+   ],
+   [
+    "Snapcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Sneak Attack",
+    1,
+    0
+   ],
+   [
+    "Snuff Out",
+    1,
+    0
+   ],
+   [
+    "Sol Ring",
+    1,
+    0
+   ],
+   [
+    "Solemn Simulacrum",
+    1,
+    0
+   ],
+   [
+    "Solitude",
+    1,
+    0
+   ],
+   [
+    "Sorin of House Markov",
+    1,
+    0
+   ],
+   [
+    "Sowing Mycospawn",
+    1,
+    0
+   ],
+   [
+    "Spara's Headquarters",
+    1,
+    0
+   ],
+   [
+    "Spirebluff Canal",
+    1,
+    0
+   ],
+   [
+    "Springheart Nantuko",
+    1,
+    0
+   ],
+   [
+    "Squee, Goblin Nabob",
+    1,
+    0
+   ],
+   [
+    "Starting Town",
+    1,
+    0
+   ],
+   [
+    "Static Prison",
+    1,
+    0
+   ],
+   [
+    "Steam Vents",
+    1,
+    0
+   ],
+   [
+    "Stingcaster Mage",
+    1,
+    0
+   ],
+   [
+    "Stingerquill Charm",
+    1,
+    0
+   ],
+   [
+    "Stock Up",
+    1,
+    0
+   ],
+   [
+    "Stomping Ground",
+    1,
+    0
+   ],
+   [
+    "Stonecoil Serpent",
+    1,
+    0
+   ],
+   [
+    "Stoneforge Mystic",
+    1,
+    0
+   ],
+   [
+    "Stormchaser's Talent",
+    1,
+    0
+   ],
+   [
+    "Stridehangar Automaton",
+    1,
+    0
+   ],
+   [
+    "Strip Mine",
+    1,
+    0
+   ],
+   [
+    "Subtlety",
+    1,
+    0
+   ],
+   [
+    "Sulfuric Vortex",
+    1,
+    0
+   ],
+   [
+    "Sulfurous Springs",
+    1,
+    0
+   ],
+   [
+    "Summon: Bahamut",
+    1,
+    0
+   ],
+   [
+    "Sunbaked Canyon",
+    1,
+    0
+   ],
+   [
+    "Sundering Titan",
+    1,
+    0
+   ],
+   [
+    "Super Shredder",
+    1,
+    0
+   ],
+   [
+    "Suplex",
+    1,
+    0
+   ],
+   [
+    "Survival of the Fittest",
+    1,
+    0
+   ],
+   [
+    "Sword of Fire and Ice",
+    1,
+    0
+   ],
+   [
+    "Sword of the Meek",
+    1,
+    0
+   ],
+   [
+    "Swords to Plowshares",
+    1,
+    0
+   ],
+   [
+    "Sylvan Library",
+    1,
+    0
+   ],
+   [
+    "Sylvan Safekeeper",
+    1,
+    0
+   ],
+   [
+    "Syr Ginger, the Meal Ender",
+    1,
+    0
+   ],
+   [
+    "Taiga",
+    1,
+    0
+   ],
+   [
+    "Talisman of Conviction",
+    1,
+    0
+   ],
+   [
+    "Talisman of Creativity",
+    1,
+    0
+   ],
+   [
+    "Talisman of Curiosity",
+    1,
+    0
+   ],
+   [
+    "Talisman of Dominance",
+    1,
+    0
+   ],
+   [
+    "Talisman of Hierarchy",
+    1,
+    0
+   ],
+   [
+    "Talisman of Impulse",
+    1,
+    0
+   ],
+   [
+    "Talisman of Indulgence",
+    1,
+    0
+   ],
+   [
+    "Talisman of Progress",
+    1,
+    0
+   ],
+   [
+    "Talisman of Resilience",
+    1,
+    0
+   ],
+   [
+    "Talisman of Unity",
+    1,
+    0
+   ],
+   [
+    "Tamiyo, Inquisitive Student",
+    1,
+    0
+   ],
+   [
+    "Tangle Wire",
+    1,
+    0
+   ],
+   [
+    "Tarmogoyf",
+    1,
+    0
+   ],
+   [
+    "Teething Wurmlet",
+    1,
+    0
+   ],
+   [
+    "Teferi, Hero of Dominaria",
+    1,
+    0
+   ],
+   [
+    "Teferi, Time Raveler",
+    1,
+    0
+   ],
+   [
+    "Temple Garden",
+    1,
+    0
+   ],
+   [
+    "Tendrils of Agony",
+    1,
+    0
+   ],
+   [
+    "Tezzeret, Agent of Bolas",
+    1,
+    0
+   ],
+   [
+    "Tezzeret, Cruel Captain",
+    1,
+    0
+   ],
+   [
+    "Thalia and The Gitrog Monster",
+    1,
+    0
+   ],
+   [
+    "Thalia, Guardian of Thraben",
+    1,
+    0
+   ],
+   [
+    "The Astonishing Ant-Man",
+    1,
+    0
+   ],
+   [
+    "The Borg Queen",
+    1,
+    0
+   ],
+   [
+    "The Fantasticar",
+    1,
+    0
+   ],
+   [
+    "The One Ring",
+    1,
+    0
+   ],
+   [
+    "The Ooze",
+    1,
+    0
+   ],
+   [
+    "The Theorist, Jace Beleren",
+    1,
+    0
+   ],
+   [
+    "The Wandering Emperor",
+    1,
+    0
+   ],
+   [
+    "The Warring Triad",
+    1,
+    0
+   ],
+   [
+    "Thespian's Stage",
+    1,
+    0
+   ],
+   [
+    "Thieving Skydiver",
+    1,
+    0
+   ],
+   [
+    "Third Path Iconoclast",
+    1,
+    0
+   ],
+   [
+    "Thopter Foundry",
+    1,
+    0
+   ],
+   [
+    "Thoughtseize",
+    1,
+    0
+   ],
+   [
+    "Thraben Inspector",
+    1,
+    0
+   ],
+   [
+    "Thran Dynamo",
+    1,
+    0
+   ],
+   [
+    "Through the Breach",
+    1,
+    0
+   ],
+   [
+    "Thundering Falls",
+    1,
+    0
+   ],
+   [
+    "Tifa Lockhart",
+    1,
+    0
+   ],
+   [
+    "Time Spiral",
+    1,
+    0
+   ],
+   [
+    "Time Walk",
+    1,
+    0
+   ],
+   [
+    "Timetwister",
+    1,
+    0
+   ],
+   [
+    "Tinker",
+    1,
+    0
+   ],
+   [
+    "Tireless Tracker",
+    1,
+    0
+   ],
+   [
+    "Titania, Protector of Argoth",
+    1,
+    0
+   ],
+   [
+    "Tolarian Academy",
+    1,
+    0
+   ],
+   [
+    "Torrential Gearhulk",
+    1,
+    0
+   ],
+   [
+    "Torsten, Founder of Benalia",
+    1,
+    0
+   ],
+   [
+    "Toxic Deluge",
+    1,
+    0
+   ],
+   [
+    "Tranquil Landscape",
+    1,
+    0
+   ],
+   [
+    "Traumatic Critique",
+    1,
+    0
+   ],
+   [
+    "Treachery",
+    1,
+    0
+   ],
+   [
+    "Treetop Village",
+    1,
+    0
+   ],
+   [
+    "Triplicate Titan",
+    1,
+    0
+   ],
+   [
+    "Triumph of Saint Katherine",
+    1,
+    0
+   ],
+   [
+    "Troll of Khazad-dûm",
+    1,
+    0
+   ],
+   [
+    "Tropical Island",
+    1,
+    0
+   ],
+   [
+    "True-Name Nemesis",
+    1,
+    0
+   ],
+   [
+    "Trumpeting Carnosaur",
+    1,
+    0
+   ],
+   [
+    "Tundra",
+    1,
+    0
+   ],
+   [
+    "Turnabout",
+    1,
+    0
+   ],
+   [
+    "Twisted Landscape",
+    1,
+    0
+   ],
+   [
+    "Ulamog, the Infinite Gyre",
+    1,
+    0
+   ],
+   [
+    "Umezawa's Jitte",
+    1,
+    0
+   ],
+   [
+    "Undercity Sewers",
+    1,
+    0
+   ],
+   [
+    "Underground Mortuary",
+    1,
+    0
+   ],
+   [
+    "Underground River",
+    1,
+    0
+   ],
+   [
+    "Underground Sea",
+    1,
+    0
+   ],
+   [
+    "Undermountain Adventurer",
+    1,
+    0
+   ],
+   [
+    "Underworld Breach",
+    1,
+    0
+   ],
+   [
+    "Unearth",
+    1,
+    0
+   ],
+   [
+    "Unexpectedly Absent",
+    1,
+    0
+   ],
+   [
+    "Unholy Heat",
+    1,
+    0
+   ],
+   [
+    "Upheaval",
+    1,
+    0
+   ],
+   [
+    "Urborg, Tomb of Yawgmoth",
+    1,
+    0
+   ],
+   [
+    "Uro, Titan of Nature's Wrath",
+    1,
+    0
+   ],
+   [
+    "Urza's Bauble",
+    1,
+    0
+   ],
+   [
+    "Urza's Saga",
+    1,
+    0
+   ],
+   [
+    "Urza, Lord High Artificer",
+    1,
+    0
+   ],
+   [
+    "Usher of the Fallen",
+    1,
+    0
+   ],
+   [
+    "Vampire Hexmage",
+    1,
+    0
+   ],
+   [
+    "Vampiric Tutor",
+    1,
+    0
+   ],
+   [
+    "Vaultborn Tyrant",
+    1,
+    0
+   ],
+   [
+    "Vendilion Clique",
+    1,
+    0
+   ],
+   [
+    "Vengevine",
+    1,
+    0
+   ],
+   [
+    "Verdant Catacombs",
+    1,
+    0
+   ],
+   [
+    "Vindicate",
+    1,
+    0
+   ],
+   [
+    "Vivi Ornitier",
+    1,
+    0
+   ],
+   [
+    "Voice of Victory",
+    1,
+    0
+   ],
+   [
+    "Volcanic Island",
+    1,
+    0
+   ],
+   [
+    "Voldaren Epicure",
+    1,
+    0
+   ],
+   [
+    "Walk-In Closet",
+    1,
+    0
+   ],
+   [
+    "Walking Ballista",
+    1,
+    0
+   ],
+   [
+    "Wall of Omens",
+    1,
+    0
+   ],
+   [
+    "Wan Shi Tong, All-Knowing",
+    1,
+    0
+   ],
+   [
+    "Wan Shi Tong, Librarian",
+    1,
+    0
+   ],
+   [
+    "Warden of the First Tree",
+    1,
+    0
+   ],
+   [
+    "Wasteland",
+    1,
+    0
+   ],
+   [
+    "Waterlogged Grove",
+    1,
+    0
+   ],
+   [
+    "Watery Grave",
+    1,
+    0
+   ],
+   [
+    "Wheel of Fortune",
+    1,
+    0
+   ],
+   [
+    "Whirler Rogue",
+    1,
+    0
+   ],
+   [
+    "White Plume Adventurer",
+    1,
+    0
+   ],
+   [
+    "Wight of the Reliquary",
+    1,
+    0
+   ],
+   [
+    "Wild Nacatl",
+    1,
+    0
+   ],
+   [
+    "Wildfire",
+    1,
+    0
+   ],
+   [
+    "Windfall",
+    1,
+    0
+   ],
+   [
+    "Windswept Heath",
+    1,
+    0
+   ],
+   [
+    "Winter Orb",
+    1,
+    0
+   ],
+   [
+    "Witch Enchanter",
+    1,
+    0
+   ],
+   [
+    "Wooded Foothills",
+    1,
+    0
+   ],
+   [
+    "Woodfall Primus",
+    1,
+    0
+   ],
+   [
+    "Worldly Tutor",
+    1,
+    0
+   ],
+   [
+    "Worldspine Wurm",
+    1,
+    0
+   ],
+   [
+    "Worn Powerstone",
+    1,
+    0
+   ],
+   [
+    "Wrath of God",
+    1,
+    0
+   ],
+   [
+    "Wrenn and Six",
+    1,
+    0
+   ],
+   [
+    "Wurmcoil Engine",
+    1,
+    0
+   ],
+   [
+    "Xander's Lounge",
+    1,
+    0
+   ],
+   [
+    "Yavimaya Coast",
+    1,
+    0
+   ],
+   [
+    "Yavimaya, Cradle of Growth",
+    1,
+    0
+   ],
+   [
+    "Yawgmoth's Will",
+    1,
+    0
+   ],
+   [
+    "Young Pyromancer",
+    1,
+    0
+   ],
+   [
+    "Zagoth Triome",
+    1,
+    0
+   ],
+   [
+    "Ziatora's Proving Ground",
+    1,
+    0
+   ],
+   [
+    "Zuran Orb",
+    1,
+    0
+   ],
+   [
+    "Zurgo Bellstriker",
+    1,
+    0
+   ],
+   [
+    "Éomer, King of Rohan",
+    1,
+    0
+   ]
+  ]
  }
 ]

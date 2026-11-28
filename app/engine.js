@@ -1150,7 +1150,7 @@ const Engine = (() => {
     }
     return null;
   }
-  function deck({ c, id }) {
+  async function deck({ c, id }) {
     const mine = String(id).startsWith("u");
     let d = mine ? (user.decks || []).find((x) => x.id === id) : META.find((x) => x.id === +id) || tourDeck(id);
     if (!d) throw new Error(mine ? "Ese mazo ya no existe" : "Ese mazo ya no está en el meta");
@@ -1170,8 +1170,12 @@ const Engine = (() => {
     const main = cards.filter((x) => !x.side), typeOf = (n) => O[oByNorm.get(norm(n))]?.[1] || "";
     const keys = main.filter((x) => !/Land/.test(typeOf(x.name))).sort((a, b) => b.qty - a.qty || (b.eur || 0) - (a.eur || 0)).slice(0, 5).map((x) => x.name);
     const count = (re) => main.filter((x) => re.test(typeOf(x.name))).reduce((s, x) => s + x.qty, 0);
+    // Combos infinitos que ya lleva el mazo (todas sus piezas en la lista), los más jugados primero
+    const inDeck = new Set(cards.map((x) => norm(x.name)));
+    const combos = (await extra("combos.json").catch(() => [])).filter((k) => k.cards.every((n) => inDeck.has(norm(n))))
+      .sort((a, b) => b.pop - a.pop).slice(0, 8).map((k) => ({ cards: k.cards, makes: k.makes, steps: k.steps, pre: k.pre, needs: k.needs, mana: k.mana }));
     return { id: d.id, archetype: d.archetype, format: mine ? d.format || "" : d.format, category: mine ? "" : d.category || "", player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, example: !!d.example, note: d.note || "", ...deckInfo(d, owned),
-      guide: mine ? d.guide || "" : "", keys, lands: count(/Land/), creatures: count(/Creature/),
+      guide: mine ? d.guide || "" : "", keys, lands: count(/Land/), creatures: count(/Creature/), combos,
       test: mine && !!d.test, results: mine ? d.results || [] : [], built: mine ? d.built || null : null };
   }
 
