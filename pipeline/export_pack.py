@@ -144,7 +144,7 @@ def main(out=None):
     staples = {}
     for (fmt,) in conn.execute("SELECT DISTINCT format FROM meta"):
         mday = conn.execute("SELECT max(day) FROM meta WHERE format = ?", (fmt,)).fetchone()[0]  # no pisar "day" (el de precios)
-        archs = conn.execute("SELECT archetype_id, share, deck_id FROM meta WHERE format = ? AND day = ?", (fmt, mday)).fetchall()
+        archs = conn.execute("SELECT archetype_id, share, deck_id FROM meta WHERE format = ? AND day = ? AND category != 'Rogue'", (fmt, mday)).fetchall()
         total = sum(s or 0 for _, s, _ in archs) or 1
         score, copies, lists_with, n_lists = {}, {}, {}, 0
         for arch_id, share, main_deck in archs:

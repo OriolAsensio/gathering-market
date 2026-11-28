@@ -134,6 +134,31 @@ def scrape(conn, today, f, archetypes, code=None):
     return saved
 
 
+ROGUE_N = 6  # mazos rogue por formato (los mejor clasificados de "Other ...")
+
+
+def scrape_rogue(conn, today, f, others, code=None):
+    """Rogue: listas de MTGTop8 que no son de ningún arquetipo conocido ("Other - Aggro", "Other - Combo"…), es decir,
+    mazos propios de la gente que han quedado bien en torneos. Se guardan en meta con categoría "Rogue" y cuota 0."""
+    code = code or f
+    rows = []
+    for a in others:
+        rows += [(r, a) for r in deck_re(f).finditer(get(f"archetype?a={a['id']}&meta={a['meta']}&f={f}"))]
+    rank = lambda r: int(re.match(r"\d+", r.group(5)).group()) if re.match(r"\d+", r.group(5)) else 999
+    seen, saved = set(), 0
+    for r, a in sorted(rows, key=lambda x: rank(x[0])):  # a igual puesto, el más reciente (orden de la página)
+        title = r.group(2).strip()
+        if saved >= ROGUE_N or not title or title.lower() in seen:
+            continue
+        seen.add(title.lower())
+        deck_id = int(r.group(1))
+        save_deck(conn, deck_id, dict(a, name=title), r, force=True)
+        with conn:
+            conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?,?,?,?,?,?)", (today, code, -deck_id, title, "Rogue", 0, deck_id))
+        saved += 1
+    return saved
+
+
 # Formatos de Commander (Duel Commander, cEDH): MTGTop8 no da arquetipos, solo torneos. El "meta" sale de los tops de los
 # últimos torneos: cada comandante es un arquetipo, su cuota es cuántas veces sale en los tops y su lista, la mejor clasificada.
 EVENTS_META = {"EDH", "cEDH"}
@@ -181,11 +206,10 @@ def main():
     today = date.today().isoformat()
     # "2 meses" da cuotas más estables pero oculta arquetipos pequeños que sí salen en "2 semanas":
     # se unen ambos (cuota de 2 meses si existe) y las listas se buscan siempre en 2 meses.
-    found = {}
+    found, others = {}, {}
     for meta in ("299", str(META)):
         for a in parse_archetypes(get(f"format?f=PAU&meta={meta}")):
-            if not a["name"].startswith("Other"):
-                found[a["id"]] = dict(a, meta=str(META))
+            (others if a["name"].startswith("Other") else found)[a["id"]] = dict(a, meta=str(META))
     archetypes = sorted(found.values(), key=lambda a: a["share"], reverse=True)
     archetypes = archetypes[:TOP_N]
     if not archetypes:
@@ -209,6 +233,10 @@ def main():
                     add_event(conn, today, "meta", f"📊 {a['name']} {arrow} en el meta",
                               f"Del {old:.0f}% al {a['share']:.0f}%.")
     print(f"Meta Pauper: {len(archetypes)} arquetipos guardados.")
+    try:
+        print(f"Rogue Pauper: {scrape_rogue(conn, today, 'PAU', list(others.values()))} mazos.")
+    except Exception as e:  # noqa: BLE001
+        print(f"Rogue Pauper: no se ha podido leer ({e})")
 
     # Otros formatos (sin avisos: la app se centra en Pauper). Un fallo en uno no para los demás.
     for f, label, top, *code in OTHER:
@@ -216,9 +244,10 @@ def main():
             if f in EVENTS_META:
                 print(f"Meta {label}: {scrape_events(conn, today, f, top, (code or [f])[0])} comandantes guardados.")
                 continue
-            arch = [a for a in parse_archetypes(get(f"format?f={f}"), f) if not a["name"].startswith("Other")]
-            arch = sorted(arch, key=lambda a: a["share"], reverse=True)[:top]
+            parsed = parse_archetypes(get(f"format?f={f}"), f)
+            arch = sorted((a for a in parsed if not a["name"].startswith("Other")), key=lambda a: a["share"], reverse=True)[:top]
             print(f"Meta {label}: {scrape(conn, today, f, arch, *code)} arquetipos guardados.")
+            print(f"Rogue {label}: {scrape_rogue(conn, today, f, [a for a in parsed if a['name'].startswith('Other')], *code)} mazos.")
         except Exception as e:  # noqa: BLE001
             print(f"Meta {label}: no se ha podido leer ({e})")
 

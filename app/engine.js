@@ -1166,7 +1166,12 @@ const Engine = (() => {
       const oi = oByNorm.get(k);
       return { name, qty, side: !!side, have, owned: basic ? qty : owned.get(k) || 0, basic, eur: basic || oi == null ? null : eur(cheap[oi]), image: oi != null ? oImage(oi) : null };
     });
-    return { id: d.id, archetype: d.archetype, format: mine ? null : d.format, player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, example: !!d.example, note: d.note || "", ...deckInfo(d, owned),
+    // Cartas clave (para "Cómo se juega" si no hay texto escrito): las que más copias lleva el main, sin tierras
+    const main = cards.filter((x) => !x.side), typeOf = (n) => O[oByNorm.get(norm(n))]?.[1] || "";
+    const keys = main.filter((x) => !/Land/.test(typeOf(x.name))).sort((a, b) => b.qty - a.qty || (b.eur || 0) - (a.eur || 0)).slice(0, 5).map((x) => x.name);
+    const count = (re) => main.filter((x) => re.test(typeOf(x.name))).reduce((s, x) => s + x.qty, 0);
+    return { id: d.id, archetype: d.archetype, format: mine ? d.format || "" : d.format, category: mine ? "" : d.category || "", player: d.player, event: d.event, result: d.result, date: d.date, mine, cards, example: !!d.example, note: d.note || "", ...deckInfo(d, owned),
+      guide: mine ? d.guide || "" : "", keys, lands: count(/Land/), creatures: count(/Creature/),
       test: mine && !!d.test, results: mine ? d.results || [] : [], built: mine ? d.built || null : null };
   }
 
@@ -1301,7 +1306,8 @@ const Engine = (() => {
 
   /** Para la tarea en segundo plano de Android: tus cartas (id o id+"f" si es foil) con su nombre. */
   // Cuándo avisar de una carta tuya (también la tarea en segundo plano): se aleja este % y estos céntimos de su precio de referencia.
-  const alertPrefs = () => ({ pct: user.prefs?.alertPct ?? 10, min: user.prefs?.alertMin ?? 50 });
+  // Por defecto 10 % y 0,25 €: con 0,50 € casi ninguna carta de Pauper (la mayoría valen menos de 5 €) llegaba a avisar
+  const alertPrefs = () => ({ pct: user.prefs?.alertPct ?? 10, min: user.prefs?.alertMin ?? 25 });
   function alertPrefsPost({ pct, min }) {
     const p = (user.prefs ||= {});
     if (pct != null) p.alertPct = Math.max(1, Math.min(100, +pct || 10));
@@ -1637,7 +1643,7 @@ const Engine = (() => {
     const owned = ownedByName(binderOf(c) || 1);
     return (user.decks || []).map((d) => {
       const games = (d.results || []).reduce((n, r) => n + (r.games || 3), 0), wins = (d.results || []).reduce((n, r) => n + (r.wins || 0), 0);
-      return { id: d.id, archetype: d.name, category: d.format || "Mi mazo", share: null, test: !!d.test, games, wins,
+      return { id: d.id, archetype: d.name, category: d.format || "Mi mazo", format: d.format || "", share: null, test: !!d.test, games, wins,
         thumbs: thumbsOf(d), mine: true, ...deckInfo(d, owned) };
     });
   }
@@ -1660,6 +1666,8 @@ const Engine = (() => {
       if (!cards.length) throw new Error("No he reconocido ninguna carta en la lista");
       d.cards = cards;
       if (body.update.name) d.name = String(body.update.name).slice(0, 60);
+      if (body.update.guide != null) d.guide = String(body.update.guide).slice(0, 3000);  // cómo se juega (lo escribes tú)
+      if (body.update.format != null) d.format = String(body.update.format).slice(0, 20);
       saveUser();
       return { id: d.id, cards: cards.length, unknown };
     }

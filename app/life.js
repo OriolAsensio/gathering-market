@@ -111,8 +111,7 @@ const Life = (() => {
           <button class="lf-name" data-who="${i}">${esc(pl.name)}</button>
           <div class="lf-life" id="lf-life-${i}">${pl.life}</div>
           <div class="lf-delta ${pl.delta > 0 ? "up" : "down"}" id="lf-delta-${i}" ${pl.delta ? "" : "hidden"}>${pl.delta > 0 ? "+" : ""}${pl.delta}</div>
-          <button class="lf-extra" data-who="${i}" aria-label="Contadores">${pl.poison ? `<span class="${pl.poison >= 7 ? "hot" : ""}">${ico("skull")}${pl.poison}</span>` : ""}${pl.energy ? `<span>${ico("bolt")}${pl.energy}</span>` : ""}${pl.exp ? `<span>${ico("sparkle")}${pl.exp}</span>` : ""}${pl.rad ? `<span>${ico("warn")}${pl.rad}</span>` : ""}${Object.entries(pl.cmd).filter(([, v]) => v).map(([k, v]) => `<span style="--c:${game.players[+k]?.color}" class="cmd">${ico("sword")}${v}</span>`).join("")}
-            ${pl.poison || pl.energy || pl.exp || pl.rad || Object.values(pl.cmd).some(Boolean) ? "" : `<span class="add">${ico("skull")}${ico("plus2")}</span>`}</button>
+          <div class="lf-extra">${chips(pl, i)}<button class="lf-ctr add" data-who="${i}" aria-label="Contadores">${ico("plus2")}</button></div>
           ${dead ? `<div class="lf-skull">${ico("skull")}</div>` : ""}
           <div class="lf-flash"></div>
         </div></div>`;
@@ -125,9 +124,39 @@ const Life = (() => {
     </div>
     <div class="lf-panel" id="lf-panel" hidden></div>`;
     el.querySelectorAll(".lf-tap").forEach(bindTap);
+    el.querySelectorAll("[data-ck]").forEach(bindCounter);
     el.querySelectorAll("[data-who]").forEach((b) => (b.onclick = () => seatSheet(+b.dataset.who)));
     el.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => act(b.dataset.act)));
     fit();
+  }
+
+  // ---- contadores debajo de las vidas: tocar = +1; mantener = se abre con − y + (para cartas que quitan contadores)
+  const CTRS = [["poison", "skull"], ["energy", "bolt"], ["exp", "sparkle"], ["rad", "warn"]];
+  let openCtr = null, openTimer = null;  // "asiento:contador" abierto con − y +
+  function chips(pl, i) {
+    const list = [...CTRS.filter(([k]) => pl[k] || pl.pin?.[k]).map(([k, ic]) => ({ k, ic, v: pl[k] || 0, cls: k === "poison" && pl.poison >= 7 ? "hot" : "" })),
+      ...Object.keys(pl.cmd).filter((j) => pl.cmd[j] || pl.pin?.[`cmd${j}`]).map((j) => ({ k: `cmd${j}`, ic: "sword", v: pl.cmd[j] || 0, cls: "cmd", c: game.players[+j]?.color }))];
+    return list.map(({ k, ic, v, cls, c }) => (openCtr === `${i}:${k}`
+      ? `<span class="lf-ctr open ${cls}" style="${c ? `--c:${c}` : ""}"><button data-ck="${k}" data-ci="${i}" data-cd="-1" aria-label="Quitar uno">−</button>${ico(ic)}<b>${v}</b><button data-ck="${k}" data-ci="${i}" data-cd="1" aria-label="Sumar uno">+</button></span>`
+      : `<button class="lf-ctr ${cls}" style="${c ? `--c:${c}` : ""}" data-ck="${k}" data-ci="${i}">${ico(ic)}${v}</button>`)).join("");
+  }
+  function bumpCounter(i, k, d) {
+    const pl = game.players[i];
+    (pl.pin ||= {})[k] = true;  // ya usado en esta partida: se queda debajo de las vidas aunque vuelva a 0
+    if (k.startsWith("cmd")) { const j = k.slice(3), old = pl.cmd[j] || 0, nv = Math.max(0, old + d); pl.life -= nv - old; pl.cmd[j] = nv; }
+    else pl[k] = Math.max(0, (pl[k] || 0) + d);
+    d > 0 ? sfx.up() : sfx.down(); buzz(8);
+    save("lifeGame", game);
+  }
+  function bindCounter(b) {
+    const i = +b.dataset.ci, k = b.dataset.ck, d = b.dataset.cd;
+    const keepOpen = () => { clearTimeout(openTimer); openTimer = setTimeout(() => { openCtr = null; if (el) paint(); }, 4000); };
+    if (d) { b.onclick = (e) => { e.stopPropagation(); bumpCounter(i, k, +d); keepOpen(); paint(); }; return; }
+    let hold = null;
+    b.onpointerdown = (e) => { e.stopPropagation(); hold = setTimeout(() => { hold = null; openCtr = `${i}:${k}`; buzz(25); keepOpen(); paint(); }, 450); };
+    b.onpointerup = (e) => { e.stopPropagation(); if (hold) { clearTimeout(hold); hold = null; bumpCounter(i, k, 1); paint(); } };
+    b.onpointerleave = b.onpointercancel = () => { clearTimeout(hold); hold = null; };
+    b.oncontextmenu = (e) => e.preventDefault();
   }
 
   // Tocar: ±1. Mantener: ±10 y sigue sumando mientras no sueltes (como LifeTap).
@@ -217,7 +246,8 @@ const Life = (() => {
       panel.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => apply({ n: +b.dataset.n })));
       panel.querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => apply({ start: +b.dataset.l })));
       $("#lf-custom", panel).onchange = (e) => { const v = Math.max(1, Math.min(999, +e.target.value || 20)); apply({ start: v }); };
-      panel.querySelectorAll("[data-lay]").forEach((b) => (b.onclick = () => { game.layout = b.dataset.lay; save("lifeSettings", { ...s, layout: game.layout }); save("lifeGame", game); paint(); act("set"); }));
+      // volver a tocar la mesa elegida la quita (vuelve a enfrentados)
+      panel.querySelectorAll("[data-lay]").forEach((b) => (b.onclick = () => { game.layout = b.dataset.lay === game.layout ? "face" : b.dataset.lay; save("lifeSettings", { ...s, layout: game.layout }); save("lifeGame", game); paint(); act("set"); }));
       $("[data-shuffle]", panel).onclick = () => { for (let i = game.players.length - 1; i > 0; i--) { const j = rnd(i + 1); [game.players[i], game.players[j]] = [game.players[j], game.players[i]]; } game.monarch = game.initiative = null; save("lifeGame", game); sfx.dice(); paint(); };
       $("[data-sound]", panel).onclick = () => { store("sounds", store("sounds") === "0" ? "1" : "0"); panel.hidden = true; act("set"); };
     } else if (a === "dice") {
@@ -276,7 +306,7 @@ const Life = (() => {
       <div class="lf-counters">
         ${[["poison", "skull", "Veneno"], ["energy", "bolt", "Energía"], ["exp", "sparkle", "Experiencia"], ["rad", "warn", "Radiación"]].map(([k, ic, n]) => `<div class="lf-step"><span>${ico(ic)}${n}</span><button data-k="${k}" data-d="-1">−</button><b>${pl[k] || 0}</b><button data-k="${k}" data-d="1">+</button></div>`).join("")}
       </div>
-      <div class="hint">Con 10 de veneno, pierde. Monarca, iniciativa, día/noche y turno: botón de la corona en la barra del centro.</div>
+      <div class="hint">Los contadores que uses salen debajo de las vidas: tócalo para sumar 1; mantenlo para restar. Con 10 de veneno, pierde. Monarca, iniciativa, día/noche y turno: botón de la corona en la barra del centro.</div>
       ${game.players.length > 1 ? `<h2>Daño de comandante recibido</h2><div class="lf-counters">${game.players.map((o, j) => (j === i ? "" : `<div class="lf-step"><span><i class="lf-dot" style="background:${o.color}"></i>${esc(o.name)}</span><button data-k="cmd" data-j="${j}" data-d="-1">−</button><b>${pl.cmd[j] || 0}</b><button data-k="cmd" data-j="${j}" data-d="1">+</button></div>`)).join("")}</div>
         <div class="hint">El daño de comandante también quita vidas. Con 21 de un mismo comandante, pierde.</div>` : ""}`);
     body.querySelectorAll("[data-pid]").forEach((b) => (b.onclick = () => {
@@ -290,6 +320,7 @@ const Life = (() => {
       const d = +b.dataset.d;
       if (b.dataset.k === "cmd") { const j = b.dataset.j, old = pl.cmd[j] || 0, nv = Math.max(0, old + d); pl.life -= nv - old; pl.cmd[j] = nv; }
       else pl[b.dataset.k] = Math.max(0, (pl[b.dataset.k] || 0) + d);
+      (pl.pin ||= {})[b.dataset.k === "cmd" ? `cmd${b.dataset.j}` : b.dataset.k] = true;
       d > 0 ? sfx.up() : sfx.down();
       save("lifeGame", game); paint(); seatSheet(i);
     }));

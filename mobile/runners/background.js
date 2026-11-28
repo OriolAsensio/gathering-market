@@ -10,7 +10,10 @@ const ICON = "ic_stat_gm";
 const kv = (k) => { try { return CapacitorKV.get(k)?.value || ""; } catch { return ""; } };
 const euro = (c) => (c / 100).toFixed(2).replace(".", ",") + " €";
 let nextId = Date.now() % 1e6;
-const notify = (title, body) => CapacitorNotifications.schedule([{ id: nextId++, title, body, scheduleAt: new Date(Date.now() + 1000), smallIcon: ICON }]);
+// Estado de la última revisión, para verlo en la app (Avisos): si no cambia, Android no está dejando correr la tarea
+const status = (s) => { try { CapacitorKV.set("status", JSON.stringify({ at: Date.now(), ...s })); } catch { /* nada */ } };
+let sent = 0;
+const notify = (title, body) => { sent++; return CapacitorNotifications.schedule([{ id: nextId++, title, body, scheduleAt: new Date(Date.now() + 1000), smallIcon: ICON }]); };
 
 addEventListener("syncCollection", (resolve, reject, args) => {
   try {
@@ -27,11 +30,14 @@ addEventListener("syncCollection", (resolve, reject, args) => {
 });
 
 // Botón «Probar aviso» de la app: comprueba que la tarea y los permisos de notificación funcionan.
+addEventListener("status", (resolve) => { try { resolve(JSON.parse(kv("status") || "{}")); } catch { resolve({}); } });
+
 addEventListener("testNotify", (resolve) => { notify("Avisos activados", "Así te llegará cuando una carta tuya suba o baje."); resolve(); });
 
 addEventListener("checkPrices", async (resolve, reject) => {
   try {
     if (!PACK) return resolve();
+    sent = 0;
     const version = await (await fetch(PACK + "version.json?t=" + Date.now())).json();
     // 1) Avisos generales nuevos (pueden llegar en la segunda vuelta del día, con el mismo "day")
     if (version.live_version && version.live_version !== kv("lastLive")) {
@@ -99,9 +105,11 @@ addEventListener("checkPrices", async (resolve, reject) => {
         CapacitorKV.set("wishHit", JSON.stringify(hit));
       }
       CapacitorKV.set("lastDay", version.day);
-    }
+      status({ day: version.day, cards: JSON.parse(kv("own") || "[]").length || JSON.parse(kv("ids") || "[]").length, sent });
+    } else status({ day: version.day, cards: JSON.parse(kv("own") || "[]").length, sent, same: true });
     resolve();
   } catch (e) {
+    status({ err: String(e?.message || e).slice(0, 200) });
     reject(e);
   }
 });

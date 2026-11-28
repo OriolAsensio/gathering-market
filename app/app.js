@@ -279,11 +279,14 @@ function celebrate(r) {
 }
 
 // Guardar un archivo: en el móvil se escribe y se abre "Compartir" (Drive, Descargas, WhatsApp…); en el PC se descarga.
-async function saveFile(name, text, mime) {
+async function saveFile(name, text, mime) {  // text: texto, o Uint8Array para archivos binarios (PDF)
   const N = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins : null;
   try {
     if (N?.Filesystem && N?.Share) {
-      const w = await N.Filesystem.writeFile({ path: name, data: text, directory: "CACHE", encoding: "utf8" });
+      const bin = typeof text !== "string";
+      let b64 = "";
+      if (bin) for (let i = 0; i < text.length; i += 0x8000) b64 += String.fromCharCode(...text.subarray(i, i + 0x8000));
+      const w = await N.Filesystem.writeFile({ path: name, data: bin ? btoa(b64) : text, directory: "CACHE", ...(bin ? {} : { encoding: "utf8" }) });
       return await N.Share.share({ title: name, files: [w.uri], dialogTitle: name });
     }
     const a = document.createElement("a");
@@ -745,7 +748,9 @@ views.decks = async () => {
       <div class="item-main"><div class="item-title">Importar mi mazo</div>
         <div class="item-meta">Pega la lista (o un .txt) y marca qué cartas ya tienes.</div></div>
     </button>
-    <div class="field"><label for="deck-tab">Ver mazos</label><div class="deck-pick"><span id="deck-tab-ico"></span><select class="search deck-select" id="deck-tab"></select></div></div>
+    <div class="deck-tabs" id="deck-mine"></div>
+    <div class="deck-fmt-label">Mazos de cada formato <span class="sub">(desliza para ver más)</span></div>
+    <div class="deck-tabs scroll" id="deck-fmts"></div>
     <div id="deck-body">${skeleton(5)}</div>`;
   $("#deck-build").onclick = () => builderSheet();
   $("#deck-import").onclick = importDeckSheet;
@@ -756,13 +761,14 @@ views.decks = async () => {
   const tests = mine.filter((d) => d.test);
   mine = mine.filter((d) => !d.test);
   const count = (f) => decks.filter((d) => d.format === f).length;
-  $("#deck-tab").innerHTML = `<option value="mine">Mis mazos (${mine.length})</option><option value="test">Mazos para probar (${tests.length})</option>
-    ${formats.map((f) => `<option value="${f}">${EXAMPLE_FORMATS[f] ? "Ejemplos de" : "Meta de"} ${META_FORMATS[f]}${count(f) ? ` (${count(f)})` : ""}</option>`).join("")}`;
+  // Antes era un desplegable y no se veía que se podía cambiar: ahora, botones a la vista
+  $("#deck-mine").innerHTML = `<button data-t="mine">${ico("folder")}Mis mazos (${mine.length})</button><button data-t="test">${ico("trophy")}Para probar (${tests.length})</button>`;
+  $("#deck-fmts").innerHTML = formats.map((f) => `<button data-t="${f}">${META_FORMATS[f]}${count(f) ? ` <span class="n">${count(f)}</span>` : ""}</button>`).join("");
   const sorters = { meta: (a, b) => b.share - a.share, owned: (a, b) => b.owned_pct - a.owned_pct, cheap: (a, b) => a.price - b.price, missing: (a, b) => a.missing_cost - b.missing_cost };
   const bind = (root) => root.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => deckSheet(b.dataset.id)));
   const draw = () => {
-    $("#deck-tab").value = tab;
-    $("#deck-tab-ico").innerHTML = ico(tab === "mine" ? "folder" : tab === "test" ? "trophy" : "meta");
+    document.querySelectorAll("#deck-mine [data-t], #deck-fmts [data-t]").forEach((b) => b.classList.toggle("on", b.dataset.t === tab));
+    document.querySelector(`#deck-fmts [data-t="${tab}"]`)?.scrollIntoView({ inline: "center", block: "nearest" });
     if (tab === "test") {
       $("#deck-body").innerHTML = `<div class="hint">Mazos hechos con el constructor para Pauper, Estándar o Commander (sin proxies). Juégalos (p. ej. en Endstep) y apunta cuántas partidas ganas: el constructor aprende de los resultados y de tus opiniones.</div>
         ${tests.length ? `<div class="list">${tests.map(deckCard).join("")}</div>` : `<div class="empty"><strong>Aún no hay mazos para probar</strong>Crea uno con el constructor (formato Pauper, Estándar o Commander) y pulsa Guardar.</div>`}`;
@@ -783,14 +789,19 @@ views.decks = async () => {
       bindView();
       return winnersView($("#wins", body));
     }
-    const list = decks.filter((d) => d.format === tab);
+    // Rogue: mazos propios de la gente que han quedado bien en torneos (MTGTop8, "Other") y los tuyos de este formato
+    const BUILD_FMT = { pauper: "PAU", standard: "ST" }, rogue = state.deckSort === "rogue";
+    const list = rogue ? [...decks.filter((d) => d.format === tab && d.category === "Rogue"), ...mine.filter((d) => (BUILD_FMT[d.format] || d.format) === tab)]
+      : decks.filter((d) => d.format === tab && d.category !== "Rogue");
     body.innerHTML = `${viewSeg}<div class="hint">${EXAMPLE_FORMATS[tab] ? EXAMPLE_FORMATS[tab] : tab === "PAU"
       ? `De cada arquetipo, la lista mejor clasificada (la ganadora si la hay) de los últimos 2 meses en MTGTop8. "Weenie White" es el mono blanco (Convoke, Kor Skyfisher…).`
       : `Los arquetipos más jugados de ${META_FORMATS[tab]} en MTGTop8 y, de cada uno, la lista mejor clasificada (la ganadora si la hay).`}</div>
       <div class="seg" id="deck-sort">
-        <button data-s="meta">Más jugados</button><button data-s="owned">Puedo montar</button><button data-s="cheap">Más baratos</button><button data-s="missing">Me falta menos €</button>
+        <button data-s="meta">Más jugados</button><button data-s="owned">Puedo montar</button><button data-s="cheap">Más baratos</button><button data-s="missing">Me falta menos €</button><button data-s="rogue">Rogue</button>
       </div>
-      ${list.length ? `<div class="list">${[...list].sort(sorters[state.deckSort]).map(deckCard).join("")}</div>`
+      ${rogue ? `<div class="hint">Mazos propios de la gente (no son de ningún arquetipo conocido) que han quedado bien en torneos de MTGTop8, y los tuyos de este formato. Ábrelos para ver la lista y cómo se juegan.</div>` : ""}
+      ${list.length ? `<div class="list">${[...list].sort(sorters[rogue ? "owned" : state.deckSort]).map(deckCard).join("")}</div>`
+        : rogue ? `<div class="empty"><strong>Aún no hay mazos rogue de ${esc(META_FORMATS[tab])}</strong>Se bajan con el meta, dos veces al día. Los tuyos salen aquí si les pones este formato al editarlos.</div>`
         : `<div class="empty"><strong>Aún no hay datos del meta</strong>Se descargan dos veces al día (los formatos nuevos pueden tardar una vuelta).</div>`}`;
     bindView();
     body.querySelectorAll("#deck-sort button").forEach((b) => {
@@ -799,7 +810,7 @@ views.decks = async () => {
     });
     bind(body);
   };
-  $("#deck-tab").onchange = (e) => { tab = e.target.value; store("deckTab", tab); draw(); };
+  document.querySelectorAll("#deck-mine [data-t], #deck-fmts [data-t]").forEach((b) => (b.onclick = () => { tab = b.dataset.t; store("deckTab", tab); draw(); }));
   draw();
 };
 
@@ -910,6 +921,12 @@ async function deckSheet(id, keep = null) {
       <div class="stat"><b>${d.owned_pct}%</b><span>Lo tienes</span></div>
       <div class="stat"><b>${euro(d.missing_cost)}</b><span>Te falta</span></div>
     </div>
+    ${(() => {
+      const g = d.mine ? d.guide : deckGuide(d.format, d.archetype);
+      return `<details class="guide deck-guide" ${g ? "open" : ""}><summary>${ico("book")}Cómo se juega</summary>
+        ${g ? `<p>${esc(g)}</p>` : d.mine ? `<p class="sub">Aún no has escrito cómo se juega: pulsa «Editar la lista» y cuéntalo (plan, cartas clave, consejos).</p>` : `<p class="sub">Aún no tengo la explicación de este mazo.</p>`}
+        <p class="sub">Cartas clave: ${d.keys.map(esc).join(", ")} · ${d.lands} tierras · ${d.creatures} criaturas</p></details>`;
+    })()}
     <div class="seg" id="deck-view"><button data-v="img">Imágenes</button><button data-v="list">Lista</button></div>
     <button class="btn block" id="deck-all" ${missing.length ? "" : "disabled"}>${ico("check")}${missing.length ? "Ya tengo todo el mazo" : "Tienes todas las cartas"}</button>
     <div class="hint" id="deck-hint"></div>
@@ -923,6 +940,9 @@ async function deckSheet(id, keep = null) {
     <div class="row-btns"><button class="btn" id="dk-hand">${ico("cards")}Mano de prueba</button><button class="btn" id="dk-prob">${ico("dice")}Probabilidades</button></div>
     <h2>Compartir el mazo</h2>
     <div class="row-btns"><button class="btn" id="dk-img">${ico("image")}Como imagen</button><button class="btn" id="dk-link">${ico("link")}Como enlace</button></div>
+    <h2>Imprimir proxies</h2>
+    <div class="hint">Un PDF para imprimir el mazo a tamaño real, con líneas de corte bien visibles y el arte que elijas.</div>
+    <button class="btn block" id="dk-pdf">${ico("file")}Generar PDF para imprimir</button>
     ${d.test ? `<h2>${ico("trophy")}Resultados de las pruebas</h2>
       ${d.built?.level ? `<div class="item-meta">Creado con: <span class="chip gold">${esc(String(d.built.level).replace(/^[^\p{L}]+/u, ""))}</span><span class="chip">${esc(d.built.archetype || "")}</span>${d.built.combo ? '<span class="chip">combo</span>' : ""}</div>` : ""}
       <div class="hint">Juégalo 3 partidas como mínimo (las que quieras) y apunta cuántas has jugado, cuántas has ganado y una frase sobre cómo ha ido el gameplay. El creador de mazos aprende de estas reseñas.</div>
@@ -975,6 +995,7 @@ async function deckSheet(id, keep = null) {
   $("#dk-hand", body).onclick = () => Play.handSheet(d);
   $("#dk-prob", body).onclick = () => Play.probSheet(d);
   $("#dk-img", body).onclick = () => shareDeckImage(d, main, side);
+  $("#dk-pdf", body).onclick = () => Print.printSheet(d);
   $("#dk-link", body).onclick = async () => shareText(d.archetype, `${d.archetype}: ${await deckLink(d, main, side)}`);
   $("#deck-all", body).onclick = async () => {
     const add = [...need.entries()].filter(([, x]) => x.have < x.qty).map(([n, x]) => [n, x.qty - x.have]);
@@ -998,12 +1019,15 @@ async function deckSheet(id, keep = null) {
     const b2 = openSheet(`<h3>Editar ${esc(d.archetype)}</h3>
       <div class="hint">Una carta por línea (<code>4 Lightning Bolt</code>). Borra las que no quieras, cambia cantidades o añade otras. Lo que vaya tras "Sideboard" es banquillo.</div>
       <div class="field"><label>Nombre</label><input class="search" id="ed-name" value="${esc(d.archetype)}"></div>
+      <div class="field"><label>Formato</label><select class="lang-sel" id="ed-fmt"><option value="">Sin formato</option>${d.format && !META_FORMATS[{ pauper: "PAU", standard: "ST" }[d.format] || d.format] ? `<option value="${esc(d.format)}" selected>${esc(d.format)}</option>` : ""}${Object.entries(META_FORMATS).map(([k, n]) => `<option value="${k}" ${({ pauper: "PAU", standard: "ST" }[d.format] || d.format) === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <div class="sub">Con formato, sale en la sección Rogue de ese formato.</div></div>
+      <div class="field"><label>Cómo se juega</label><textarea class="search" id="ed-guide" rows="5" maxlength="3000" placeholder="El plan del mazo, las cartas clave y algún consejo…">${esc(d.guide || "")}</textarea></div>
       <textarea class="search" id="ed-text" rows="16">${esc(listOf(main) + (side.length ? `\n\nSideboard\n${listOf(side)}` : ""))}</textarea>
       <div class="row-btns"><button class="btn" id="ed-cancel">Cancelar</button><button class="btn primary" id="ed-ok">Guardar cambios</button></div><div id="ed-res"></div>`);
     $("#ed-cancel", b2).onclick = () => deckSheet(id);
     $("#ed-ok", b2).onclick = async () => {
       try {
-        const r = await api("/api/mydecks", { update: { id, name: $("#ed-name", b2).value.trim(), text: $("#ed-text", b2).value } });
+        const r = await api("/api/mydecks", { update: { id, name: $("#ed-name", b2).value.trim(), text: $("#ed-text", b2).value, guide: $("#ed-guide", b2).value.trim(), format: $("#ed-fmt", b2).value } });
         toast("Mazo actualizado");
         if (r.unknown.length) $("#ed-res", b2).innerHTML = `<div class="warn">No he reconocido:<br>${r.unknown.slice(0, 15).map(esc).join("<br>")}</div>`;
         else { deckSheet(id); if ((location.hash || "") === "#decks") views.decks(); }
@@ -1975,10 +1999,20 @@ async function alertSettings(box) {
     <div class="seg">${MINS.map((x) => `<button data-min="${x}" class="${x === p.min ? "on" : ""}">${euro(x / 100)}</button>`).join("")}</div>
     <div class="hint">Cuenta desde el último aviso de esa carta: también avisa si sube poco a poco durante varios días.</div>
     ${Runner ? `<button class="btn" id="al-test">${ico("bell")}Probar aviso</button>
+      <div class="hint" id="al-status"></div>
       <div class="hint">¿No llega? En Ajustes de Android → Aplicaciones → Gather in One: permite las notificaciones, el inicio automático y quita la restricción de batería. Android revisa los precios cada media hora como mínimo, cuando hay conexión.</div>` : ""}`;
   const save = async (body) => { await api("/api/alertprefs", body); syncRunner(); alertSettings(box); toast("Avisos actualizados"); };
   box.querySelectorAll("[data-pct]").forEach((b) => (b.onclick = () => save({ pct: +b.dataset.pct })));
   box.querySelectorAll("[data-min]").forEach((b) => (b.onclick = () => save({ min: +b.dataset.min })));
+  // Última revisión en segundo plano: así se ve si Android deja correr la tarea y qué ha mirado
+  if (Runner) Runner.dispatchEvent({ label: "app.gatheringmarket.prices", event: "status", details: {} }).then((s) => {
+    const el = $("#al-status", box);
+    if (!el) return;
+    if (!s?.at) { el.textContent = "El móvil aún no ha revisado los precios en segundo plano. Si en un día sigue así, Android está parando la tarea: mira los ajustes de abajo."; return; }
+    const when = new Date(s.at).toLocaleString("es-ES", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    el.textContent = s.err ? `Última revisión en segundo plano: ${when}, con un error (${s.err}).`
+      : `Última revisión en segundo plano: ${when} · ${plural(s.cards || 0, "carta vigilada", "cartas vigiladas")} · ${s.same ? "aún no hay precios nuevos" : s.sent ? plural(s.sent, "aviso enviado", "avisos enviados") : "ninguna se ha movido tanto como pides"}.`;
+  }).catch(() => {});
   $("#al-test", box)?.addEventListener("click", async () => {
     await Native.LocalNotifications?.requestPermissions().catch(() => {});
     await Native.BackgroundRunner?.requestPermissions({ apis: ["notifications"] }).catch(() => {});
